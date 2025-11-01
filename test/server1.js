@@ -10,13 +10,9 @@ chai.should()
 describe('Fake server test', function(){
   let tetrisServer
   before(function(cb){
-    if (process.env.SKIP_SERVER_TESTS) {
-      this.skip()
-      return cb()
-    }
-    startServer(params.server, (err, server) => {
+    const localParams = { host: '127.0.0.1', port: 0 }
+    startServer(localParams, (err, server) => {
       if (err) {
-        // Likely cannot bind to port in this environment; skip suite
         this.skip()
         return cb()
       }
@@ -32,9 +28,9 @@ describe('Fake server test', function(){
 
   it('should pong', function(done){
     const initialState = {}
-    const socket = io(params.server.url)
+    const socket = io(tetrisServer.url)
     const store =  configureStore(rootReducer, socket, initialState, {
-      'pong': () =>  done()
+      'pong': () => { try { socket.close() } catch(e) {} done() }
     })
     store.dispatch(ping())
   });

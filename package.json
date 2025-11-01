@@ -9,8 +9,8 @@
     "client-dev": "webpack serve --hot --host 0.0.0.0 --port 8080 --mode development",
     "srv-dev": "DEBUG=tetris:* babel-watch -w src src/server/main.js",
     "srv-dist": "DEBUG=tetris:* babel src --out-dir dist",
-    "test": "SKIP_SERVER_TESTS=1 mocha --require @babel/register --reporter spec",
-    "coverage": "SKIP_SERVER_TESTS=1 NODE_ENV=test nyc --include src --all -r text -r lcov -r text --require @babel/register mocha"
+    "test": "mocha --require @babel/register --reporter spec",
+    "coverage": "NODE_ENV=test nyc --include src --all -r text -r lcov -r text --require @babel/register mocha"
   },
   "dependencies": {
     "react": "^18",

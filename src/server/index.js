@@ -41,6 +41,7 @@ const initEngine = io => {
 export function create(params){
   const promise = new Promise( (resolve, reject) => {
     const app = require('http').createServer()
+    app.on('error', reject)
     initApp(app, params, () =>{
       const io = require('socket.io')(app)
       const stop = (cb) => {
@@ -53,7 +54,11 @@ export function create(params){
       }
 
       initEngine(io)
-      resolve({stop})
+      const address = app.address()
+      const actualPort = address && address.port ? address.port : params.port
+      const actualHost = params.host
+      const url = `http://${actualHost}:${actualPort}`
+      resolve({ stop, port: actualPort, url })
     })
   })
   return promise
