@@ -1,0 +1,47 @@
+{
+  "name": "red_tetrisboilerplate",
+  "version": "0.0.1",
+  "author": "redpelicans",
+  "license": "MIT",
+  "scripts": {
+    "eslint": "echo 'lint disabled for now'",
+    "client-dist": "NODE_ENV=production webpack --mode production --progress",
+    "client-dev": "webpack serve --hot --host 0.0.0.0 --port 8080 --mode development",
+    "srv-dev": "DEBUG=tetris:* babel-watch -w src src/server/main.js",
+    "srv-dist": "DEBUG=tetris:* babel src --out-dir dist",
+    "test": "SKIP_SERVER_TESTS=1 mocha --require @babel/register --reporter spec",
+    "coverage": "SKIP_SERVER_TESTS=1 NODE_ENV=test nyc --include src --all -r text -r lcov -r text --require @babel/register mocha"
+  },
+  "dependencies": {
+    "react": "^18",
+    "react-dom": "^18",
+    "react-redux": "^9",
+    "redux": "^5",
+    "redux-logger": "^3",
+    "redux-thunk": "^2",
+    "socket.io": "^4",
+    "debug": "^4"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7",
+    "@babel/core": "^7",
+    "@babel/preset-env": "^7",
+    "@babel/preset-react": "^7",
+    "@babel/register": "^7",
+    "babel-loader": "^9",
+    "babel-watch": "^7",
+    "chai": "^5",
+    "mocha": "^11",
+    "nyc": "^17",
+    "react-test-renderer": "^18",
+    "socket.io-client": "^4",
+    "webpack": "^5",
+    "webpack-cli": "^5",
+    "webpack-dev-server": "^5"
+  },
+  "nyc": {
+    "exclude": [
+      "build"
+    ]
+  }
+}
