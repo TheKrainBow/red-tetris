@@ -1,0 +1,33 @@
+/* Global button styles shared across pages */
+.ui-btn {
+  min-width: 360px;
+  padding: 12px 16px;
+  margin: 6px 0;
+  font-size: 20px;
+  color: #fff;
+  background: linear-gradient(#8e8e8e, #6f6f6f);
+  border: 1px solid #000; /* black outline */
+  border-radius: 3px;
+  cursor: pointer;
+  box-shadow:
+    inset 1px 1px 0 #c7c7c7,
+    inset -1px -1px 0 #4a4a4a,
+    0 2px 0 rgba(0,0,0,0.45);
+  text-shadow: -1px 0 0 #000, 1px 0 0 #000, 0 -1px 0 #000, 0 1px 0 #000;
+}
+.ui-btn:hover { background: linear-gradient(#9a9a9a, #7a7a7a); }
+.ui-btn:active { transform: translateY(1px); }
+.ui-btn-small { min-width: auto; width: 42px; height: 42px; font-size: 20px; }
+
+.ui-btn:disabled,
+.ui-btn.ui-btn-disabled {
+  cursor: not-allowed;
+  color: #bdbdbd;
+  background: linear-gradient(#4b4b4b, #353535);
+  border-color: #000;
+  box-shadow:
+    inset 1px 1px 0 #7e7e7e,
+    inset -1px -1px 0 #2a2a2a,
+    0 1px 0 rgba(0,0,0,0.35);
+}
+.ui-btn:disabled:hover { background: linear-gradient(#4b4b4b, #353535); }

@@ -67,7 +67,7 @@ export default function MainMenu() {
         <img className="mm-logo" src="/main_menu/Craftetris.png" alt="Craftetris" />
         <div className="mm-primary">
           <button className="mm-btn">Singleplayer</button>
-          <button className="mm-btn">Multiplayer</button>
+          <button className="mm-btn" onClick={() => (window.location.hash = '#/multiplayer')}>Multiplayer</button>
           <button className="mm-btn">Trading outpost</button>
         </div>
         <div className="mm-row">

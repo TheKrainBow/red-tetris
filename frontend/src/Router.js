@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import Home from './pages/Home'
 import MainMenu from './pages/MainMenu'
+import Multiplayer from './pages/Multiplayer'
 import Login from './pages/Login'
 
 const USERNAME_KEY = 'username'
@@ -38,6 +39,8 @@ export default function Router() {
   switch (route) {
     case '/login':
       return <Login />
+    case '/multiplayer':
+      return <Multiplayer />
     case '/':
     default:
       return <MainMenu />
