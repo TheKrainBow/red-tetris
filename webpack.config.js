@@ -1,7 +1,7 @@
 const path = require('path')
 
 module.exports = {
-  entry: './src/client/index.js',
+  entry: './docker/frontend/src/index.js',
   output: {
     path: path.join(__dirname, 'build'),
     filename: 'bundle.js'

@@ -32,7 +32,7 @@ Edit `params.js` for your needs.
 ```
 $ npm run  srv-dev
 > red_tetrisboilerplate@0.0.1 srv-dev /home/eric/JS/red_tetris_boilerplate
-> DEBUG=tetris:* babel-watch -w src src/server/main.js
+> DEBUG=tetris:* babel-watch -w docker/backend/src docker/backend/src/main.js
 ```
 
 It launches a node.js server listening for socket.io connexions, that is wired to receive `ping` messages and answered to … `pong`.
@@ -65,7 +65,7 @@ bundle.js:616 [WDS] Hot Module Replacement enabled.
 
 URL is not yet editable in `params.js`, change it directly inside `package.json`.
 
-As you can guess we are using webpack `hot reload` module, try to update any file under `src/client` and your browser should reload your code.
+As you can guess we are using webpack `hot reload` module, try to update any file under `docker/frontend/src` and your browser should reload your code.
 
 ```
 [WDS] App updated. Recompiling...
@@ -98,8 +98,8 @@ Look at the code :
 // 1
 import {configureStore} from './helpers/server'
 // 2
-import rootReducer from '../src/client/reducers'
-import {ALERT_POP, alert} from '../src/client/actions/alert'
+import rootReducer from '../docker/frontend/src/reducers'
+import {ALERT_POP, alert} from '../docker/frontend/src/actions/alert'
 import chai from "chai"
 const MESSAGE = "message"
 chai.should()
@@ -148,9 +148,9 @@ Let’s have a look on code:
 ```
 import chai from "chai"
 import {startServer, configureStore} from './helpers/server'
-import rootReducer from '../src/client/reducers'
+import rootReducer from '../docker/frontend/src/reducers'
 // 1
-import {ping} from '../src/client/actions/server'
+import {ping} from '../docker/frontend/src/actions/server'
 import io from 'socket.io-client'
 import params from '../params'
 chai.should()
@@ -206,18 +206,10 @@ It’s not a production recipe to run your Tetris over billions of players, but 
 $ npm run srv-dist
 
 > red_tetrisboilerplate@0.0.1 srv-dist /home/eric/JS/red_tetris_boilerplate
-> DEBUG=tetris:* babel src --out-dir dist
+> DEBUG=tetris:* babel docker/backend/src --out-dir dist/backend
 
-src/client/actions/alert.js -> dist/client/actions/alert.js
-src/client/actions/server.js -> dist/client/actions/server.js
-src/client/components/test.js -> dist/client/components/test.js
-src/client/containers/app.js -> dist/client/containers/app.js
-src/client/index.js -> dist/client/index.js
-src/client/middleware/storeStateMiddleWare.js -> dist/client/middleware/storeStateMiddleWare.js
-src/client/reducers/alert.js -> dist/client/reducers/alert.js
-src/client/reducers/index.js -> dist/client/reducers/index.js
-src/server/index.js -> dist/server/index.js
-src/server/main.js -> dist/server/main.js
+docker/backend/src/index.js -> dist/backend/index.js
+docker/backend/src/main.js -> dist/backend/main.js
 
 $ npm run client-dist
 

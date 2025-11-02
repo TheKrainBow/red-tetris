@@ -1,7 +1,7 @@
 const chai = require('chai')
 const React = require('react')
 const ShallowRenderer = require('react-test-renderer/shallow')
-const { Tetris, Board } = require('../src/client/components/test')
+const { Tetris, Board } = require('../docker/frontend/src/components/test')
 
 chai.should()
 

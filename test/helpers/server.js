@@ -1,4 +1,4 @@
-const server = require('../../src/server/index')
+const server = require('../../docker/backend/src/index')
 const { createStore, applyMiddleware } = require('redux')
 const thunk = require('redux-thunk').default || require('redux-thunk')
 
