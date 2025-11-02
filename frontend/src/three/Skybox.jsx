@@ -1,9 +1,11 @@
 import React, { useRef, Suspense, useEffect } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { CubeTextureLoader, LinearFilter, SRGBColorSpace, Color } from 'three'
+import { CubeTexture, LinearFilter, SRGBColorSpace, Color } from 'three'
 
 // Order required by Three.js: [px, nx, py, ny, pz, nz]
 // Mapping from your images: right=1, left=3, up=5, down=4, front=2, back=0
+// Keep the sides in the exact order you validated earlier.
+// We will rotate top (py) and bottom (ny) by +/- 90° programmatically.
 const FACE_FILES = [
   '1.21.9_panorama_2.png', // px (right)
   '1.21.9_panorama_0.png', // nx (left)
@@ -27,24 +29,50 @@ function SkyboxLoader() {
 
   useEffect(() => {
     let disposed = false
-    const loader = new CubeTextureLoader().setPath('/main_menu/')
-    loader.load(
-      FACE_FILES,
-      (tex) => {
+
+    function loadImage(src) {
+      return new Promise((resolve, reject) => {
+        const img = new Image()
+        img.crossOrigin = 'anonymous'
+        img.onload = () => resolve(img)
+        img.onerror = (e) => reject(e)
+        img.src = '/main_menu/' + src
+      })
+    }
+
+    function rotateImage(img, angleRad) {
+      if (!angleRad) return img
+      const c = document.createElement('canvas')
+      const s = Math.max(img.width, img.height)
+      c.width = s; c.height = s
+      const ctx = c.getContext('2d')
+      ctx.translate(s/2, s/2)
+      ctx.rotate(angleRad)
+      ctx.drawImage(img, -img.width/2, -img.height/2)
+      return c
+    }
+
+    Promise.all(FACE_FILES.map(loadImage))
+      .then(([px, nx, py, ny, pz, nz]) => {
         if (disposed) return
-        tex.colorSpace = SRGBColorSpace
-        tex.minFilter = LinearFilter
-        tex.magFilter = LinearFilter
-        tex.generateMipmaps = false
-        scene.background = tex
-      },
-      undefined,
-      (err) => {
+        // Rotate top (py) 90° CW and bottom (ny) 90° CCW to align seams
+        const pyR = rotateImage(py, Math.PI / 2)
+        const nyR = rotateImage(ny, -Math.PI / 2)
+
+        const cube = new CubeTexture([px, nx, pyR, nyR, pz, nz])
+        cube.colorSpace = SRGBColorSpace
+        cube.minFilter = LinearFilter
+        cube.magFilter = LinearFilter
+        cube.generateMipmaps = false
+        cube.needsUpdate = true
+        scene.background = cube
+      })
+      .catch(err => {
         if (disposed) return
-        console.error('[skybox] cube load error', err)
+        console.error('[skybox] manual cube build error', err)
         scene.background = new Color(0x000000)
-      }
-    )
+      })
+
     return () => { disposed = true }
   }, [scene])
   return null
