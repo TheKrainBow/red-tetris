@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react'
 import { loadSkyboxCube } from '../three/Skybox.jsx'
+import { getLocalStorageItem } from '../utils/storage'
 
 const USERNAME_KEY = 'username'
 
@@ -13,7 +14,7 @@ const images = [
 ]
 
 export default function MainMenu() {
-  const username = useMemo(() => localStorage.getItem(USERNAME_KEY) || '', [])
+  const username = useMemo(() => getLocalStorageItem(USERNAME_KEY, '') || '', [])
   const [bgReady, setBgReady] = useState(false)
   useEffect(() => {
     let mounted = true

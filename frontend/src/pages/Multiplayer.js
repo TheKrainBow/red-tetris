@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react'
 import Button from '../components/Button'
+import { getLocalStorageItem } from '../utils/storage'
 
 const USERNAME_KEY = 'username'
 
@@ -21,7 +22,7 @@ const sampleServers = [
 ]
 
 export default function Multiplayer() {
-  const username = useMemo(() => localStorage.getItem(USERNAME_KEY) || '', [])
+  const username = useMemo(() => getLocalStorageItem(USERNAME_KEY, '') || '', [])
   const [selected, setSelected] = useState(null)
 
   const servers = sampleServers

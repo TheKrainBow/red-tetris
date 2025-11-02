@@ -69,35 +69,52 @@ export function loadSkyboxCube() {
   return cachedPromise
 }
 
+// Exposed for tests: runs the effect logic once.
+export function skyboxEffect(scene, onReady) {
+  let disposed = false
+  if (cachedCube) {
+    scene.background = cachedCube
+    onReady && onReady()
+    return () => { disposed = true }
+  }
+  loadSkyboxCube()
+    .then((cube) => { if (disposed) return; scene.background = cube; onReady && onReady() })
+    .catch(err => { if (disposed) return; console.error('[skybox] manual cube build error', err); scene.background = new Color(0x000000) })
+  return () => { disposed = true }
+}
+
+export function __resetSkyboxCacheForTests() { cachedCube = null; cachedPromise = null }
+
 function SkyboxLoader({ onReady }) {
   const { scene } = useThree()
 
   useEffect(() => {
-    let disposed = false
-
-    if (cachedCube) {
-      scene.background = cachedCube
-      onReady && onReady()
-      return () => { disposed = true }
-    }
-
-    loadSkyboxCube()
-      .then((cube) => { if (disposed) return; scene.background = cube; onReady && onReady() })
-      .catch(err => { if (disposed) return; console.error('[skybox] manual cube build error', err); scene.background = new Color(0x000000) })
-
-    return () => { disposed = true }
+    return skyboxEffect(scene, onReady)
   }, [scene])
   return null
+}
+
+export function updatePanCamera(yawRef, camera, dt, speed) {
+  yawRef.current += (dt || 0) * speed
+  camera.position.set(0, 0, 0)
+  camera.rotation.set(0, yawRef.current, 0)
 }
 
 function PanCamera({ speed = 0.05 }) {
   const yaw = useRef(0)
   useFrame(({ camera }, dt) => {
-    yaw.current += (dt || 0) * speed
-    camera.position.set(0, 0, 0)
-    camera.rotation.set(0, yaw.current, 0)
+    updatePanCamera(yaw, camera, dt, speed)
   })
   return null
+}
+
+export function setupWebGLCanvas(gl, win = typeof window !== 'undefined' ? window : undefined) {
+  try {
+    if (win) gl.setPixelRatio(Math.min(win.devicePixelRatio || 1, 1.5))
+    const el = gl.domElement
+    el.addEventListener('webglcontextlost', () => { console.warn('[skybox] WebGL context lost') })
+    el.addEventListener('webglcontextrestored', () => { console.warn('[skybox] WebGL context restored') })
+  } catch (_) {}
 }
 
 export default function SkyboxBackground({ speed = 0.05, onReady }) {
@@ -107,18 +124,7 @@ export default function SkyboxBackground({ speed = 0.05, onReady }) {
       camera={{ fov: 75, near: 0.1, far: 10000, position: [0, 0, 0] }}
       gl={{ powerPreference: 'high-performance', antialias: true, alpha: false, preserveDrawingBuffer: false, failIfMajorPerformanceCaveat: false }}
       style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 0, backgroundColor: '#000' }}
-      onCreated={({ gl }) => {
-        try {
-          gl.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5))
-          const el = gl.domElement
-          el.addEventListener('webglcontextlost', (e) => {
-            console.warn('[skybox] WebGL context lost')
-          })
-          el.addEventListener('webglcontextrestored', () => {
-            console.warn('[skybox] WebGL context restored')
-          })
-        } catch (_) {}
-      }}
+      onCreated={({ gl }) => setupWebGLCanvas(gl)}
     >
       <Suspense fallback={null}>
         <SkyboxLoader onReady={onReady} />
