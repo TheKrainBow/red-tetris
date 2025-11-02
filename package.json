@@ -23,7 +23,9 @@
     "redux-logger": "^3",
     "redux-thunk": "^2",
     "socket.io": "^4",
-    "debug": "^4"
+    "debug": "^4",
+    "three": "^0.160.0",
+    "@react-three/fiber": "^8.15.10"
   },
   "devDependencies": {
     "@babel/cli": "^7",

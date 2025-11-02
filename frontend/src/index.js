@@ -1,5 +1,5 @@
 import React from 'react'
-import ReactDom from 'react-dom'
+import { createRoot } from 'react-dom/client'
 import { createLogger } from 'redux-logger'
 import thunk from 'redux-thunk'
 import { createStore, applyMiddleware } from 'redux'
@@ -16,8 +16,10 @@ const store = createStore(
   applyMiddleware(thunk, createLogger())
 )
 
-ReactDom.render((
+const container = document.getElementById('tetris')
+const root = createRoot(container)
+root.render(
   <Provider store={store}>
     <Router />
   </Provider>
-), document.getElementById('tetris'))
+)
