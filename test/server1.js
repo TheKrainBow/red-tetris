@@ -1,9 +1,9 @@
 const chai = require('chai')
 const { startServer, configureStore } = require('./helpers/server')
-const rootReducer = require('../docker/frontend/src/reducers').default
-const { ping } = require('../docker/frontend/src/actions/server')
+const rootReducer = require('../frontend/src/reducers').default
+const { ping } = require('../frontend/src/actions/server')
 const io = require('socket.io-client')
-const params = require('../params')
+const params = require('../backend/params')
 
 chai.should()
 

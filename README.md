@@ -22,7 +22,7 @@ Install [node](https://nodejs.org/en/) first. After that:
 $ npm install
 ```
 
-Edit `params.js` for your needs.
+Edit `backend/params.js` or `backend/.env` for your needs.
 
 
 ### Development Mode
@@ -30,9 +30,9 @@ Edit `params.js` for your needs.
 #### Launch Server
 
 ```
-$ npm run  srv-dev
+$ npm run srv-dev
 > red_tetrisboilerplate@0.0.1 srv-dev /home/eric/JS/red_tetris_boilerplate
-> DEBUG=tetris:* babel-watch -w docker/backend/src docker/backend/src/main.js
+> DEBUG=tetris:* babel-watch -w backend backend/main.js
 ```
 
 It launches a node.js server listening for socket.io connexions, that is wired to receive `ping` messages and answered to … `pong`.
@@ -63,9 +63,9 @@ bundle.js:28352  next state Object
 bundle.js:616 [WDS] Hot Module Replacement enabled.
 ```
 
-URL is not yet editable in `params.js`, change it directly inside `package.json`.
+Server host/port is configurable via `backend/.env` (or `backend/params.js`).
 
-As you can guess we are using webpack `hot reload` module, try to update any file under `docker/frontend/src` and your browser should reload your code.
+As you can guess we are using webpack `hot reload` module, try to update any file under `frontend/src` and your browser should reload your code.
 
 ```
 [WDS] App updated. Recompiling...
@@ -98,8 +98,8 @@ Look at the code :
 // 1
 import {configureStore} from './helpers/server'
 // 2
-import rootReducer from '../docker/frontend/src/reducers'
-import {ALERT_POP, alert} from '../docker/frontend/src/actions/alert'
+import rootReducer from '../frontend/src/reducers'
+import {ALERT_POP, alert} from '../frontend/src/actions/alert'
 import chai from "chai"
 const MESSAGE = "message"
 chai.should()
@@ -148,11 +148,11 @@ Let’s have a look on code:
 ```
 import chai from "chai"
 import {startServer, configureStore} from './helpers/server'
-import rootReducer from '../docker/frontend/src/reducers'
+import rootReducer from '../frontend/src/reducers'
 // 1
-import {ping} from '../docker/frontend/src/actions/server'
+import {ping} from '../frontend/src/actions/server'
 import io from 'socket.io-client'
-import params from '../params'
+import params from '../backend/params'
 chai.should()
 
 describe('Fake server test', function(){
@@ -206,10 +206,10 @@ It’s not a production recipe to run your Tetris over billions of players, but 
 $ npm run srv-dist
 
 > red_tetrisboilerplate@0.0.1 srv-dist /home/eric/JS/red_tetris_boilerplate
-> DEBUG=tetris:* babel docker/backend/src --out-dir dist/backend
+> DEBUG=tetris:* babel backend --out-dir dist/backend
 
-docker/backend/src/index.js -> dist/backend/index.js
-docker/backend/src/main.js -> dist/backend/main.js
+backend/index.js -> dist/backend/index.js
+backend/main.js -> dist/backend/main.js
 
 $ npm run client-dist
 
@@ -223,11 +223,11 @@ Time: 1923ms
 bundle.js  754 kB       0  [emitted]  main
     + 197 hidden modules
 
-$  DEBUG=tetris:* node dist/server/main.js 
+$ DEBUG=tetris:* node dist/backend/main.js 
   tetris:info tetris listen on http://0.0.0.0:3004 +0ms
   not yet ready to play tetris with U ...
 ```
 
-In production mode, node.js server serves `index.html` and `bundle.js`, so you have to point to url set up in `params.js` 
+In production mode, node.js server serves `frontend/public/index.html` and `frontend/dist/bundle.js`. Configure host/port via `backend/.env` or `backend/params.js`.
 
 That’s all folks ... 

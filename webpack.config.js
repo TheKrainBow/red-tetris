@@ -1,14 +1,14 @@
 const path = require('path')
 
 module.exports = {
-  entry: './docker/frontend/src/index.js',
+  entry: './frontend/src/index.js',
   output: {
-    path: path.join(__dirname, 'build'),
+    path: path.join(__dirname, 'frontend/dist'),
     filename: 'bundle.js'
   },
   devServer: {
     static: {
-      directory: __dirname
+      directory: path.join(__dirname, 'frontend/public')
     },
     host: '0.0.0.0',
     port: 8080,

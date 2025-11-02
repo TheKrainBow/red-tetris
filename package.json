@@ -7,13 +7,13 @@
     "eslint": "echo 'lint disabled for now'",
     "client-dist": "NODE_ENV=production webpack --mode production --progress",
     "client-dev": "webpack serve --hot --host ${CLIENT_HOST:-0.0.0.0} --port ${CLIENT_PORT:-8080} --mode development",
-    "srv-dev": "DEBUG=tetris:* babel-watch -w docker/backend/src docker/backend/src/main.js",
-    "srv-dist": "DEBUG=tetris:* babel docker/backend/src --out-dir dist/backend",
-    "start:server": "node -r @babel/register docker/backend/src/main.js",
-    "test:frontend": "mocha --opts test/mocha.opts test/fake.js test/react*.js test/redux*.js",
-    "test:backend": "mocha --opts test/mocha.opts test/server*.js",
+    "srv-dev": "DEBUG=tetris:* babel-watch -w backend backend/main.js",
+    "srv-dist": "DEBUG=tetris:* babel backend --out-dir dist/backend",
+    "start:server": "node -r @babel/register backend/main.js",
+    "test:frontend": "mocha test/fake.js test/react*.js test/redux*.js",
+    "test:backend": "mocha test/server*.js",
     "test": "npm run test:frontend && npm run test:backend",
-    "coverage": "NODE_ENV=test nyc --include docker/backend/src --include docker/frontend/src --all --reporter=text --reporter=lcov mocha --opts test/mocha.opts"
+    "coverage": "NODE_ENV=test nyc --include backend --include frontend --all --reporter=text --reporter=lcov mocha"
   },
   "dependencies": {
     "react": "^18",
@@ -43,8 +43,18 @@
     "webpack-dev-server": "^5"
   },
   "nyc": {
+    "all": true,
+    "report-dir": "coverage",
+    "temp-directory": "coverage/.nyc_output",
+    "include": [
+      "backend",
+      "frontend"
+    ],
     "exclude": [
-      "build"
+      "frontend/dist",
+      "coverage",
+      "node_modules",
+      "dist"
     ]
   }
 }

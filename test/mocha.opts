@@ -1,4 +1,0 @@
---require chai
---require @babel/register
--R spec
---ui bdd

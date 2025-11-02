@@ -1,0 +1,9 @@
+{
+  "require": [
+    "chai",
+    "@babel/register"
+  ],
+  "reporter": "spec",
+  "ui": "bdd"
+}
+

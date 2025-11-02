@@ -1,6 +1,6 @@
 const { configureStore } = require('./helpers/server')
-const rootReducer = require('../docker/frontend/src/reducers').default
-const { ALERT_POP, alert } = require('../docker/frontend/src/actions/alert')
+const rootReducer = require('../frontend/src/reducers').default
+const { ALERT_POP, alert } = require('../frontend/src/actions/alert')
 const chai = require('chai')
 
 const MESSAGE = "message"

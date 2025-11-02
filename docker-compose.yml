@@ -1,12 +1,10 @@
-version: "3.9"
-
 services:
   backend:
     build:
       context: .
-      dockerfile: docker/backend/Dockerfile
+      dockerfile: backend/Dockerfile
     env_file:
-      - docker/backend/.env
+      - backend/.env
     ports:
       - "3004:3004"
     command: npm run start:server
@@ -14,9 +12,9 @@ services:
   frontend:
     build:
       context: .
-      dockerfile: docker/frontend/Dockerfile
+      dockerfile: frontend/Dockerfile
     env_file:
-      - docker/frontend/.env
+      - frontend/.env
     ports:
       - "8080:8080"
     depends_on:

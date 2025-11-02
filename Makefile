@@ -1,6 +1,6 @@
 COMPOSE ?= docker compose
 
-.PHONY: build up down prune test coverage
+.PHONY: build up down prune fprune test coverage
 
 build:
 	$(COMPOSE) build backend frontend
@@ -14,6 +14,9 @@ down:
 prune:
 	$(COMPOSE) down --rmi local --volumes --remove-orphans
 	docker image prune -f
+
+fprune: prune
+	rm -rf coverage .nyc_output build dist frontend/dist node_modules
 
 test: build
 	$(COMPOSE) run --rm backend npm run test:backend
