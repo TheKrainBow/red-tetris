@@ -31,11 +31,29 @@ export default function MainMenu() {
         .mm-rotor { position: relative; width: 100%; height: 100%; transform-origin: 50% 50% 0; transform-style: preserve-3d; animation: mm_rotate 120s linear infinite; }
         .mm-face { position: absolute; backface-visibility: visible; background-size: cover; background-position: center; will-change: transform; }
         .mm-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.14); }
-        .mm-content { position: relative; z-index: 2; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #fff; text-shadow: 0 2px 2px rgba(0,0,0,0.7); }
-        .mm-title { font-size: 42px; margin-bottom: 24px; }
-        .mm-btn { min-width: 340px; padding: 10px 14px; margin: 6px 0; border: 2px solid #555; border-radius: 4px; background: linear-gradient(#777, #666); color: #fff; cursor: pointer; box-shadow: inset 0 2px 0 rgba(255,255,255,0.2), 0 3px 0 rgba(0,0,0,0.3); }
-        .mm-btn:hover { background: linear-gradient(#888, #777); }
-        .mm-row { display: flex; gap: 12px; margin-top: 10px; align-items: center; }
+        .mm-content { position: relative; z-index: 2; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #fff; text-shadow: 0 2px 2px rgba(0,0,0,0.7); transform: translateY(-10vh); }
+        .mm-logo { display: block; max-width: 80vw; width: 720px; height: auto; margin-bottom: 28px; image-rendering: pixelated; filter: drop-shadow(0 2px 0 rgba(0,0,0,0.6)); }
+        .mm-btn {
+          min-width: 360px;
+          padding: 12px 16px;
+          margin: 6px 0;
+          font-size: 20px;
+          color: #fff;
+          background: linear-gradient(#8e8e8e, #6f6f6f);
+          border: 1px solid #000; /* black outline */
+          border-radius: 3px;
+          cursor: pointer;
+          /* bevel: light top/left, dark bottom/right */
+          box-shadow:
+            inset 1px 1px 0 #c7c7c7,
+            inset -1px -1px 0 #4a4a4a,
+            0 2px 0 rgba(0,0,0,0.45);
+          /* text outline */
+          text-shadow: -1px 0 0 #000, 1px 0 0 #000, 0 -1px 0 #000, 0 1px 0 #000;
+        }
+        .mm-btn:hover { background: linear-gradient(#9a9a9a, #7a7a7a); }
+        .mm-primary { display: flex; flex-direction: column; align-items: center; margin-top: 58px; }
+        .mm-row { display: flex; gap: 12px; margin-top: 58px; align-items: center; }
         .mm-small { min-width: auto; width: 42px; height: 42px; display: inline-flex; align-items: center; justify-content: center; font-size: 20px; }
         .mm-bottom { position: absolute; bottom: 6px; left: 8px; right: 8px; display: flex; justify-content: space-between; font-size: 12px; opacity: 0.9; }
       `}</style>
@@ -46,10 +64,12 @@ export default function MainMenu() {
 
       {/* content */}
       <div className="mm-content">
-        <div className="mm-title">Minecraft Tetris</div>
-        <button className="mm-btn">Singleplayer</button>
-        <button className="mm-btn">Multiplayer</button>
-        <button className="mm-btn">Trading outpost</button>
+        <img className="mm-logo" src="/main_menu/Craftetris.png" alt="Craftetris" />
+        <div className="mm-primary">
+          <button className="mm-btn">Singleplayer</button>
+          <button className="mm-btn">Multiplayer</button>
+          <button className="mm-btn">Trading outpost</button>
+        </div>
         <div className="mm-row">
           <button className="mm-btn mm-small" title="Leaderboard">🏆</button>
           <button className="mm-btn" style={{ minWidth: 220 }}>Options...</button>
@@ -59,8 +79,6 @@ export default function MainMenu() {
 
       {/* footer line similar to screenshot */}
       <div className="mm-bottom">
-        <div>Minecraft 1.21.9</div>
-        <div>Copyright Mojang AB. Do not distribute!</div>
       </div>
     </div>
   )
