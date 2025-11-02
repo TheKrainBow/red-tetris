@@ -85,7 +85,7 @@ export function skyboxEffect(scene, onReady) {
 
 export function __resetSkyboxCacheForTests() { cachedCube = null; cachedPromise = null }
 
-function SkyboxLoader({ onReady }) {
+export function SkyboxLoader({ onReady }) {
   const { scene } = useThree()
 
   useEffect(() => {

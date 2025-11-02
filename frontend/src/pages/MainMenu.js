@@ -13,14 +13,27 @@ const images = [
   '/main_menu/1.21.9_panorama_5.png',
 ]
 
+// Testable helpers
+export function readUsername() {
+  return getLocalStorageItem(USERNAME_KEY, '') || ''
+}
+
+export function navToMultiplayer(win = typeof window !== 'undefined' ? window : undefined) {
+  if (win && win.location) win.location.hash = '#/multiplayer'
+}
+
+export function attachReady(promise, setReady) {
+  let mounted = true
+  promise
+    .then(() => { if (mounted) setReady(true) })
+    .catch(() => { if (mounted) setReady(true) })
+  return () => { mounted = false }
+}
+
 export default function MainMenu() {
-  const username = useMemo(() => getLocalStorageItem(USERNAME_KEY, '') || '', [])
+  const username = useMemo(() => readUsername(), [])
   const [bgReady, setBgReady] = useState(false)
-  useEffect(() => {
-    let mounted = true
-    loadSkyboxCube().then(() => { if (mounted) setBgReady(true) }).catch(() => { if (mounted) setBgReady(true) })
-    return () => { mounted = false }
-  }, [])
+  useEffect(() => attachReady(loadSkyboxCube(), setBgReady), [])
 
   return (
     <div className="mm-root">
@@ -33,7 +46,7 @@ export default function MainMenu() {
         <img className="mm-logo" src="/main_menu/Craftetris.png" alt="Craftetris" />
         <div className="mm-primary">
           <button className="mm-btn">Singleplayer</button>
-          <button className="mm-btn" onClick={() => (window.location.hash = '#/multiplayer')}>Multiplayer</button>
+          <button className="mm-btn" onClick={() => navToMultiplayer(window)}>Multiplayer</button>
           <button className="mm-btn">Trading outpost</button>
         </div>
         <div className="mm-row">
