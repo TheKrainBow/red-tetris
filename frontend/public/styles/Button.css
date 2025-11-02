@@ -18,6 +18,7 @@
 .ui-btn:hover { background: linear-gradient(#9a9a9a, #7a7a7a); }
 .ui-btn:active { transform: translateY(1px); }
 .ui-btn-small { min-width: auto; width: 42px; height: 42px; font-size: 20px; }
+.ui-btn-wide { min-width: 240px; }
 
 .ui-btn:disabled,
 .ui-btn.ui-btn-disabled {
