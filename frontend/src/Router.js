@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import Home from './pages/Home'
+import MainMenu from './pages/MainMenu'
 import Login from './pages/Login'
 
 const USERNAME_KEY = 'username'
@@ -39,7 +40,6 @@ export default function Router() {
       return <Login />
     case '/':
     default:
-      return <Home />
+      return <MainMenu />
   }
 }
-
