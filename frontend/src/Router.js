@@ -3,6 +3,7 @@ import Home from './pages/Home'
 import MainMenu from './pages/MainMenu'
 import Multiplayer from './pages/Multiplayer'
 import Login from './pages/Login'
+import SkyboxBackground from './three/Skybox.jsx'
 
 const USERNAME_KEY = 'username'
 
@@ -36,13 +37,29 @@ export default function Router() {
     }
   }, [route])
 
+  let page
   switch (route) {
     case '/login':
-      return <Login />
+      page = <Login />
+      break
     case '/multiplayer':
-      return <Multiplayer />
+      page = <Multiplayer />
+      break
     case '/':
     default:
-      return <MainMenu />
+      page = <MainMenu />
+      break
   }
+
+  return (
+    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+      {/* Persistent skybox avoids re-mount flicker; hidden on non-main routes */}
+      <div style={{ position: 'absolute', inset: 0, opacity: route === '/' ? 1 : 0, transition: 'opacity 160ms ease', pointerEvents: 'none', zIndex: 0 }}>
+        <SkyboxBackground speed={0.02} />
+      </div>
+      <div style={{ position: 'relative', zIndex: 1, width: '100%', height: '100%' }}>
+        {page}
+      </div>
+    </div>
+  )
 }

@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react'
-import SkyboxBackground from '../three/Skybox.jsx'
+import React, { useMemo, useState, useEffect } from 'react'
+import { loadSkyboxCube } from '../three/Skybox.jsx'
 
 const USERNAME_KEY = 'username'
 
@@ -14,9 +14,12 @@ const images = [
 
 export default function MainMenu() {
   const username = useMemo(() => localStorage.getItem(USERNAME_KEY) || '', [])
-  // Fresh skybox: very large cube so faces are far away
-  const size = 2000
-  const epsilon = 2
+  const [bgReady, setBgReady] = useState(false)
+  useEffect(() => {
+    let mounted = true
+    loadSkyboxCube().then(() => { if (mounted) setBgReady(true) }).catch(() => { if (mounted) setBgReady(true) })
+    return () => { mounted = false }
+  }, [])
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
@@ -58,12 +61,11 @@ export default function MainMenu() {
         .mm-bottom { position: absolute; bottom: 6px; left: 8px; right: 8px; display: flex; justify-content: space-between; font-size: 12px; opacity: 0.9; }
       `}</style>
 
-      {/* Three.js skybox behind UI */}
-      <SkyboxBackground speed={0.02} />
+      {/* Skybox is rendered persistently by Router; just overlay here */}
       <div className="mm-overlay" />
 
       {/* content */}
-      <div className="mm-content">
+      <div className="mm-content" style={{ opacity: bgReady ? 1 : 0, transition: 'opacity 180ms ease' }}>
         <img className="mm-logo" src="/main_menu/Craftetris.png" alt="Craftetris" />
         <div className="mm-primary">
           <button className="mm-btn">Singleplayer</button>
