@@ -32,6 +32,9 @@
 .mp-top { top: 0; bottom: auto; background-position: center top; }
 .mp-footer-bg { bottom: 0; top: auto; background-position: center bottom; }
 
+/* Global falling overlay above dark background, below bands and content */
+.mp-global-fall { position: absolute; inset: 0; z-index: 2; pointer-events: none; overflow: hidden; }
+
 .mp-sep-top, .mp-sep-bottom { position: absolute; left: 0; right: 0; pointer-events: none; z-index: 3; }
 .mp-sep-top { top: var(--mp-band-h); height: 35px; background: linear-gradient(to bottom, rgba(0,0,0,0.9), rgba(0,0,0,0)); }
 .mp-sep-bottom { bottom: var(--mp-band-h); height: 35px; background: linear-gradient(to top, rgba(0,0,0,0.9), rgba(0,0,0,0)); }
@@ -42,7 +45,7 @@
 
 .mp-list-wrap {
   position: absolute; left: 0; right: 0; top: var(--mp-band-h); bottom: var(--mp-band-h);
-  z-index: 1;
+  z-index: 4; /* ensure servers always on top of falling tetrominos */
   display: flex; justify-content: center; overflow-y: auto; overflow-x: hidden;
 }
 .mp-list { width: min(880px, 92vw); margin-top: 10px; margin-bottom: 10px; background: transparent; padding: 6px 0; }
@@ -66,4 +69,13 @@
 .mp-count { margin-left: auto; color: #c0ffb4; text-shadow: 2px 2px 0 #000; }
 .mp-players { margin-left: 74px; color: #ddd; font-size: 14px; text-shadow: 2px 2px 0 #000; }
 
+
 .mp-footer { position: absolute; left: 0; right: 0; bottom: 0; height: var(--mp-band-h); display: flex; align-items: center; justify-content: center; gap: 14px; z-index: 4; }
+
+/* Tetromino preview gallery */
+.mp-tetro-gallery { position: relative; z-index: 4; display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin: 0 auto; width: min(880px, 92vw); }
+
+/* Falling overlay on sides (non-interactive) */
+.mp-fall-overlay { position: absolute; inset: 0; pointer-events: none; z-index: 2; overflow: hidden; }
+.mp-fall-lane { position: absolute; top: 0; bottom: 0; left: 0; right: 0; }
+.mp-fall-item { position: absolute; will-change: transform; }

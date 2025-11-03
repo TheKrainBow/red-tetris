@@ -1,5 +1,7 @@
-import React, { useMemo, useState } from 'react'
+import React, { useMemo, useState, useRef } from 'react'
 import Button from '../components/Button'
+import Tetromino, { TetrominoType } from '../components/Tetromino.jsx'
+import FallingField from '../components/FallingField.jsx'
 import { getLocalStorageItem } from '../utils/storage'
 
 const USERNAME_KEY = 'username'
@@ -14,7 +16,7 @@ const sampleServers = [
   },
   {
     id: 'mineplex',
-    name: 'Tetris Friends',
+    name: 'Mokko',
     iconClass: 'bg-orange',
     players: ['Evan', 'Riley'],
     max: 6,
@@ -24,6 +26,9 @@ const sampleServers = [
 export default function Multiplayer() {
   const username = useMemo(() => getLocalStorageItem(USERNAME_KEY, '') || '', [])
   const [selected, setSelected] = useState(null)
+  const wrapRef = useRef(null)
+  const listRef = useRef(null)
+  const rootRef = useRef(null)
 
   const servers = sampleServers
   const selectedServer = servers.find(s => s.id === selected) || null
@@ -43,7 +48,7 @@ export default function Multiplayer() {
   }
 
   return (
-    <div className="mp-root">
+    <div className="mp-root" ref={rootRef}>
       {/* Background layers */}
       <div className="mp-layer mp-dark" />
       {/* seam shadows on dark background */}
@@ -52,13 +57,18 @@ export default function Multiplayer() {
       <div className="mp-layer mp-top" />
       <div className="mp-layer mp-footer-bg" />
 
+      {/* Global falling tetrominos across the dark background */}
+      <div className="mp-global-fall">
+        <FallingField containerRef={rootRef} />
+      </div>
+
       <div className="mp-content">
         <div className="mp-header">
           <h3 className="mp-title">Play Multiplayer</h3>
         </div>
 
-        <div className="mp-list-wrap">
-          <div className="mp-list">
+        <div className="mp-list-wrap" ref={wrapRef}>
+          <div className="mp-list" ref={listRef}>
             {servers.map((s) => (
               <div
                 key={s.id}
