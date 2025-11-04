@@ -3,6 +3,7 @@ import Home from './pages/Home'
 import MainMenu from './pages/MainMenu'
 import Multiplayer from './pages/Multiplayer'
 import Singleplayer from './pages/Singleplayer'
+import CreateGame from './pages/CreateGame'
 import Login from './pages/Login'
 import SkyboxBackground from './three/Skybox.jsx'
 
@@ -45,6 +46,9 @@ export default function Router() {
       break
     case '/singleplayer':
       page = <Singleplayer />
+      break
+    case '/singleplayer/create':
+      page = <CreateGame />
       break
     case '/multiplayer':
       page = <Multiplayer />

@@ -58,7 +58,7 @@ export default function Singleplayer() {
   const selectedGame = games.find(g => g.id === selected) || null
 
   const onCancel = () => { window.location.hash = '#/' }
-  const onCreate = () => { alert('Create new game (placeholder)') }
+  const onCreate = () => { window.location.hash = '#/singleplayer/create' }
   const onView = () => { if (selectedGame) alert(`Viewing ${selectedGame.name} (placeholder)`) }
 
   return (
@@ -74,7 +74,7 @@ export default function Singleplayer() {
 
       <div className="mp-content">
         <div className="mp-header">
-          <h3 className="mp-title">Singleplayer</h3>
+          <h3 className="mp-title">History</h3>
         </div>
 
         <div className="mp-list-wrap" ref={wrapRef}>
