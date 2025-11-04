@@ -15,10 +15,28 @@
     0 2px 0 rgba(0,0,0,0.45);
   text-shadow: -1px 0 0 #000, 1px 0 0 #000, 0 -1px 0 #000, 0 1px 0 #000;
 }
-.ui-btn:hover { background: linear-gradient(#9a9a9a, #7a7a7a); }
+.ui-btn:hover,
+.ui-btn:focus,
+.ui-btn.is-selected {
+  /* Minecraft-like selected tint: blue background, yellow label */
+  background: linear-gradient(#8fb2e8, #6f8fc6);
+  color: #f0d774;
+}
 .ui-btn:active { transform: translateY(1px); }
-.ui-btn-small { min-width: auto; width: 42px; height: 42px; font-size: 20px; }
+.ui-btn-small:active { transform: translateY(0.5px); }
+.ui-btn-small {
+  min-width: auto;
+  width: 42px;
+  height: 42px;
+  font-size: 20px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
 .ui-btn-wide { min-width: 240px; }
+.ui-btn-narrow { min-width: 220px; }
 
 .ui-btn:disabled,
 .ui-btn.ui-btn-disabled {
@@ -31,4 +49,5 @@
     inset -1px -1px 0 #2a2a2a,
     0 1px 0 rgba(0,0,0,0.35);
 }
-.ui-btn:disabled:hover { background: linear-gradient(#4b4b4b, #353535); }
+.ui-btn:disabled:hover,
+.ui-btn:disabled:focus { background: linear-gradient(#4b4b4b, #353535); color: #bdbdbd; }

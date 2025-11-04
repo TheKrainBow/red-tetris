@@ -68,6 +68,14 @@
 .mp-name { color: #fff; font-size: 18px; text-shadow: 2px 2px 0 #000; }
 .mp-count { margin-left: auto; color: #c0ffb4; text-shadow: 2px 2px 0 #000; }
 .mp-players { margin-left: 74px; color: #ddd; font-size: 14px; text-shadow: 2px 2px 0 #000; }
+/* Generic secondary line used by Singleplayer history (no icon) */
+.mp-meta { color: #ddd; font-size: 14px; text-shadow: 2px 2px 0 #000; }
+
+/* Mode-specific coloring for Singleplayer history */
+.mp-mode { font-weight: 700; text-shadow: 2px 2px 0 #000; }
+.mp-mode-singleplayer { color: #b2ffad; }
+.mp-mode-pvp { color: #ff9a9a; }
+.mp-mode-cooperation { color: #a9c9ff; }
 
 
 .mp-footer { position: absolute; left: 0; right: 0; bottom: 0; height: var(--mp-band-h); display: flex; align-items: center; justify-content: center; gap: 14px; z-index: 4; }

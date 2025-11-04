@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import Home from './pages/Home'
 import MainMenu from './pages/MainMenu'
 import Multiplayer from './pages/Multiplayer'
+import Singleplayer from './pages/Singleplayer'
 import Login from './pages/Login'
 import SkyboxBackground from './three/Skybox.jsx'
 
@@ -41,6 +42,9 @@ export default function Router() {
   switch (route) {
     case '/login':
       page = <Login />
+      break
+    case '/singleplayer':
+      page = <Singleplayer />
       break
     case '/multiplayer':
       page = <Multiplayer />

@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react'
+import Button from '../components/Button'
 import { loadSkyboxCube } from '../three/Skybox.jsx'
 import { getLocalStorageItem } from '../utils/storage'
 
@@ -20,6 +21,10 @@ export function readUsername() {
 
 export function navToMultiplayer(win = typeof window !== 'undefined' ? window : undefined) {
   if (win && win.location) win.location.hash = '#/multiplayer'
+}
+
+export function navToSingleplayer(win = typeof window !== 'undefined' ? window : undefined) {
+  if (win && win.location) win.location.hash = '#/singleplayer'
 }
 
 export function attachReady(promise, setReady) {
@@ -45,14 +50,16 @@ export default function MainMenu() {
       <div className={`mm-content ${bgReady ? 'mm-ready' : ''}`}>
         <img className="mm-logo" src="/main_menu/Craftetris.png" alt="Craftetris" />
         <div className="mm-primary">
-          <button className="mm-btn">Singleplayer</button>
-          <button className="mm-btn" onClick={() => navToMultiplayer(window)}>Multiplayer</button>
-          <button className="mm-btn">Trading outpost</button>
+          <Button onClick={() => navToSingleplayer(window)}>Singleplayer</Button>
+          <Button onClick={() => navToMultiplayer(window)}>Multiplayer</Button>
+          <Button>Trading outpost</Button>
         </div>
         <div className="mm-row">
-          <button className="mm-btn mm-small" title="Leaderboard">🏆</button>
-          <button className="mm-btn mm-btn--narrow">Options...</button>
-          <button className="mm-btn mm-btn--narrow">Quit game</button>
+          <div className="mm-row-center">
+            <Button className="ui-btn-narrow">Options...</Button>
+            <Button className="ui-btn-narrow">Quit game</Button>
+          </div>
+          <Button size="small" className="mm-leader" title="Leaderboard">🏆</Button>
         </div>
       </div>
 
