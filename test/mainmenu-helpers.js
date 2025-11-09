@@ -1,6 +1,6 @@
 const chai = require('chai')
 
-const { readUsername, navToMultiplayer, attachReady } = require('../frontend/src/pages/MainMenu')
+const { readUsername, navToMultiplayer, navToSingleplayer, navToShop, attachReady } = require('../frontend/src/pages/MainMenu')
 
 chai.should()
 
@@ -21,6 +21,16 @@ describe('MainMenu helpers', function () {
     const fakeWin = { location: { hash: '' } }
     navToMultiplayer(fakeWin)
     fakeWin.location.hash.should.equal('#/multiplayer')
+  })
+
+  it('navToSingleplayer and navToShop update hash; undefined window does nothing', function () {
+    const fake = { location: { hash: '' } }
+    navToSingleplayer(fake)
+    fake.location.hash.should.equal('#/singleplayer')
+    navToShop(fake)
+    fake.location.hash.should.equal('#/shop')
+    // call with undefined — should not throw or change anything
+    navToShop(undefined)
   })
 
   it('attachReady calls setter and respects cleanup', async function () {
