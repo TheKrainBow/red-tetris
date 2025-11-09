@@ -98,7 +98,9 @@
 .shop-list { display: grid; grid-auto-rows: minmax(48px, auto); gap: 10px; padding-right: 14px; }
 /* Two-row grid so status text sits under the title while cost+button stay aligned right */
 .shop-item { display: grid; grid-template-columns: 1fr auto auto; grid-template-rows: auto auto; grid-template-areas: 'name cost btn' 'status cost btn'; align-items: center; gap: 6px 12px; background: rgba(0,0,0,0.25); padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(0,0,0,0.6); }
+.shop-item-trade { grid-template-rows: auto; grid-template-areas: 'name cost btn'; }
 .shop-item-name { grid-area: name; color: #fff; text-shadow: 2px 2px 0 #000; font-size: 16px; }
+.shop-item-name { display: flex; align-items: center; }
 .shop-item-status { grid-area: status; color: #ddd; font-size: 13px; }
 .shop-status-purchased { color: #6cc642; }
 .shop-cost { grid-area: cost; display: inline-flex; align-items: center; gap: 8px; background: rgba(0,0,0,0.35); padding: 4px 8px; border-radius: 8px; border: 1px solid rgba(0,0,0,0.55); }
@@ -109,6 +111,7 @@
 .shop-btns .ui-btn-narrow { grid-area: auto; }
 .shop-item-trade > .shop-cost { display: none; }
 .shop-trade { display: flex; align-items: center; gap: 10px; }
+.shop-trade .shop-cost { display: inline-flex; align-items: center; }
 .shop-trade-arrow { color: #ddd; text-shadow: 1px 1px 0 #000; font-size: 18px; }
 .shop-btn-wrap { grid-area: btn; position: relative; height: 100%; display: flex; align-items: center; justify-content: flex-end; }
 .shop-btn-shield { position: absolute; inset: 0; z-index: 2; background: rgba(0,0,0,0); cursor: not-allowed; }
@@ -147,7 +150,9 @@
 .shop-title { color: #fff; margin: 0 0 12px 0; font-size: 18px; text-shadow: 2px 2px 0 #000; }
 .shop-list { display: grid; grid-auto-rows: minmax(48px, auto); gap: 10px; padding-right: 14px; }
 .shop-item { display: grid; grid-template-columns: 1fr auto auto; grid-template-rows: auto auto; grid-template-areas: 'name cost btn' 'status cost btn'; align-items: center; gap: 6px 12px; background: rgba(0,0,0,0.25); padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(0,0,0,0.6); }
+.shop-item-trade { grid-template-rows: auto; grid-template-areas: 'name cost btn'; }
 .shop-item-name { grid-area: name; color: #fff; text-shadow: 2px 2px 0 #000; font-size: 16px; }
+.shop-item-name { display: flex; align-items: center; }
 .shop-item-status { grid-area: status; color: #ddd; font-size: 13px; }
 .shop-status-purchased { color: #6cc642; }
 .shop-cost { grid-area: cost; display: inline-flex; align-items: center; gap: 8px; background: rgba(0,0,0,0.35); padding: 4px 8px; border-radius: 8px; border: 1px solid rgba(0,0,0,0.55); }
@@ -158,6 +163,7 @@
 .shop-btns .ui-btn-narrow { grid-area: auto; }
 .shop-item-trade > .shop-cost { display: none; }
 .shop-trade { display: flex; align-items: center; gap: 10px; }
+.shop-trade .shop-cost { display: inline-flex; align-items: center; }
 .shop-trade-arrow { color: #ddd; text-shadow: 1px 1px 0 #000; font-size: 18px; }
 .shop-btn-wrap { grid-area: btn; position: relative; height: 100%; display: flex; align-items: center; justify-content: flex-end; }
 .shop-btn-shield { position: absolute; inset: 0; z-index: 2; background: rgba(0,0,0,0); cursor: not-allowed; }

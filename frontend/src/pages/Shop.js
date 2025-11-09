@@ -633,7 +633,7 @@ function EmeraldTradeList({ inv, onTrade, onTradeMany, onDeny }) {
             <div className="shop-cost" />
             <div className="shop-btns">
               <div className="shop-btn-wrap">
-                <Button className="ui-btn-narrow" disabled={disabled} onClick={() => onTrade && onTrade(t.res, t.amount)}>
+                <Button className="ui-btn-slim" disabled={disabled} onClick={() => onTrade && onTrade(t.res, t.amount)}>
                   Trade
                 </Button>
                 {disabled && <div className="shop-btn-shield" onClick={() => onDeny && onDeny()} />}
