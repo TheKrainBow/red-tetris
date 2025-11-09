@@ -14,6 +14,8 @@
 .mm-content.mm-ready { opacity: 1; }
 .mm-logo { display: block; max-width: 80vw; width: 720px; height: auto; margin-bottom: 28px; image-rendering: pixelated; filter: drop-shadow(0 2px 0 rgba(0,0,0,0.6)); }
 .mm-primary { display: flex; flex-direction: column; align-items: center; margin-top: 58px; }
+.btn-inline { display: inline-flex; align-items: center; gap: 12px; line-height: 1; }
+.btn-emerald { width: 22px; height: 22px; image-rendering: pixelated; border: none; border-radius: 0; display: block; }
 .mm-row {
   position: relative;
   margin-top: 58px;

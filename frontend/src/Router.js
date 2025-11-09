@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react'
-import Home from './pages/Home'
 import MainMenu from './pages/MainMenu'
 import Multiplayer from './pages/Multiplayer'
 import Singleplayer from './pages/Singleplayer'
 import CreateGame from './pages/CreateGame'
 import Login from './pages/Login'
+import Shop from './pages/Shop'
+import Options from './pages/Options'
 import SkyboxBackground from './three/Skybox.jsx'
 
 const USERNAME_KEY = 'username'
@@ -44,6 +45,12 @@ export default function Router() {
     case '/login':
       page = <Login />
       break
+    case '/shop':
+      page = <Shop />
+      break
+    case '/options':
+      page = <Options />
+      break
     case '/singleplayer':
       page = <Singleplayer />
       break
@@ -62,7 +69,7 @@ export default function Router() {
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
       {/* Persistent skybox avoids re-mount flicker; hidden on non-main routes */}
-      <div style={{ position: 'absolute', inset: 0, opacity: route === '/' ? 1 : 0, transition: 'opacity 160ms ease', pointerEvents: 'none', zIndex: 0 }}>
+      <div style={{ position: 'absolute', inset: 0, opacity: (route === '/' || route === '/options') ? 1 : 0, transition: 'opacity 160ms ease', pointerEvents: 'none', zIndex: 0 }}>
         <SkyboxBackground speed={0.02} />
       </div>
       <div style={{ position: 'relative', zIndex: 1, width: '100%', height: '100%' }}>

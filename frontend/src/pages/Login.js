@@ -26,7 +26,7 @@ export default function Login() {
       minHeight: '100vh',
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundImage: 'url(/Login_Page.jpeg)',
+      backgroundImage: 'url(/ui/Login_Page.jpeg)',
       backgroundSize: 'cover',
       backgroundPosition: 'center',
       backgroundRepeat: 'no-repeat'

@@ -5,15 +5,6 @@ import { getLocalStorageItem } from '../utils/storage'
 
 const USERNAME_KEY = 'username'
 
-const images = [
-  '/main_menu/1.21.9_panorama_0.png',
-  '/main_menu/1.21.9_panorama_1.png',
-  '/main_menu/1.21.9_panorama_2.png',
-  '/main_menu/1.21.9_panorama_3.png',
-  '/main_menu/1.21.9_panorama_4.png',
-  '/main_menu/1.21.9_panorama_5.png',
-]
-
 // Testable helpers
 export function readUsername() {
   return getLocalStorageItem(USERNAME_KEY, '') || ''
@@ -25,6 +16,10 @@ export function navToMultiplayer(win = typeof window !== 'undefined' ? window : 
 
 export function navToSingleplayer(win = typeof window !== 'undefined' ? window : undefined) {
   if (win && win.location) win.location.hash = '#/singleplayer'
+}
+
+export function navToShop(win = typeof window !== 'undefined' ? window : undefined) {
+  if (win && win.location) win.location.hash = '#/shop'
 }
 
 export function attachReady(promise, setReady) {
@@ -48,15 +43,17 @@ export default function MainMenu() {
 
       {/* content */}
       <div className={`mm-content ${bgReady ? 'mm-ready' : ''}`}>
-        <img className="mm-logo" src="/main_menu/Craftetris.png" alt="Craftetris" />
+        <img className="mm-logo" src="/ui/Craftetris.png" alt="Craftetris" />
         <div className="mm-primary">
           <Button onClick={() => navToSingleplayer(window)}>Singleplayer</Button>
           <Button onClick={() => navToMultiplayer(window)}>Multiplayer</Button>
-          <Button>Trading outpost</Button>
+          <Button onClick={() => navToShop(window)}>
+            <span className="btn-inline"><img className="btn-emerald" src="/blocks/EmeraldItem.png" alt="" />Trading outpost</span>
+          </Button>
         </div>
         <div className="mm-row">
           <div className="mm-row-center">
-            <Button className="ui-btn-narrow">Options...</Button>
+            <Button className="ui-btn-narrow" onClick={() => { window.location.hash = '#/options' }}>Options...</Button>
             <Button className="ui-btn-narrow">Quit game</Button>
           </div>
           <Button size="small" className="mm-leader" title="Leaderboard">🏆</Button>

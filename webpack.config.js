@@ -12,6 +12,8 @@ module.exports = {
     },
     host: '0.0.0.0',
     port: 8080,
+    // Allow development server to accept requests from specified hosts
+    allowedHosts: ['localhost', 'maagosti.fr', 'cci.maagosti.fr'],
     hot: true,
     historyApiFallback: true,
     devMiddleware: {

@@ -7,12 +7,12 @@ import { CubeTexture, LinearFilter, SRGBColorSpace, Color } from 'three'
 // Keep the sides in the exact order you validated earlier.
 // We will rotate top (py) and bottom (ny) by +/- 90° programmatically.
 const FACE_FILES = [
-  '1.21.9_panorama_2.png', // px (right)
-  '1.21.9_panorama_0.png', // nx (left)
-  '1.21.9_panorama_4.png', // py (up/sky)
-  '1.21.9_panorama_5.png', // ny (down/ground)
-  '1.21.9_panorama_1.png', // pz (front)
-  '1.21.9_panorama_3.png', // nz (back)
+  'skybox/1.21.9_panorama_2.png', // px (right)
+  'skybox/1.21.9_panorama_0.png', // nx (left)
+  'skybox/1.21.9_panorama_4.png', // py (up/sky)
+  'skybox/1.21.9_panorama_5.png', // ny (down/ground)
+  'skybox/1.21.9_panorama_1.png', // pz (front)
+  'skybox/1.21.9_panorama_3.png', // nz (back)
 ]
 
 // Cache the loaded cube texture across mounts to avoid flashing reloads
@@ -29,7 +29,7 @@ export function loadSkyboxCube() {
       img.crossOrigin = 'anonymous'
       img.onload = () => resolve(img)
       img.onerror = (e) => reject(e)
-      img.src = '/main_menu/' + src
+      img.src = src
     })
   }
 

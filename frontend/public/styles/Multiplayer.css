@@ -5,7 +5,7 @@
 
 .mp-layer { position: absolute; left: 0; right: 0; }
 .mp-dark {
-  background-image: url('/Dark_Dirt.webp');
+  background-image: url('/ui/Dark_Dirt.webp');
   background-size: auto 480px;
   background-repeat: repeat;
   background-position: center;
@@ -20,7 +20,7 @@
   pointer-events: none;
   height: var(--mp-band-h);
   left: 0; right: 0;
-  background-image: url('/Light_Dirt.webp');
+  background-image: url('/ui/Light_Dirt.webp');
   background-size: auto 420px;
   background-repeat: repeat;
   image-rendering: pixelated;
@@ -79,6 +79,127 @@
 
 
 .mp-footer { position: absolute; left: 0; right: 0; bottom: 0; height: var(--mp-band-h); display: flex; align-items: center; justify-content: center; gap: 14px; z-index: 4; }
+
+/* Right-side modal (rounded), floats above 3D with margin around */
+.shop-modal {
+  position: absolute; top: 24px; right: 24px; bottom: 24px; width: min(680px, 50vw);
+  background: rgba(28, 28, 28, 0.7);
+  border: 2px solid #000; border-radius: 14px;
+  box-shadow: 0 10px 24px rgba(0,0,0,0.45);
+  z-index: 6;
+  backdrop-filter: blur(2px);
+}
+.shop-title { color: #fff; margin: 0 0 12px 0; font-size: 18px; text-shadow: 2px 2px 0 #000; }
+.shop-tabs { display: grid; grid-template-columns: 1fr 1fr; margin: 0 0 12px 0; border: 1px solid #000; border-radius: 12px; overflow: hidden; background: rgba(0,0,0,0.25); box-shadow: inset 1px 1px 0 rgba(255,255,255,0.2), inset -1px -1px 0 rgba(0,0,0,0.6); }
+.shop-tab { appearance: none; border: none; border-right: 1px solid #000; padding: 12px 18px; background: transparent; color: #eee; text-shadow: 1px 1px 0 #000; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 10px; font-size: 18px; }
+.shop-tab:last-child { border-right: 0; }
+.shop-tab.active { background: rgba(0,0,0,0.35); color: #fff; }
+.shop-tab-icon { width: 24px; height: 24px; image-rendering: pixelated; border: none; border-radius: 0; }
+.shop-list { display: grid; grid-auto-rows: minmax(48px, auto); gap: 10px; padding-right: 14px; }
+/* Two-row grid so status text sits under the title while cost+button stay aligned right */
+.shop-item { display: grid; grid-template-columns: 1fr auto auto; grid-template-rows: auto auto; grid-template-areas: 'name cost btn' 'status cost btn'; align-items: center; gap: 6px 12px; background: rgba(0,0,0,0.25); padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(0,0,0,0.6); }
+.shop-item-name { grid-area: name; color: #fff; text-shadow: 2px 2px 0 #000; font-size: 16px; }
+.shop-item-status { grid-area: status; color: #ddd; font-size: 13px; }
+.shop-status-purchased { color: #6cc642; }
+.shop-cost { grid-area: cost; display: inline-flex; align-items: center; gap: 8px; background: rgba(0,0,0,0.35); padding: 4px 8px; border-radius: 8px; border: 1px solid rgba(0,0,0,0.55); }
+.shop-cost .shop-chip-img { border: none; border-radius: 0; box-shadow: none; }
+.shop-item .ui-btn-narrow { grid-area: btn; }
+.shop-item .ui-btn, .shop-btns .ui-btn { margin-top: 0; margin-bottom: 0; }
+.shop-btns { grid-area: btn; display: flex; gap: 8px; align-items: center; }
+.shop-btns .ui-btn-narrow { grid-area: auto; }
+.shop-item-trade > .shop-cost { display: none; }
+.shop-trade { display: flex; align-items: center; gap: 10px; }
+.shop-trade-arrow { color: #ddd; text-shadow: 1px 1px 0 #000; font-size: 18px; }
+.shop-btn-wrap { grid-area: btn; position: relative; height: 100%; display: flex; align-items: center; justify-content: flex-end; }
+.shop-btn-shield { position: absolute; inset: 0; z-index: 2; background: rgba(0,0,0,0); cursor: not-allowed; }
+.shop-chip-img { width: 22px; height: 22px; object-fit: cover; image-rendering: pixelated; border: 1px solid #000; border-radius: 4px; box-shadow: inset 1px 1px 0 rgba(255,255,255,0.3), inset -1px -1px 0 rgba(0,0,0,0.5); }
+.shop-chip-text { color: #eee; text-shadow: 1px 1px 0 #000; font-size: 14px; }
+.shop-menu { position: absolute; inset: 16px 16px 92px 16px; overflow-y: auto; overflow-x: hidden; }
+.shop-cancel { position: absolute; right: 16px; bottom: 16px; }
+.shop-menu { scrollbar-width: thin; scrollbar-color: #6d6d6d #1d1d1d; }
+/* Minecraft-like pixelated scrollbar (WebKit/Blink) */
+.shop-menu::-webkit-scrollbar { width: 14px; height: 14px; }
+.shop-menu::-webkit-scrollbar-track {
+  background:
+    repeating-linear-gradient(
+      0deg,
+      #1d1d1d 0, #1d1d1d 6px,
+      #232323 6px, #232323 12px
+    );
+  border-left: 2px solid #000;
+}
+.shop-menu::-webkit-scrollbar-thumb {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.18), rgba(0,0,0,0.18)),
+    repeating-linear-gradient(
+      0deg,
+      #6f6f6f 0, #6f6f6f 6px,
+      #5b5b5b 6px, #5b5b5b 12px
+    );
+  border: 2px solid #000;
+  border-right-width: 1px;
+  border-left-width: 1px;
+  box-shadow: inset 1px 1px 0 rgba(255,255,255,0.25), inset -1px -1px 0 rgba(0,0,0,0.5);
+}
+/* Corners & buttons kept square for the blocky look */
+.shop-menu::-webkit-scrollbar-corner { background: #1d1d1d; }
+.shop-menu::-webkit-scrollbar-button { display: none; }
+.shop-title { color: #fff; margin: 0 0 12px 0; font-size: 18px; text-shadow: 2px 2px 0 #000; }
+.shop-list { display: grid; grid-auto-rows: minmax(48px, auto); gap: 10px; padding-right: 14px; }
+.shop-item { display: grid; grid-template-columns: 1fr auto auto; grid-template-rows: auto auto; grid-template-areas: 'name cost btn' 'status cost btn'; align-items: center; gap: 6px 12px; background: rgba(0,0,0,0.25); padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(0,0,0,0.6); }
+.shop-item-name { grid-area: name; color: #fff; text-shadow: 2px 2px 0 #000; font-size: 16px; }
+.shop-item-status { grid-area: status; color: #ddd; font-size: 13px; }
+.shop-status-purchased { color: #6cc642; }
+.shop-cost { grid-area: cost; display: inline-flex; align-items: center; gap: 8px; background: rgba(0,0,0,0.35); padding: 4px 8px; border-radius: 8px; border: 1px solid rgba(0,0,0,0.55); }
+.shop-cost .shop-chip-img { border: none; border-radius: 0; box-shadow: none; }
+.shop-item .ui-btn-narrow { grid-area: btn; }
+.shop-item .ui-btn, .shop-btns .ui-btn { margin-top: 0; margin-bottom: 0; }
+.shop-btns { grid-area: btn; display: flex; gap: 8px; align-items: center; }
+.shop-btns .ui-btn-narrow { grid-area: auto; }
+.shop-item-trade > .shop-cost { display: none; }
+.shop-trade { display: flex; align-items: center; gap: 10px; }
+.shop-trade-arrow { color: #ddd; text-shadow: 1px 1px 0 #000; font-size: 18px; }
+.shop-btn-wrap { grid-area: btn; position: relative; height: 100%; display: flex; align-items: center; justify-content: flex-end; }
+.shop-btn-shield { position: absolute; inset: 0; z-index: 2; background: rgba(0,0,0,0); cursor: not-allowed; }
+.shop-chip-img { width: 22px; height: 22px; object-fit: cover; image-rendering: pixelated; border: 1px solid #000; border-radius: 4px; box-shadow: inset 1px 1px 0 rgba(255,255,255,0.3), inset -1px -1px 0 rgba(0,0,0,0.5); }
+.shop-chip-text { color: #eee; text-shadow: 1px 1px 0 #000; font-size: 14px; }
+.shop-inv { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px; }
+.shop-inventory { display: block !important; background: transparent; border: none; padding: 0; }
+.shop-item-title { color: #fff; text-shadow: 2px 2px 0 #000; font-size: 16px; margin-bottom: 6px; }
+
+/* Inventory modal (separate from Trading Outpost modal) */
+.shop-inventory-modal {
+  position: absolute; top: 24px; left: 24px; z-index: 7;
+  background: rgba(28,28,28,0.55);
+  border: 2px solid #000; border-radius: 14px; padding: 12px;
+  box-shadow: 0 10px 24px rgba(0,0,0,0.45);
+  max-width: min(520px, 44vw);
+}
+/* Remove borders/rounding on the item images inside the inventory modal */
+.shop-inventory-modal .shop-chip-img { border: none; border-radius: 0; box-shadow: none; }
+
+/* Debug reset button in Shop */
+.shop-debug { position: absolute; left: 24px; bottom: 24px; z-index: 7; }
+
+/* Options page */
+.opt-root { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+.opt-panel { position: relative; width: min(720px, 60vw); background: rgba(28,28,28,0.55); border: 2px solid #000; border-radius: 14px; box-shadow: 0 10px 24px rgba(0,0,0,0.45); padding: 16px; }
+.opt-grid { display: grid; grid-template-columns: 1fr; gap: 18px; }
+.opt-grid-2 { grid-template-columns: 1fr 1fr; row-gap: 80px; column-gap: 14px; }
+.opt-cell { background: transparent; border: none; border-radius: 0; padding: 0; display: flex; align-items: center; justify-content: center; }
+.opt-cell .ui-btn { width: 100%; min-width: 0; }
+.opt-done { display: block; margin: 80px auto 0; }
+.opt-label { color: #fff; text-shadow: 1px 1px 0 #000; min-width: 160px; }
+.opt-slider { position: relative; width: 100%; height: 40px; background: linear-gradient(#2e2e2e,#1f1f1f); border: 1px solid #000; border-radius: 0; box-shadow: inset 1px 1px 0 rgba(255,255,255,0.2), inset -1px -1px 0 rgba(0,0,0,0.6); overflow: hidden; }
+.opt-slider-label { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #fff; text-shadow: 1px 1px 0 #000; pointer-events: none; font-size: 16px; }
+.opt-range { position: absolute; inset: 1px; width: auto; height: auto; -webkit-appearance: none; appearance: none; background: transparent; }
+/* Track */
+.opt-range::-webkit-slider-runnable-track { height: 100%; background: transparent; }
+.opt-range::-moz-range-track { height: 100%; background: transparent; }
+/* Thumb */
+.opt-range::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 100%; margin: 0; background: linear-gradient(#a6a6a6,#7b7b7b); border: 1px solid #000; border-radius: 0; box-shadow: inset 1px 1px 0 #dcdcdc, inset -1px -1px 0 #575757; box-sizing: border-box; }
+.opt-range::-moz-range-thumb { width: 20px; height: 100%; background: linear-gradient(#a6a6a6,#7b7b7b); border: 1px solid #000; border-radius: 0; box-shadow: inset 1px 1px 0 #dcdcdc, inset -1px -1px 0 #575757; box-sizing: border-box; }
+.shop-inv-chip { display: inline-flex; align-items: center; gap: 8px; background: rgba(0,0,0,0.25); padding: 6px 10px; border-radius: 8px; border: 1px solid rgba(0,0,0,0.55); }
 
 /* Tetromino preview gallery */
 .mp-tetro-gallery { position: relative; z-index: 4; display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin: 0 auto; width: min(880px, 92vw); }
