@@ -1,6 +1,6 @@
 COMPOSE ?= docker compose
 
-.PHONY: build up down prune fprune deepprune df test coverage
+.PHONY: build up down prune fprune deepprune df test coverage re
 
 build:
 	$(COMPOSE) build backend frontend
