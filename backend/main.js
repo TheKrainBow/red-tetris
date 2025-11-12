@@ -23,7 +23,6 @@ const io = new SocketIOServer(server, {
     origin: clientAddr,
     credentials: true
   },
-  path: '/socket'
 });
 
 // Track rooms manually
