@@ -23,7 +23,7 @@ const io = new SocketIOServer(server, {
     origin: clientAddr,
     credentials: true
   },
-  // path: '/socket.io'
+  path: '/socket'
 });
 
 // Track rooms manually
@@ -66,70 +66,24 @@ io.on('connection', (socket) => {
         });
     });
 
-});
+    socket.on('joinRoom', (data, callback) => {
+      const { room, playerName } = data;
+      if (!room || typeof playerName !== 'string') {
+        return callback({ error: 'Invalid room or playerName' });
+      }
 
-// --- Express routes ---
-app.get('/', (req, res) => res.send('Red‑Tetrix is running'));
+      if (!rooms.has(room)) {
+        return callback({ error: `Room ${room} does not exist` });
+      }
 
-app.post('/createRoom', (req, res) => {
-  const room = crypto.createHash('md5').update(String(Date.now())).digest('hex');
+      const playersMap = rooms.get(room);
+      playersMap.set(socket.id, playerName);
 
-  if (rooms.has(room)) {
-    return res.status(400).send({ error: "error, room already exists" });
-  }
+      socket.join(room);
 
-  const { socketId } = req.body;
-  if (typeof socketId !== 'string') {
-    return res.status(400).send({ error: "socketId required" });
-  }
+      return callback({ success: true, room, playerName });
+    });
 
-  const socket = io.sockets.sockets.get(socketId);
-  if (!socket) {
-    return res.status(404).send({ error: "Socket not found" });
-  }
-
-  try {
-    socket.join(room);
-    rooms.set(room, new Map());
-  } catch (err) {
-    console.error(err);
-    return res.status(500).send({ error: "error joining room" });
-  }
-
-  return res.send({ success: true, room });
-});
-
-app.post('/:room/:playerName', (req, res) => {
-  const { room, playerName } = req.params;
-
-  if (!room || typeof playerName !== 'string') {
-    return res.status(400).send({ error: 'Invalid room or playerName' });
-  }
-
-  if (!rooms.has(room)) {
-    return res.status(404).send({ error: `Room ${room} does not exist` });
-  }
-
-  const { socketId } = req.body;
-  if (typeof socketId !== 'string') {
-    return res.status(400).send({ error: 'socketId required' });
-  }
-
-  const socket = io.sockets.sockets.get(socketId);
-  if (!socket) {
-    return res.status(404).send({ error: 'Socket not found' });
-  }
-
-  try {
-    socket.join(room);
-    const players = rooms.get(room);
-    players.set(socketId, playerName);
-  } catch (err) {
-    console.error(err);
-    return res.status(500).send({ error: 'Error joining room' });
-  }
-
-  return res.send({ success: true, room, playerName });
 });
 
 
