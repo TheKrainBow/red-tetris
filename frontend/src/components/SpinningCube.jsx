@@ -2,7 +2,7 @@ import React, { useRef } from 'react'
 import { Canvas, useFrame, useLoader } from '@react-three/fiber'
 import * as THREE from 'three'
 
-function Cube({ textureUrl, rotateSpeed = 0.008 }) {
+function Cube({ textureUrl, rotateSpeed, speedX = 0, speedY = 0.008, scale = 1 }) {
   const mesh = useRef()
   const texture = useLoader(THREE.TextureLoader, textureUrl)
   // Pixelated look and disable mipmaps for crispness
@@ -15,10 +15,13 @@ function Cube({ textureUrl, rotateSpeed = 0.008 }) {
     if (mesh.current) {
       if (!didInit.current) {
         mesh.current.rotation.y = 0.35
+        // Apply scale once to avoid clipping in tight containers (e.g., dropdowns)
+        mesh.current.scale.set(scale, scale, scale)
         didInit.current = true
       }
-      mesh.current.rotation.y += rotateSpeed
-      // mesh.current.rotation.x = 0.50
+      const ry = rotateSpeed !== undefined ? rotateSpeed : speedY
+      mesh.current.rotation.y += ry
+      if (speedX) mesh.current.rotation.x += speedX
     }
   })
 
@@ -30,17 +33,19 @@ function Cube({ textureUrl, rotateSpeed = 0.008 }) {
   )
 }
 
-export default function SpinningCube({ textureUrl, size = 50 }) {
+export default function SpinningCube({ textureUrl, size = 50, speedX = 0, speedY = 0.008, rotateSpeed, scale = 1 }) {
   return (
     <div style={{ width: size, height: size }}>
       <Canvas
         orthographic
         camera={{ position: [2.6, 2.6, 2.6], zoom: 20 }}
         dpr={1}
+        gl={{ antialias: false, alpha: true, powerPreference: 'low-power', preserveDrawingBuffer: false, stencil: false, depth: true }}
+        frameloop="always"
         style={{ width: '100%', height: '100%', background: 'transparent' }}
       >
         <ambientLight intensity={1} />
-        <Cube textureUrl={textureUrl} />
+        <Cube textureUrl={textureUrl} speedX={speedX} speedY={speedY} rotateSpeed={rotateSpeed} scale={scale} />
       </Canvas>
     </div>
   )

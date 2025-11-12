@@ -19,12 +19,13 @@
   justify-content: center;
 }
 .ui-btn:hover,
-.ui-btn:focus,
+.ui-btn:focus-visible,
 .ui-btn.is-selected {
   /* Minecraft-like selected tint: blue background, yellow label */
   background: linear-gradient(#8fb2e8, #6f8fc6);
   color: #f0d774;
 }
+.ui-btn:focus { outline: none; }
 .ui-btn:active { transform: translateY(1px); }
 .ui-btn-small:active { transform: translateY(0.5px); }
 .ui-btn-small {

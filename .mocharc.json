@@ -3,7 +3,9 @@
     "chai",
     "@babel/register"
   ],
+  "spec": [
+    "test/**/*.js"
+  ],
   "reporter": "spec",
   "ui": "bdd"
 }
-

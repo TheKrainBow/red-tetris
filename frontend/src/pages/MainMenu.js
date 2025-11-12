@@ -22,6 +22,10 @@ export function navToShop(win = typeof window !== 'undefined' ? window : undefin
   if (win && win.location) win.location.hash = '#/shop'
 }
 
+export function navToLeaderboard(win = typeof window !== 'undefined' ? window : undefined) {
+  if (win && win.location) win.location.hash = '#/leaderboard'
+}
+
 export function attachReady(promise, setReady) {
   let mounted = true
   promise
@@ -56,7 +60,7 @@ export default function MainMenu() {
             <Button className="ui-btn-narrow" onClick={() => { window.location.hash = '#/options' }}>Options...</Button>
             <Button className="ui-btn-narrow">Quit game</Button>
           </div>
-          <Button size="small" className="mm-leader" title="Leaderboard">🏆</Button>
+          <Button size="small" className="mm-leader" title="Leaderboard" onClick={() => navToLeaderboard(window)}>🏆</Button>
         </div>
       </div>
 
