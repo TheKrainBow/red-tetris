@@ -41,23 +41,12 @@ class Piece{
         }
         return output;
     }
-    #new_position(){
-        const oldNumRows = this.state.length;
-        const newNumRows = this.rotations[this.state_index].length;
-        const oldNumColumns = this.state[0].length;
-        const newNumColumns = this.rotations[this.state_index][0].length;
-        const x = this.position[0] + Math.floor(oldNumRows / 2) - Math.floor(newNumRows / 2);
-        const y = this.position[1] + Math.floor(oldNumColumns / 2) - Math.floor(newNumColumns / 2);
-        return  [x,y];
-    }
     rotate(){
         this.state_index = (this.state_index + 1) % 4;
-        this.position = this.#new_position();
         this.state = this.rotations[this.state_index];
     }
     rotate_backwards(){
         this.state_index = (this.state_index + 3) % 4;
-        this.position = this.#new_position();
         this.state = this.rotations[this.state_index];
     }
 };
