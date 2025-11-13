@@ -6,7 +6,7 @@ import { Server as SocketIOServer } from 'socket.io';
 
 // --- Constants ---
 const serverPort = Number(process.env.SERVER_PORT || 3004);
-const clientAddr = Number(process.env.CLIENT_ADDR || "loaclahost:8080");
+const clientAddr = Number(process.env.CLIENT_ADDR || "localhost:8080");
 
 // --- App setup ---
 const app = express();
