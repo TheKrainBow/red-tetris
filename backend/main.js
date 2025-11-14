@@ -3,6 +3,7 @@ import cors from 'cors';
 import crypto from 'crypto';
 import http from 'http';
 import { Server as SocketIOServer } from 'socket.io';
+import { Gateway } from './classes/Gateway';
 
 // --- Constants ---
 const serverPort = Number(process.env.SERVER_PORT || 3004);
@@ -25,8 +26,7 @@ const io = new SocketIOServer(server, {
   },
 });
 
-// Track rooms manually
-const rooms = new Map();
+const gateway = new Gateway();
 
 // --- Socket.IO connection handling ---
 io.on('connection', (socket) => {
@@ -37,57 +37,19 @@ io.on('connection', (socket) => {
       timestamp: new Date().toISOString()
     });
 
-    socket.on('disconnect', (reason) => {
-        console.log(`Socket disconnected ${socket.id}, reason: ${reason}`);
-        rooms.forEach((playersMap, roomName) => {
-            if (playersMap.has(socket.id)) {
-                playersMap.delete(socket.id);
-                console.log(`Removed socket ${socket.id} from room ${roomName}`);
+    socket.on('disconnect', (reason) => { gateway.disconnect(socket, reason) });
 
-                if (playersMap.size === 0) {
-                    rooms.delete(roomName);
-                    console.log(`Deleted room ${roomName} because no players left`);
-                }
-            }
-        });
-    });
+    socket.on('createRoom', (data, callback) => { gateway.create_room(socket, data, callback) });
 
-    socket.on('createRoom', (data, callback) => {
-        const room = crypto.createHash('md5').update(String(Date.now())).digest('hex');
-        if (rooms.has(room)) {
-          return callback({ error: "Room already exists" });
-        }
-        rooms.add(room);
-        socket.join(room);
-        callback({
-          success: true,
-          room
-        });
-    });
+    socket.on('joinRoom', (data, callback) => { gateway.join_room(socket, data, callback) });
 
-    socket.on('joinRoom', (data, callback) => {
-      const { room, playerName } = data;
-      if (!room || typeof playerName !== 'string') {
-        return callback({ error: 'Invalid room or playerName' });
-      }
-
-      if (!rooms.has(room)) {
-        return callback({ error: `Room ${room} does not exist` });
-      }
-
-      const playersMap = rooms.get(room);
-      playersMap.set(socket.id, playerName);
-
-      socket.join(room);
-
-      return callback({ success: true, room, playerName });
-    });
+    socket.on('update_piece_position', (data, callback) => { gateway.update_piece_position(socket, data, callback) });
 
 });
 
 
 // --- Start server ---
 server.listen(serverPort, () => {
-  console.log(`Server running on port ${serverPort}`);
-  console.log(`Socket.IO server running on http://localhost:${serverPort}/ (default path)`);
+  console.log(`Server running`);
+  console.log(`Socket.IO server running`);
 });
