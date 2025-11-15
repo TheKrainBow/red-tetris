@@ -7,6 +7,7 @@ import Login from './pages/Login'
 import Shop from './pages/Shop'
 import Options from './pages/Options'
 import SkyboxBackground from './three/Skybox.jsx'
+import UtilityDock from './components/UtilityDock'
 import Leaderboard from './pages/Leaderboard'
 
 const USERNAME_KEY = 'username'
@@ -79,6 +80,13 @@ export default function Router() {
       <div style={{ position: 'relative', zIndex: 1, width: '100%', height: '100%' }}>
         {page}
       </div>
+      {route !== '/login' && (
+        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 2 }}>
+          <div style={{ pointerEvents: 'auto' }}>
+            <UtilityDock hidden={route === '/login'} />
+          </div>
+        </div>
+      )}
     </div>
   )
 }

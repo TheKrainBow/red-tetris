@@ -4,6 +4,8 @@ const proxyquire = require('proxyquire').noCallThru()
 const chai = require('chai')
 const { setupDom } = require('./helpers/dom')
 
+const { ShopStateProvider } = require('../frontend/src/context/ShopStateContext')
+
 const CreateGame = proxyquire('../frontend/src/pages/CreateGame', {
   '../components/SpinningCube.jsx': () => React.createElement('div', { className: 'cube-stub' }),
 }).default
@@ -32,7 +34,9 @@ describe('CreateGame page', function () {
     const env = setupDom({ storageData: { username: 'Alex' } })
     cleanup = env.cleanup
     act(() => {
-      renderer = create(React.createElement(CreateGame))
+      renderer = create(
+        React.createElement(ShopStateProvider, null, React.createElement(CreateGame))
+      )
     })
     return env
   }

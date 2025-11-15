@@ -28,6 +28,14 @@ module.exports = {
         use: {
           loader: 'babel-loader'
         }
+      },
+      {
+        test: /\.ya?ml$/i,
+        use: [
+          {
+            loader: path.resolve(__dirname, 'yaml-string-loader.js'),
+          },
+        ],
       }
     ]
   },

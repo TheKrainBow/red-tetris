@@ -8,6 +8,24 @@ import { OrbitControls as ThreeOrbitControls } from 'three/examples/jsm/controls
 // Note: We keep OrbitControls available, but use a gentle parallax camera instead
 // for this screen to give depth without full user control.
 import Button from '../components/Button'
+import {
+  SHOP_ITEMS,
+  TRADE_ITEMS,
+  CRAFT_ITEMS,
+  formatResourceId,
+} from '../utils/shopData'
+import {
+  RESOURCE_ICONS,
+  getResourceIcon,
+  getResourceName,
+  formatNumber,
+  computeShopPrice,
+  describeEffect,
+  computeMaxTimes,
+  canCraft,
+  describeCraftEffects,
+} from '../utils/shopLogic'
+import { useShopState } from '../context/ShopStateContext'
 
 // Camera spawn from latest console snapshot
 const CAM_POS = [-0.800, 2.038, -2.262]
@@ -237,26 +255,17 @@ export default function Shop() {
   const modelUrl = useMemo(() => '/models/villager.glb', [])
   const villageUrl = useMemo(() => '/models/village.glb', [])
   const [villagePos] = useState([2.9, 0, -19.7])
-  // Mock inventory to test purchases
-  // Inventory is persisted to localStorage so it survives navigation
-  const [inv, setInv] = useState(() => {
-    try {
-      const raw = localStorage.getItem('shop.inv')
-      if (raw) {
-        const parsed = JSON.parse(raw)
-        return { Dirt: 0, Stone: 0, Iron: 0, Diamond: 0, Emerald: 0, ...parsed }
-      }
-    } catch (_) {}
-    // Default starting values (useful for demo/dev)
-    return { Dirt: 1000, Stone: 1000, Iron: 1000, Diamond: 1000, Emerald: 0 }
-  })
-  const [purchases, setPurchases] = useState(() => {
-    try {
-      const raw = localStorage.getItem('shop.purchases')
-      if (raw) return JSON.parse(raw)
-    } catch (_) {}
-    return {}
-  })
+  const {
+    inventory: inv,
+    setInventory: setInv,
+    purchases,
+    setPurchases,
+    craftUnlocks,
+    setCraftUnlocks,
+    craftCounts,
+    setCraftCounts,
+    resetShopState,
+  } = useShopState()
 
   // --- sounds ---
   const sounds = useRef({ trade: [], deny: [], dirt: [], stone: [] })
@@ -360,49 +369,112 @@ export default function Shop() {
   }, [])
 
   const onBack = () => { window.location.hash = '#/' }
-  const [activeTab, setActiveTab] = useState('upgrades') // 'upgrades' | 'emeralds'
+  const [activeTab, setActiveTab] = useState('shops')
 
   function resetShop() {
-    const base = { Dirt: 1000, Stone: 1000, Iron: 1000, Diamond: 1000, Emerald: 0 }
-    setPurchases({})
-    setInv(base)
-    try { localStorage.setItem('shop.inv', JSON.stringify(base)) } catch (_) {}
-    try { localStorage.removeItem('shop.purchases') } catch (_) {}
+    resetShopState()
   }
 
-  function handleBuy(item) {
-    // Decide using current state; then update and play SFX synchronously
-    const have = inv[item.cost.type] || 0
-    const bought = purchases[item.id] || 0
-    const overCap = (item.kind === 'single' && bought >= 1) ||
-                    (item.kind === 'passive' && bought >= (item.max || 100))
-    const affordable = have >= item.cost.amount
-    if (!affordable || overCap) return
-    // Apply updates
-    setInv({ ...inv, [item.cost.type]: have - item.cost.amount })
-    setPurchases({ ...purchases, [item.id]: bought + 1 })
-    // Play a resource SFX based on cost type
-    const t = item.cost.type
-    if (t === 'Dirt') playFrom(sounds.current.dirt)
+  const playSpendSound = (resourceId) => {
+    if (resourceId === 'dirt') playFrom(sounds.current.dirt)
     else playFrom(sounds.current.stone)
   }
 
-  // Persist inventory whenever it changes
-  useEffect(() => {
-    try { localStorage.setItem('shop.inv', JSON.stringify(inv)) } catch (_) {}
-  }, [inv])
+  function handleBuy(item) {
+    if (!item) return
+    const level = purchases[item.id] || 0
+    const maxLevel = item.max_level ?? Infinity
+    if (level >= maxLevel) {
+      playFrom(sounds.current.deny)
+      return
+    }
+    const costId = formatResourceId(item.resource_cost)
+    const price = computeShopPrice(item, level)
+    let didBuy = false
+    setInv((cur) => {
+      const have = cur[costId] || 0
+      if (have < price) return cur
+      didBuy = true
+      const next = { ...cur, [costId]: have - price }
+      playSpendSound(costId)
+      return next
+    })
+    if (didBuy) {
+      setPurchases((prev) => ({ ...prev, [item.id]: (prev[item.id] || 0) + 1 }))
+    } else {
+      playFrom(sounds.current.deny)
+    }
+  }
 
-  // Persist purchases whenever they change
-  useEffect(() => {
-    try { localStorage.setItem('shop.purchases', JSON.stringify(purchases)) } catch (_) {}
-  }, [purchases])
+  function handleTrade(trade, requestedTimes = 1) {
+    if (!trade || !requestedTimes) return
+    setInv((cur) => {
+      const maxTimes = computeMaxTimes(cur, trade.cost)
+      const times = Math.min(requestedTimes, maxTimes)
+      if (!times || times <= 0 || !Number.isFinite(times)) {
+        playFrom(sounds.current.deny)
+        return cur
+      }
+      const next = { ...cur }
+      const costEntries = Object.entries(trade.cost || {})
+      const rewardEntries = Object.entries(trade.give || {})
+      for (const [resId, amount] of costEntries) {
+        const key = formatResourceId(resId)
+        const spend = (Number(amount) || 0) * times
+        next[key] = Math.max(0, (next[key] || 0) - spend)
+      }
+      for (const [resId, amount] of rewardEntries) {
+        const key = formatResourceId(resId)
+        const gain = (Number(amount) || 0) * times
+        next[key] = (next[key] || 0) + gain
+      }
+      if (costEntries.length) playSpendSound(formatResourceId(costEntries[0][0]))
+      return next
+    })
+  }
+
+  function handleCraft(craft) {
+    if (!craft) return
+    const rawMax = Number(craft.max_crafts)
+    const maxCrafts = Number.isFinite(rawMax) && rawMax >= 0 ? rawMax : Infinity
+    const craftedTimes = craftCounts?.[craft.id] || 0
+    if (craftedTimes >= maxCrafts) {
+      playFrom(sounds.current.deny)
+      return
+    }
+    let crafted = false
+    setInv((cur) => {
+      if (!canCraft(cur, craft)) {
+        playFrom(sounds.current.deny)
+        return cur
+      }
+      crafted = true
+      const next = { ...cur }
+      const costEntries = Object.entries(craft.cost || {})
+      for (const [resId, amount] of costEntries) {
+        const key = formatResourceId(resId)
+        const spend = Number(amount) || 0
+        next[key] = Math.max(0, (next[key] || 0) - spend)
+      }
+      for (const [resId, amount] of Object.entries(craft.outputs || {})) {
+        const key = formatResourceId(resId)
+        const gain = Number(amount) || 0
+        next[key] = (next[key] || 0) + gain
+      }
+      if (costEntries.length) playSpendSound(formatResourceId(costEntries[0][0]))
+      return next
+    })
+    if (crafted) {
+      setCraftUnlocks((prev) => (prev[craft.id] ? prev : { ...prev, [craft.id]: true }))
+      setCraftCounts((prev) => ({
+        ...prev,
+        [craft.id]: (prev?.[craft.id] || 0) + 1,
+      }))
+    }
+  }
 
   return (
     <div className="shop-root">
-      {/* Standalone Inventory modal (outside the Trading Outpost modal) */}
-      <div className="shop-inventory-modal">
-        <InventoryBar inv={inv} />
-      </div>
       {/* Top half: 3D view with sky-blue background */}
       <div className="shop-3d">
         <Canvas
@@ -432,167 +504,96 @@ export default function Shop() {
         <div className="shop-menu">
           <h3 className="shop-title">Trading Outpost</h3>
           <div className="shop-tabs">
-            <button className={`shop-tab ${activeTab === 'upgrades' ? 'active' : ''}`} onClick={() => setActiveTab('upgrades')}>
-              <img className="shop-tab-icon" src="/ui/Hammer.webp" alt="Upgrades" />
-              Upgrades
-            </button>
-            <button className={`shop-tab ${activeTab === 'emeralds' ? 'active' : ''}`} onClick={() => setActiveTab('emeralds')}>
-              <img className="shop-tab-icon" src={COST_ICONS.Emerald} alt="Emeralds" />
-              Emeralds
-            </button>
+            {SHOP_TABS.map((tab) => (
+              <button
+                key={tab.id}
+                className={`shop-tab ${activeTab === tab.id ? 'active' : ''}`}
+                onClick={() => setActiveTab(tab.id)}
+              >
+                <img className="shop-tab-icon" src={tab.icon} alt={tab.label} />
+                {tab.label}
+              </button>
+            ))}
           </div>
-          {activeTab === 'upgrades' ? (
+          {activeTab === 'shops' && (
             <ShopList
               inv={inv}
               purchases={purchases}
               onBuy={handleBuy}
               onDeny={() => playFrom(sounds.current.deny)}
             />
-          ) : (
-            <EmeraldTradeList
+          )}
+          {activeTab === 'trades' && (
+            <TradeList
               inv={inv}
-              onTrade={(res, amount) => {
-                // SFX based on resource used
-                if (res === 'Dirt') playFrom(sounds.current.dirt)
-                else playFrom(sounds.current.stone)
-                // Update inventory: spend resource, gain 1 emerald
-                setInv((cur) => {
-                  const have = cur[res] || 0
-                  if (have < amount) return cur
-                  return { ...cur, [res]: have - amount, Emerald: (cur.Emerald||0) + 1 }
-                })
-              }}
-              onTradeMany={(res, amount, times) => {
-                if (!times || times <= 0) return
-                if (res === 'Dirt') playFrom(sounds.current.dirt)
-                else playFrom(sounds.current.stone)
-                setInv((cur) => {
-                  const have = cur[res] || 0
-                  const maxTimes = Math.min(times, Math.floor(have / amount))
-                  if (maxTimes <= 0) return cur
-                  return {
-                    ...cur,
-                    [res]: have - amount * maxTimes,
-                    Emerald: (cur.Emerald || 0) + maxTimes,
-                  }
-                })
-              }}
+              onTrade={handleTrade}
+              onDeny={() => playFrom(sounds.current.deny)}
+            />
+          )}
+          {activeTab === 'crafts' && (
+            <CraftList
+              inv={inv}
+              unlocks={craftUnlocks}
+              craftCounts={craftCounts}
+              onCraft={handleCraft}
               onDeny={() => playFrom(sounds.current.deny)}
             />
           )}
         </div>
-        <Button className="ui-btn-wide shop-cancel" onClick={onBack}>Cancel</Button>
       </div>
 
-      {/* Debug reset button */}
-      <Button size="small" className="shop-debug" onClick={resetShop}>Reset</Button>
+      <div className="shop-nav">
+        <Button className="ui-btn shop-back" onClick={onBack}>Back</Button>
+        <Button size="small" className="ui-btn shop-reset" onClick={resetShop}>Reset</Button>
+      </div>
     </div>
   )
 }
 
-// ---- Simple mock shop list ----
-const COST_ICONS = {
-  Dirt: '/blocks/Dirt.jpg',
-  Stone: '/blocks/Stone.jpeg',
-  Iron: '/blocks/IronItem.png',
-  Diamond: '/blocks/DiamondItem.png',
-  Emerald: '/blocks/EmeraldItem.png',
-}
-
-// Passive item factory (stackable up to 100 levels)
-function passive(id, name, costType, amount, perLevelPct = 1) {
-  return { kind: 'passive', id, name, cost: { type: costType, amount }, perLevelPct, max: 100 }
-}
-// One-time item factory
-function single(id, name, costType, amount, desc) {
-  return { kind: 'single', id, name, cost: { type: costType, amount }, desc }
-}
-
-const SHOP_ITEMS = [
-  // Passive % upgrades
-  passive('p_dirt_1', 'Increase Dirt spawning by 1%', 'Dirt', 10, 1),
-  passive('p_dirt_2', 'Increase Dirt spawning by 1%', 'Stone', 8, 1),
-  passive('p_stone_1', 'Increase Stone spawning by 1%', 'Stone', 12, 1),
-  passive('p_stone_2', 'Increase Stone spawning by 1%', 'Iron', 6, 1),
-  passive('p_iron_1', 'Increase Iron spawning by 1%', 'Iron', 10, 1),
-  passive('p_iron_2', 'Increase Iron spawning by 1%', 'Diamond', 2, 1),
-  passive('p_diamond_1', 'Increase Diamond spawning by 1%', 'Diamond', 3, 1),
-  passive('p_luck', 'Increase Luck by 1%', 'Iron', 7, 1),
-  passive('p_speed', 'Mine Speed +1%', 'Stone', 9, 1),
-  passive('p_storage', 'Chest Capacity +1%', 'Dirt', 14, 1),
-  passive('p_trade', 'Better Trades +1%', 'Iron', 11, 1),
-  passive('p_village', 'Village Growth +1%', 'Stone', 13, 1),
-  passive('p_smelt', 'Smelting Efficiency +1%', 'Diamond', 1, 1),
-  passive('p_beacon', 'Beacon Range +1%', 'Stone', 15, 1),
-  passive('p_cart', 'Cart Speed +1%', 'Iron', 8, 1),
-  passive('p_mender', 'Tool Durability +1%', 'Diamond', 2, 1),
-
-  // One-time fun items
-  single('s_hat', 'Villager Hat', 'Dirt', 50, 'A very fashionable pile of blocks.'),
-  single('s_music', 'Jukebox Unlocked', 'Iron', 60, 'Dance while you craft.'),
-  single('s_portal', 'Mini Nether Portal', 'Diamond', 10, 'Absolutely safe. Trust me.'),
-  single('s_banner', 'Custom Banner', 'Stone', 80, 'Your village, your banner.'),
-  single('s_torch', 'Infinite Torch', 'Iron', 30, 'Never dark, always moody.'),
-  single('s_pet', 'Pet Slime', 'Stone', 40, 'It follows you, mostly.'),
+// ---- Shop config-driven data ----
+const SHOP_TABS = [
+  { id: 'shops', label: 'Upgrades', icon: '/ui/Hammer.webp' },
+  { id: 'trades', label: 'Trades', icon: RESOURCE_ICONS.emerald },
+  { id: 'crafts', label: 'Crafts', icon: '/ui/Backpack.png' },
 ]
 
-function InventoryBar({ inv }) {
-  return (
-    <div className="shop-item shop-inventory">
-      <div className="shop-item-title">Inventory</div>
-      <div className="shop-inv">
-        {Object.entries(inv).map(([k,v]) => (
-          <div key={k} className="shop-inv-chip">
-            <img className="shop-chip-img" src={COST_ICONS[k]} alt={k} />
-            <span className="shop-chip-text">{v} {k}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
 function ShopList({ inv, purchases, onBuy, onDeny }) {
+  if (!SHOP_ITEMS.length) {
+    return <div className="shop-empty">No shop upgrades configured.</div>
+  }
   return (
     <div className="shop-list">
-      {SHOP_ITEMS.map((it) => {
-        const bought = purchases[it.id] || 0
-        const affordable = (inv[it.cost.type] || 0) >= it.cost.amount
-        let disabled = false
-        let status = null
-        let purchased = false
-        if (it.kind === 'passive') {
-          const cur = Math.min(bought, it.max) * (it.perLevelPct || 1)
-          status = `Current: ${cur}%`
-          disabled = !affordable || bought >= (it.max || 100)
-        } else {
-          disabled = !affordable || bought >= 1
-          purchased = bought >= 1
-          status = purchased ? 'Purchased' : ''
-        }
+      {SHOP_ITEMS.map((item) => {
+        const level = purchases[item.id] || 0
+        const maxLevel = item.max_level ?? Infinity
+        const price = computeShopPrice(item, level)
+        const costId = formatResourceId(item.resource_cost)
+        const have = inv[costId] || 0
+        const affordable = have >= price
+        const atCap = level >= maxLevel
+        const effect = describeEffect(item, level)
         return (
-          <div className="shop-item" key={it.id}>
-            <div className="shop-item-name">{it.name}</div>
-            {status && (
-              <div className={`shop-item-status ${purchased ? 'shop-status-purchased' : ''}`}>
-                {status}
-              </div>
-            )}
+          <div className="shop-item" key={item.id}>
+            <div className="shop-item-name">{item.name}</div>
+            <div className="shop-item-status">
+              <div>Level {level}/{maxLevel === Infinity ? '∞' : maxLevel}</div>
+              <div>{effect.current}</div>
+              {effect.next && <div>Next: {effect.next}</div>}
+            </div>
             <div className="shop-cost">
-              <img className="shop-chip-img" src={COST_ICONS[it.cost.type]} alt={it.cost.type} />
-              <span className="shop-chip-text">{it.cost.amount} {it.cost.type}</span>
+              <img className="shop-chip-img" src={getResourceIcon(costId)} alt={getResourceName(costId)} />
+              <span className="shop-chip-text">{formatNumber(price)} {getResourceName(costId)}</span>
             </div>
             <div className="shop-btn-wrap">
-              <Button className="ui-btn-narrow" disabled={disabled} onClick={() => onBuy(it)}>
-                {it.kind === 'single'
-                  ? ((purchases[it.id] || 0) >= 1 ? 'Bought' : 'Buy')
-                  : ((purchases[it.id] || 0) >= (it.max || 100) ? 'Max' : 'Buy')}
+              <Button
+                className="ui-btn-narrow"
+                disabled={!affordable || atCap}
+                onClick={() => (affordable && !atCap ? onBuy(item) : onDeny && onDeny())}
+              >
+                {atCap ? 'Max' : 'Buy'}
               </Button>
-              {disabled && (
-                <div
-                  className="shop-btn-shield"
-                  onClick={() => onDeny && onDeny()}
-                />
+              {(!affordable || atCap) && (
+                <div className="shop-btn-shield" onClick={() => onDeny && onDeny()} />
               )}
             </div>
           </div>
@@ -602,53 +603,129 @@ function ShopList({ inv, purchases, onBuy, onDeny }) {
   )
 }
 
-function EmeraldTradeList({ inv, onTrade, onTradeMany, onDeny }) {
-  const trades = [
-    { id: 'e_dirt', label: '128 Dirt for 1 Emerald', res: 'Dirt', amount: 128 },
-    { id: 'e_stone', label: '64 Stone for 1 Emerald', res: 'Stone', amount: 64 },
-    { id: 'e_iron', label: '32 Iron for 1 Emerald', res: 'Iron', amount: 32 },
-    { id: 'e_diamond', label: '16 Diamond for 1 Emerald', res: 'Diamond', amount: 16 },
-  ]
+function TradeList({ inv, onTrade, onDeny }) {
+  if (!TRADE_ITEMS.length) {
+    return <div className="shop-empty">No trades configured.</div>
+  }
   return (
     <div className="shop-list">
-      {trades.map(t => {
-        const have = inv[t.res] || 0
-        const disabled = have < t.amount
-        const maxTimes = Math.floor(have / t.amount)
+      {TRADE_ITEMS.map((trade) => {
+        const maxTimes = computeMaxTimes(inv, trade.cost)
+        const disabled = maxTimes <= 0 || !Number.isFinite(maxTimes)
+        const maxLabel = Number.isFinite(maxTimes) ? maxTimes : '∞'
+        const costEntries = Object.entries(trade.cost || {})
+        const giveEntries = Object.entries(trade.give || {})
         return (
-          <div className="shop-item shop-item-trade" key={t.id}>
-            <div className="shop-item-name">
+          <div className="shop-item shop-item-trade" key={trade.id}>
               <div className="shop-trade">
                 <div className="shop-cost">
-                  <img className="shop-chip-img" src={COST_ICONS[t.res]} alt={t.res} />
-                  <span className="shop-chip-text">{t.amount} {t.res}</span>
+                  {costEntries.map(([resId, amount]) => (
+                    <ResourceChip key={resId} resourceId={resId} amount={amount} />
+                  ))}
                 </div>
-                <span className="shop-trade-arrow">→</span>
+                <span className="shop-arrow" aria-hidden="true" />
                 <div className="shop-cost">
-                  <img className="shop-chip-img" src={COST_ICONS.Emerald} alt="Emerald" />
-                  <span className="shop-chip-text">1 Emerald</span>
+                  {giveEntries.map(([resId, amount]) => (
+                    <ResourceChip key={resId} resourceId={resId} amount={amount} />
+                  ))}
                 </div>
               </div>
-            </div>
-            <div className="shop-cost" />
             <div className="shop-btns">
               <div className="shop-btn-wrap">
-                <Button className="ui-btn-slim" disabled={disabled} onClick={() => onTrade && onTrade(t.res, t.amount)}>
+                <Button className="ui-btn-slim" disabled={disabled} onClick={() => onTrade(trade, 1)}>
                   Trade
                 </Button>
                 {disabled && <div className="shop-btn-shield" onClick={() => onDeny && onDeny()} />}
               </div>
               <div className="shop-btn-wrap">
-                <Button className="ui-btn-slim" disabled={maxTimes <= 0}
-                  onClick={() => onTradeMany && onTradeMany(t.res, t.amount, maxTimes)}>
-                  Max (+{maxTimes})
+                <Button className="ui-btn-slim" disabled={disabled}
+                  onClick={() => onTrade(trade, maxTimes)}>
+                  Max (+{maxLabel})
                 </Button>
-                {maxTimes <= 0 && <div className="shop-btn-shield" onClick={() => onDeny && onDeny()} />}
+                {disabled && <div className="shop-btn-shield" onClick={() => onDeny && onDeny()} />}
               </div>
             </div>
           </div>
         )
       })}
     </div>
+  )
+}
+
+function CraftList({ inv, unlocks, craftCounts = {}, onCraft, onDeny }) {
+  const visibleCrafts = CRAFT_ITEMS.filter((craft) => {
+    const craftedTimes = craftCounts?.[craft.id] || 0
+    return unlocks[craft.id] || craftedTimes > 0 || canCraft(inv, craft)
+  })
+  if (!visibleCrafts.length) {
+    return <div className="shop-empty">Earn more resources to discover new crafts.</div>
+  }
+  return (
+    <div className="shop-list">
+      {visibleCrafts.map((craft) => {
+        const craftedTimes = craftCounts?.[craft.id] || 0
+        const rawMax = Number(craft.max_crafts)
+        const maxCrafts = Number.isFinite(rawMax) && rawMax >= 0 ? rawMax : Infinity
+        const hasLimit = Number.isFinite(rawMax) && rawMax >= 0
+        const maxed = craftedTimes >= maxCrafts
+        const canMake = !maxed && canCraft(inv, craft)
+        const effectLines = describeCraftEffects(craft)
+        const progressLabel = hasLimit
+          ? `Crafted ${Math.min(craftedTimes, maxCrafts)}/${maxCrafts}`
+          : `Crafted ${craftedTimes}`
+        return (
+          <div className="shop-item shop-craft-card" key={craft.id}>
+            <div className="shop-craft-main">
+              <div className="shop-craft-title-row">
+                <div className="shop-craft-title">{craft.name}</div>
+                <div className={`shop-craft-progress ${maxed ? 'maxed' : ''}`}>{progressLabel}</div>
+              </div>
+              <div className="shop-craft-costs">
+                <span className="shop-craft-label">Costs</span>
+                <div className="shop-craft-cost-list">
+                  {Object.entries(craft.cost || {}).map(([res, amt]) => (
+                    <ResourceChip key={res} resourceId={res} amount={amt} className="shop-chip-cost" />
+                  ))}
+                </div>
+              </div>
+              {effectLines.length > 0 && (
+                <div className="shop-craft-effects">
+                  <span className="shop-craft-label">Effects</span>
+                  <ul className="shop-craft-effects-list">
+                    {effectLines.map((line, idx) => (
+                      <li key={`${craft.id}-effect-${idx}`}>{line}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+            <div className="shop-craft-result">
+              <span className="shop-arrow" aria-hidden="true" />
+              <div className="shop-craft-output">
+                {Object.entries(craft.outputs || {}).map(([resId, amount]) => (
+                  <ResourceChip key={resId} resourceId={resId} amount={amount} className="shop-chip-output" />
+                ))}
+              </div>
+            </div>
+            <div className="shop-btn-wrap">
+              <Button className="ui-btn-narrow" disabled={!canMake} onClick={() => (canMake ? onCraft(craft) : onDeny && onDeny())}>
+                {maxed ? 'Maxed' : 'Craft'}
+              </Button>
+              {!canMake && <div className="shop-btn-shield" onClick={() => onDeny && onDeny()} />}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function ResourceChip({ resourceId, amount, className = '' }) {
+  const classes = ['shop-chip-text', className].filter(Boolean).join(' ')
+  return (
+    <span className={classes} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+      <img className="shop-chip-img" src={getResourceIcon(resourceId)} alt={getResourceName(resourceId)} />
+      {formatNumber(amount)} {getResourceName(resourceId)}
+    </span>
   )
 }

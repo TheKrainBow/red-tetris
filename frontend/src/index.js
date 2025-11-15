@@ -8,6 +8,7 @@ import { storeStateMiddleWare } from './middleware/storeStateMiddleWare'
 import reducer from './reducers'
 import Router from './Router'
 import { loadSkyboxCube } from './three/Skybox.jsx'
+import { ShopStateProvider } from './context/ShopStateContext'
 
 const initialState = {}
 
@@ -125,6 +126,8 @@ const container = document.getElementById('tetris')
 const root = createRoot(container)
 root.render(
   <Provider store={store}>
-    <Router />
+    <ShopStateProvider>
+      <Router />
+    </ShopStateProvider>
   </Provider>
 )

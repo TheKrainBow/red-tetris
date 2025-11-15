@@ -80,9 +80,11 @@
 
 .mp-footer { position: absolute; left: 0; right: 0; bottom: 0; height: var(--mp-band-h); display: flex; align-items: center; justify-content: center; gap: 14px; z-index: 4; }
 
+.shop-root { position: relative; width: 100%; min-height: 100vh; overflow: hidden; }
+
 /* Right-side modal (rounded), floats above 3D with margin around */
 .shop-modal {
-  position: absolute; top: 24px; right: 24px; bottom: 24px; width: min(680px, 50vw);
+  position: absolute; top: 24px; right: 24px; bottom: 24px; width: min(748px, 55vw);
   background: rgba(28, 28, 28, 0.7);
   border: 2px solid #000; border-radius: 14px;
   box-shadow: 0 10px 24px rgba(0,0,0,0.45);
@@ -90,7 +92,7 @@
   backdrop-filter: blur(2px);
 }
 .shop-title { color: #fff; margin: 0 0 12px 0; font-size: 18px; text-shadow: 2px 2px 0 #000; }
-.shop-tabs { display: grid; grid-template-columns: 1fr 1fr; margin: 0 0 12px 0; border: 1px solid #000; border-radius: 12px; overflow: hidden; background: rgba(0,0,0,0.25); box-shadow: inset 1px 1px 0 rgba(255,255,255,0.2), inset -1px -1px 0 rgba(0,0,0,0.6); }
+.shop-tabs { display: grid; grid-template-columns: repeat(3, 1fr); margin: 0 0 12px 0; border: 1px solid #000; border-radius: 12px; overflow: hidden; background: rgba(0,0,0,0.25); box-shadow: inset 1px 1px 0 rgba(255,255,255,0.2), inset -1px -1px 0 rgba(0,0,0,0.6); }
 .shop-tab { appearance: none; border: none; border-right: 1px solid #000; padding: 12px 18px; background: transparent; color: #eee; text-shadow: 1px 1px 0 #000; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 10px; font-size: 18px; }
 .shop-tab:last-child { border-right: 0; }
 .shop-tab.active { background: rgba(0,0,0,0.35); color: #fff; }
@@ -102,7 +104,24 @@
 .shop-item-name { grid-area: name; color: #fff; text-shadow: 2px 2px 0 #000; font-size: 16px; }
 .shop-item-name { display: flex; align-items: center; }
 .shop-item-status { grid-area: status; color: #ddd; font-size: 13px; }
+.shop-craft-progress { font-style: italic; color: #bfe5ff; }
+.shop-craft-progress.maxed { color: #89ff89; }
 .shop-status-purchased { color: #6cc642; }
+.shop-craft-card { display: grid; grid-template-columns: minmax(320px, 1fr) 62px minmax(200px, auto) auto; gap: 12px; align-items: center; }
+.shop-craft-main { flex: 1 1 240px; display: flex; flex-direction: column; gap: 8px; min-width: 240px; }
+.shop-craft-title-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.shop-craft-title { color: #fff; font-size: 16px; text-shadow: 2px 2px 0 #000; }
+.shop-craft-progress { font-style: italic; color: #bfe5ff; }
+.shop-craft-progress.maxed { color: #89ff89; }
+.shop-craft-costs { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.shop-craft-label { font-size: 15px; color: #dcdcdc; text-transform: none; letter-spacing: 0.4px; }
+.shop-craft-cost-list { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.shop-craft-cost-list .shop-chip-cost { flex: 1 1 calc(50% - 8px); min-width: 120px; }
+.shop-craft-effects { display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
+.shop-craft-effects-list { list-style: none; margin: 0; padding: 0; color: #9fcf63; font-size: 14px; }
+.shop-craft-result { display: flex; align-items: center; justify-content: center; gap: 12px; }
+.shop-craft-output { display: flex; align-items: center; justify-content: center; padding: 0 6px; }
+.shop-craft-card .shop-btn-wrap { align-self: center; }
 .shop-cost { grid-area: cost; display: inline-flex; align-items: center; gap: 8px; background: rgba(0,0,0,0.35); padding: 4px 8px; border-radius: 8px; border: 1px solid rgba(0,0,0,0.55); }
 .shop-cost .shop-chip-img { border: none; border-radius: 0; box-shadow: none; }
 .shop-item .ui-btn-narrow { grid-area: btn; }
@@ -110,19 +129,46 @@
 .shop-btns { grid-area: btn; display: flex; gap: 8px; align-items: center; }
 .shop-btns .ui-btn-narrow { grid-area: auto; }
 .shop-item-trade > .shop-cost { display: none; }
-.shop-trade { display: flex; align-items: center; gap: 10px; }
+.shop-trade { display: grid; grid-template-columns: minmax(260px, 1fr) 62px minmax(260px, 1fr); align-items: center; gap: 10px; }
 .shop-trade .shop-cost { display: inline-flex; align-items: center; }
-.shop-trade-arrow { color: #ddd; text-shadow: 1px 1px 0 #000; font-size: 18px; }
+.shop-arrow {
+  width: 54px;
+  height: 16px;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.shop-arrow::before {
+  content: '';
+  width: 60%;
+  height: 4px;
+  background: #a8a8a8;
+}
+.shop-arrow::after {
+  content: '';
+  position: absolute;
+  right: 6px;
+  width: 0;
+  height: 0;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  border-left: 10px solid #a8a8a8;
+}
 .shop-btn-wrap { grid-area: btn; position: relative; height: 100%; display: flex; align-items: center; justify-content: flex-end; }
 .shop-btn-shield { position: absolute; inset: 0; z-index: 2; background: rgba(0,0,0,0); cursor: not-allowed; }
-.shop-chip-img { width: 22px; height: 22px; object-fit: cover; image-rendering: pixelated; border: 1px solid #000; border-radius: 4px; box-shadow: inset 1px 1px 0 rgba(255,255,255,0.3), inset -1px -1px 0 rgba(0,0,0,0.5); }
+.shop-chip-img { width: 22px; height: 22px; object-fit: cover; image-rendering: pixelated; border: none; border-radius: 0; box-shadow: none; }
 .shop-chip-text { color: #eee; text-shadow: 1px 1px 0 #000; font-size: 14px; }
-.shop-menu { position: absolute; inset: 16px 16px 92px 16px; overflow-y: auto; overflow-x: hidden; }
-.shop-cancel { position: absolute; right: 16px; bottom: 16px; }
-.shop-menu { scrollbar-width: thin; scrollbar-color: #6d6d6d #1d1d1d; }
+.shop-chip-cost { background: rgba(0,0,0,0.25); color: #f4d29c; }
+.shop-chip-output { background: rgba(0,0,0,0.25); }
+.shop-menu { position: absolute; inset: 16px; overflow-y: auto; overflow-x: hidden; }
+.shop-menu,
+.utility-panel-stats { scrollbar-width: thin; scrollbar-color: #6d6d6d transparent; }
 /* Minecraft-like pixelated scrollbar (WebKit/Blink) */
-.shop-menu::-webkit-scrollbar { width: 14px; height: 14px; }
-.shop-menu::-webkit-scrollbar-track {
+.shop-menu::-webkit-scrollbar,
+.utility-panel-stats::-webkit-scrollbar { width: 14px; height: 14px; }
+.shop-menu::-webkit-scrollbar-track,
+.utility-panel-stats::-webkit-scrollbar-track {
   background:
     repeating-linear-gradient(
       0deg,
@@ -131,7 +177,12 @@
     );
   border-left: 2px solid #000;
 }
-.shop-menu::-webkit-scrollbar-thumb {
+.utility-panel-stats::-webkit-scrollbar-track {
+  background: transparent;
+  border: none;
+}
+.shop-menu::-webkit-scrollbar-thumb,
+.utility-panel-stats::-webkit-scrollbar-thumb {
   background:
     linear-gradient(180deg, rgba(255,255,255,0.18), rgba(0,0,0,0.18)),
     repeating-linear-gradient(
@@ -144,9 +195,18 @@
   border-left-width: 1px;
   box-shadow: inset 1px 1px 0 rgba(255,255,255,0.25), inset -1px -1px 0 rgba(0,0,0,0.5);
 }
+.utility-panel-stats::-webkit-scrollbar-thumb {
+  border: none;
+  box-shadow: none;
+}
 /* Corners & buttons kept square for the blocky look */
-.shop-menu::-webkit-scrollbar-corner { background: #1d1d1d; }
-.shop-menu::-webkit-scrollbar-button { display: none; }
+.shop-menu::-webkit-scrollbar-corner,
+.utility-panel-stats::-webkit-scrollbar-corner { background: #1d1d1d; }
+.shop-menu::-webkit-scrollbar-button,
+.utility-panel-stats::-webkit-scrollbar-button { display: none; }
+
+.utility-panel-stats { scrollbar-width: auto; }
+.utility-panel-stats::-webkit-scrollbar { width: 18px; }
 .shop-title { color: #fff; margin: 0 0 12px 0; font-size: 18px; text-shadow: 2px 2px 0 #000; }
 .shop-list { display: grid; grid-auto-rows: minmax(48px, auto); gap: 10px; padding-right: 14px; }
 .shop-item { display: grid; grid-template-columns: 1fr auto auto; grid-template-rows: auto auto; grid-template-areas: 'name cost btn' 'status cost btn'; align-items: center; gap: 6px 12px; background: rgba(0,0,0,0.25); padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(0,0,0,0.6); }
@@ -154,6 +214,8 @@
 .shop-item-name { grid-area: name; color: #fff; text-shadow: 2px 2px 0 #000; font-size: 16px; }
 .shop-item-name { display: flex; align-items: center; }
 .shop-item-status { grid-area: status; color: #ddd; font-size: 13px; }
+.shop-craft-progress { font-style: italic; color: #bfe5ff; }
+.shop-craft-progress.maxed { color: #89ff89; }
 .shop-status-purchased { color: #6cc642; }
 .shop-cost { grid-area: cost; display: inline-flex; align-items: center; gap: 8px; background: rgba(0,0,0,0.35); padding: 4px 8px; border-radius: 8px; border: 1px solid rgba(0,0,0,0.55); }
 .shop-cost .shop-chip-img { border: none; border-radius: 0; box-shadow: none; }
@@ -167,25 +229,120 @@
 .shop-trade-arrow { color: #ddd; text-shadow: 1px 1px 0 #000; font-size: 18px; }
 .shop-btn-wrap { grid-area: btn; position: relative; height: 100%; display: flex; align-items: center; justify-content: flex-end; }
 .shop-btn-shield { position: absolute; inset: 0; z-index: 2; background: rgba(0,0,0,0); cursor: not-allowed; }
-.shop-chip-img { width: 22px; height: 22px; object-fit: cover; image-rendering: pixelated; border: 1px solid #000; border-radius: 4px; box-shadow: inset 1px 1px 0 rgba(255,255,255,0.3), inset -1px -1px 0 rgba(0,0,0,0.5); }
+.shop-chip-img { width: 22px; height: 22px; object-fit: cover; image-rendering: pixelated; border: none; border-radius: 0; box-shadow: none; }
 .shop-chip-text { color: #eee; text-shadow: 1px 1px 0 #000; font-size: 14px; }
 .shop-inv { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px; }
 .shop-inventory { display: block !important; background: transparent; border: none; padding: 0; }
 .shop-item-title { color: #fff; text-shadow: 2px 2px 0 #000; font-size: 16px; margin-bottom: 6px; }
 
-/* Inventory modal (separate from Trading Outpost modal) */
+/* Utility toolbar + modal stack (inventory/spawn/stat) */
+.shop-utility { position: absolute; top: 24px; left: 24px; z-index: 7; display: flex; flex-direction: column; gap: 10px; }
+.shop-utility-buttons { display: flex; gap: 10px; }
+.shop-utility-button {
+  width: 62px; height: 62px; padding: 8px;
+  border: 2px solid #000; border-radius: 12px;
+  background: linear-gradient(#9c9c9c, #5f5f5f);
+  box-shadow: inset 1px 1px 0 rgba(255,255,255,0.6), inset -1px -1px 0 rgba(0,0,0,0.85), 0 4px 10px rgba(0,0,0,0.4);
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: transform 120ms ease, background 120ms ease;
+}
+.shop-utility-button img { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
+.shop-utility-button.active { background: linear-gradient(#a2c8ff, #6c8ed5); transform: translateY(1px); }
+.shop-utility-button:focus-visible { outline: 2px solid #7bc043; outline-offset: 2px; }
+
+/* Inventory modal styling reused for the utility modal */
+.shop-utility-modal,
 .shop-inventory-modal {
-  position: absolute; top: 24px; left: 24px; z-index: 7;
   background: rgba(28,28,28,0.55);
   border: 2px solid #000; border-radius: 14px; padding: 12px;
   box-shadow: 0 10px 24px rgba(0,0,0,0.45);
-  max-width: min(520px, 44vw);
+  display: block;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 }
-/* Remove borders/rounding on the item images inside the inventory modal */
-.shop-inventory-modal .shop-chip-img { border: none; border-radius: 0; box-shadow: none; }
 
-/* Debug reset button in Shop */
-.shop-debug { position: absolute; left: 24px; bottom: 24px; z-index: 7; }
+.shop-utility-modal {
+  position: relative;
+  width: min(680px, 56vw);
+}
+.shop-utility-modal.utility-panel-inventory { width: min(460px, 38vw); }
+.shop-utility-modal.utility-panel-stats {
+  width: min(calc(420px - 16px), calc(35vw - 16px));
+  max-width: calc(420px - 16px);
+  max-height: calc(100vh - 280px);
+  overflow-y: auto;
+  padding-right: 8px;
+}
+.shop-inventory-modal .shop-chip-img { border: none; border-radius: 0; box-shadow: none; }
+.shop-inventory-panel { display: flex; flex-direction: column; gap: 12px; }
+.shop-inventory-section { background: rgba(0,0,0,0.25); border: 1px solid rgba(0,0,0,0.45); border-radius: 10px; padding: 10px 12px; }
+.shop-inventory-heading { color: #fff; text-shadow: 2px 2px 0 #000; font-size: 16px; margin-bottom: 8px; letter-spacing: 0.4px; }
+.shop-inventory-entry { display: flex; justify-content: space-between; color: #dcdcdc; font-size: 16px; align-items: center; padding: 4px 0; }
+.shop-inventory-label { text-transform: capitalize; display: flex; align-items: center; gap: 8px; }
+.shop-inventory-value { font-weight: 600; color: #9fcf63; }
+.shop-inventory-empty { color: #bdbdbd; font-size: 13px; font-style: italic; }
+.shop-inventory-icon { width: 20px; height: 20px; object-fit: cover; border-radius: 0; border: none; }
+
+.shop-panel {
+  background: rgba(0,0,0,0.25);
+  border: 1px solid rgba(0,0,0,0.6);
+  border-radius: 12px;
+  padding: 12px 14px;
+  color: #eee;
+  text-shadow: 1px 1px 0 #000;
+}
+.shop-panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.shop-panel-title { margin: 0; font-size: 18px; color: #fff; }
+.shop-panel-total,
+.shop-panel-tag {
+  font-size: 13px;
+  padding: 2px 8px;
+  border: 1px solid rgba(0,0,0,0.5);
+  border-radius: 999px;
+  background: rgba(0,0,0,0.4);
+}
+.shop-panel-caption { margin: 0 0 12px 0; font-size: 14px; color: #dcdcdc; }
+.shop-panel-grid { display: flex; flex-direction: column; gap: 10px; }
+.shop-rate-row { display: grid; grid-template-columns: 90px 1fr 60px; align-items: center; gap: 10px; font-size: 14px; }
+.shop-rate-label { color: #fff; }
+.shop-rate-row input[type="range"] { width: 100%; accent-color: #8fce4f; }
+.shop-rate-value { justify-self: end; font-weight: 600; color: #9fcf63; }
+.shop-panel-note { margin-top: 10px; font-size: 12px; color: #bdbdbd; }
+.shop-stat-sections { display: flex; flex-direction: column; gap: 12px; }
+.shop-stat-section { background: rgba(0,0,0,0.2); border: 1px solid rgba(0,0,0,0.5); border-radius: 10px; padding: 10px 12px; }
+.shop-stat-heading { color: #fff; font-size: 15px; margin-bottom: 8px; text-shadow: 2px 2px 0 #000; }
+.shop-stat-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.shop-stat-row { display: flex; align-items: center; justify-content: space-between; font-size: 16px; background: rgba(0,0,0,0.25); border: 1px solid rgba(0,0,0,0.5); border-radius: 8px; padding: 8px 12px; }
+.shop-stat-label { color: #dcdcdc; display: flex; align-items: center; gap: 8px; }
+.shop-stat-icon { width: 20px; height: 20px; object-fit: cover; border-radius: 0; border: none; }
+.shop-stat-value { font-weight: 600; color: #9fcf63; }
+.shop-empty { color: #dcdcdc; text-shadow: 1px 1px 0 #000; text-align: center; padding: 24px 12px; }
+.shop-rate-stack { display: flex; flex-direction: column; gap: 12px; }
+.shop-rate-card { background: rgba(0,0,0,0.25); border: 1px solid rgba(0,0,0,0.45); border-radius: 10px; padding: 10px 12px; }
+.shop-rate-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.shop-rate-name { color: #fff; font-size: 16px; display: flex; align-items: center; gap: 8px; }
+.shop-rate-max { font-size: 12px; color: #bdbdbd; }
+.shop-prob-row { width: 100%; }
+.shop-prob-row .gc-slider { flex: 1; }
+.shop-prob-row .gc-prob-val { width: 48px; }
+.shop-dist-wrap { margin: 14px 0 0 0; }
+.shop-dist-wrap .gc-dist-row { align-items: center; }
+.shop-dist-wrap .gc-auto { margin: 0; }
+.shop-panel-buttons { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; }
+.shop-panel-buttons .ui-btn { min-width: 120px; }
+
+/* Shop bottom-left navigation */
+.shop-nav {
+  position: absolute;
+  left: 24px;
+  bottom: 24px;
+  z-index: 8;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.shop-nav .ui-btn { min-width: 120px; }
+.shop-nav .shop-reset { min-width: 80px; }
 
 /* Options page */
 .opt-root { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
