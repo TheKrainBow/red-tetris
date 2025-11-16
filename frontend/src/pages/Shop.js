@@ -675,36 +675,38 @@ function CraftList({ inv, unlocks, craftCounts = {}, onCraft, onDeny }) {
           : `Crafted ${craftedTimes}`
         return (
           <div className="shop-item shop-craft-card" key={craft.id}>
+            <div className="shop-craft-icon-block">
+              {Object.entries(craft.outputs || {}).slice(0, 1).map(([resId, amount]) => (
+                <ResourceChip key={resId} resourceId={resId} amount={amount} showLabel={false} className="shop-chip-output shop-craft-icon" />
+              ))}
+            </div>
             <div className="shop-craft-main">
-              <div className="shop-craft-title-row">
+              <div className="shop-craft-header">
                 <div className="shop-craft-title">{craft.name}</div>
                 <div className={`shop-craft-progress ${maxed ? 'maxed' : ''}`}>{progressLabel}</div>
               </div>
+              {effectLines.length > 0 && (
+                <ul className="shop-craft-effects-list">
+                  {effectLines.map((line, idx) => (
+                    <li key={`${craft.id}-effect-${idx}`}>{line}</li>
+                  ))}
+                </ul>
+              )}
               <div className="shop-craft-costs">
                 <span className="shop-craft-label">Costs</span>
                 <div className="shop-craft-cost-list">
-                  {Object.entries(craft.cost || {}).map(([res, amt]) => (
-                    <ResourceChip key={res} resourceId={res} amount={amt} className="shop-chip-cost" />
-                  ))}
+                  {Object.entries(craft.cost || {}).map(([res, amt]) => {
+                    const key = formatResourceId(res)
+                    const have = inv[key] || 0
+                    const enough = have >= (Number(amt) || 0)
+                    return (
+                      <div className={`shop-craft-cost-chip ${enough ? '' : 'insufficient'}`} key={res}>
+                        <span className="amount">{formatNumber(amt)}</span>
+                        <img src={getResourceIcon(res)} alt={getResourceName(res)} />
+                      </div>
+                    )
+                  })}
                 </div>
-              </div>
-              {effectLines.length > 0 && (
-                <div className="shop-craft-effects">
-                  <span className="shop-craft-label">Effects</span>
-                  <ul className="shop-craft-effects-list">
-                    {effectLines.map((line, idx) => (
-                      <li key={`${craft.id}-effect-${idx}`}>{line}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-            <div className="shop-craft-result">
-              <span className="shop-arrow" aria-hidden="true" />
-              <div className="shop-craft-output">
-                {Object.entries(craft.outputs || {}).map(([resId, amount]) => (
-                  <ResourceChip key={resId} resourceId={resId} amount={amount} className="shop-chip-output" />
-                ))}
               </div>
             </div>
             <div className="shop-btn-wrap">
@@ -720,12 +722,12 @@ function CraftList({ inv, unlocks, craftCounts = {}, onCraft, onDeny }) {
   )
 }
 
-function ResourceChip({ resourceId, amount, className = '' }) {
-  const classes = ['shop-chip-text', className].filter(Boolean).join(' ')
+function ResourceChip({ resourceId, amount, className = '', showLabel = true }) {
+  const classes = ['shop-chip-text', className, showLabel ? '' : 'shop-chip-no-label'].filter(Boolean).join(' ')
   return (
-    <span className={classes} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+    <span className={classes}>
       <img className="shop-chip-img" src={getResourceIcon(resourceId)} alt={getResourceName(resourceId)} />
-      {formatNumber(amount)} {getResourceName(resourceId)}
+      {showLabel && `${formatNumber(amount)} ${getResourceName(resourceId)}`}
     </span>
   )
 }

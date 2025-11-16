@@ -100,6 +100,7 @@
 .shop-list { display: grid; grid-auto-rows: minmax(48px, auto); gap: 10px; padding-right: 14px; }
 /* Two-row grid so status text sits under the title while cost+button stay aligned right */
 .shop-item { display: grid; grid-template-columns: 1fr auto auto; grid-template-rows: auto auto; grid-template-areas: 'name cost btn' 'status cost btn'; align-items: center; gap: 6px 12px; background: rgba(0,0,0,0.25); padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(0,0,0,0.6); }
+.shop-item.shop-craft-card { display: flex; }
 .shop-item-trade { grid-template-rows: auto; grid-template-areas: 'name cost btn'; }
 .shop-item-name { grid-area: name; color: #fff; text-shadow: 2px 2px 0 #000; font-size: 16px; }
 .shop-item-name { display: flex; align-items: center; }
@@ -107,20 +108,59 @@
 .shop-craft-progress { font-style: italic; color: #bfe5ff; }
 .shop-craft-progress.maxed { color: #89ff89; }
 .shop-status-purchased { color: #6cc642; }
-.shop-craft-card { display: grid; grid-template-columns: minmax(320px, 1fr) 62px minmax(200px, auto) auto; gap: 12px; align-items: center; }
-.shop-craft-main { flex: 1 1 240px; display: flex; flex-direction: column; gap: 8px; min-width: 240px; }
-.shop-craft-title-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.shop-craft-title { color: #fff; font-size: 16px; text-shadow: 2px 2px 0 #000; }
+.shop-craft-card {
+  display: flex;
+  gap: 20px;
+  align-items: stretch;
+  min-height: 140px;
+}
+.shop-craft-icon-block {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  background: rgba(0,0,0,0.2);
+  border: 1px solid rgba(0,0,0,0.5);
+  border-radius: 10px;
+  overflow: hidden;
+  position: relative;
+  flex: 0 0 140px;
+}
+.shop-craft-icon {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+.shop-craft-icon .shop-chip-no-label {
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+}
+.shop-craft-icon .shop-chip-img {
+  display: block;
+  width: calc(100% + 12px);
+  height: calc(100% + 12px);
+  object-fit: cover;
+  margin: -6px;
+}
+.shop-craft-main { display: flex; flex-direction: column; gap: 8px; flex: 1 1 auto; }
+.shop-craft-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.shop-craft-title { color: #fff; font-size: 22px; text-shadow: 2px 2px 0 #000; }
 .shop-craft-progress { font-style: italic; color: #bfe5ff; }
 .shop-craft-progress.maxed { color: #89ff89; }
-.shop-craft-costs { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.shop-craft-effects-list { list-style: none; margin: 0; padding: 0; color: #9fcf63; font-size: 16px; }
+.shop-craft-costs { display: flex; flex-direction: column; gap: 6px; }
 .shop-craft-label { font-size: 15px; color: #dcdcdc; text-transform: none; letter-spacing: 0.4px; }
-.shop-craft-cost-list { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-.shop-craft-cost-list .shop-chip-cost { flex: 1 1 calc(50% - 8px); min-width: 120px; }
-.shop-craft-effects { display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
-.shop-craft-effects-list { list-style: none; margin: 0; padding: 0; color: #9fcf63; font-size: 14px; }
-.shop-craft-result { display: flex; align-items: center; justify-content: center; gap: 12px; }
-.shop-craft-output { display: flex; align-items: center; justify-content: center; padding: 0 6px; }
+.shop-craft-cost-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.shop-craft-cost-chip { display: inline-flex; align-items: center; gap: 6px; background: rgba(0,0,0,0.35); padding: 4px 8px; border-radius: 6px; border: 1px solid rgba(0,0,0,0.55); }
+.shop-craft-cost-chip img { width: 22px; height: 22px; object-fit: cover; image-rendering: pixelated; }
+.shop-craft-cost-chip .amount { font-weight: 600; color: #f4d29c; }
+.shop-craft-cost-chip.insufficient { border-color: #a60000; color: #ff9494; }
+.shop-craft-cost-chip.insufficient .amount { color: #ff9494; }
 .shop-craft-card .shop-btn-wrap { align-self: center; }
 .shop-cost { grid-area: cost; display: inline-flex; align-items: center; gap: 8px; background: rgba(0,0,0,0.35); padding: 4px 8px; border-radius: 8px; border: 1px solid rgba(0,0,0,0.55); }
 .shop-cost .shop-chip-img { border: none; border-radius: 0; box-shadow: none; }
@@ -158,9 +198,17 @@
 .shop-btn-wrap { grid-area: btn; position: relative; height: 100%; display: flex; align-items: center; justify-content: flex-end; }
 .shop-btn-shield { position: absolute; inset: 0; z-index: 2; background: rgba(0,0,0,0); cursor: not-allowed; }
 .shop-chip-img { width: 22px; height: 22px; object-fit: cover; image-rendering: pixelated; border: none; border-radius: 0; box-shadow: none; }
-.shop-chip-text { color: #eee; text-shadow: 1px 1px 0 #000; font-size: 14px; }
+.shop-chip-text { display: inline-flex; align-items: center; gap: 6px; color: #eee; text-shadow: 1px 1px 0 #000; font-size: 14px; }
 .shop-chip-cost { background: rgba(0,0,0,0.25); color: #f4d29c; }
 .shop-chip-output { background: rgba(0,0,0,0.25); }
+.shop-chip-no-label { padding: 4px; display: inline-flex; align-items: center; justify-content: center; }
+.shop-chip-no-label .shop-chip-img { width: 90%; height: 90%; }
+.shop-craft-icon-block { height: 100%; }
+.shop-craft-icon .shop-chip-no-label { width: 100%; height: 100%; padding: 0; }
+.shop-craft-icon .shop-chip-no-label .shop-chip-img {
+  width: 100%;
+  height: 100%;
+}
 .shop-menu { position: absolute; inset: 16px; overflow-y: auto; overflow-x: hidden; }
 .shop-menu,
 .utility-panel-stats { scrollbar-width: thin; scrollbar-color: #6d6d6d transparent; }

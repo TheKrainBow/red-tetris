@@ -135,6 +135,19 @@ crafts:
       fortune_multiplier_percent: 200
     max_crafts: 1
     craft_time_seconds: 0
+  - id: another_relic
+    name: "More Robust"
+    cost:
+      dirt: 12
+      stone: 12
+      iron: 12
+      diamond: 12
+    outputs:
+      another_relic: 1
+    effects:
+      fortune_multiplier_percent: 200
+    max_crafts: 1
+    craft_time_seconds: 0
 
 notes:
   pricing_model: "cost(level) = starting_price * (price_growth_multiplier)^(level-1)"
