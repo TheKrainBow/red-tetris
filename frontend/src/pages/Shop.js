@@ -573,28 +573,29 @@ function ShopList({ inv, purchases, onBuy, onDeny }) {
         const atCap = level >= maxLevel
         const effect = describeEffect(item, level)
         return (
-          <div className="shop-item" key={item.id}>
-            <div className="shop-item-name">{item.name}</div>
-            <div className="shop-item-status">
-              <div>Level {level}/{maxLevel === Infinity ? '∞' : maxLevel}</div>
-              <div>{effect.current}</div>
-              {effect.next && <div>Next: {effect.next}</div>}
+          <div className="shop-item shop-upgrade-card" key={item.id}>
+            <div className="shop-upgrade-icon">
+              <img src="/ui/Hammer.webp" alt="Upgrade" />
             </div>
-            <div className="shop-cost">
-              <img className="shop-chip-img" src={getResourceIcon(costId)} alt={getResourceName(costId)} />
-              <span className="shop-chip-text">{formatNumber(price)} {getResourceName(costId)}</span>
+            <div className="shop-upgrade-main">
+              <div className="shop-upgrade-header">
+                <div className="shop-upgrade-title">{item.name}</div>
+                <div className="shop-upgrade-level">Lv {level}/{maxLevel === Infinity ? '∞' : maxLevel}</div>
+              </div>
+              <div className="shop-upgrade-effect">{effect.next || effect.current}</div>
+              <div className="shop-upgrade-total">{effect.current}</div>
+              <div className="shop-upgrade-costs">
+                <div className={`shop-craft-cost-chip ${affordable ? '' : 'insufficient'}`}>
+                  <span className="amount">{formatNumber(price)}</span>
+                  <img src={getResourceIcon(costId)} alt={getResourceName(costId)} />
+                </div>
+              </div>
             </div>
             <div className="shop-btn-wrap">
-              <Button
-                className="ui-btn-narrow"
-                disabled={!affordable || atCap}
-                onClick={() => (affordable && !atCap ? onBuy(item) : onDeny && onDeny())}
-              >
+              <Button className="ui-btn-narrow" disabled={!affordable || atCap} onClick={() => (affordable && !atCap ? onBuy(item) : onDeny && onDeny())}>
                 {atCap ? 'Max' : 'Buy'}
               </Button>
-              {(!affordable || atCap) && (
-                <div className="shop-btn-shield" onClick={() => onDeny && onDeny()} />
-              )}
+              {(!affordable || atCap) && <div className="shop-btn-shield" onClick={() => onDeny && onDeny()} />}
             </div>
           </div>
         )
