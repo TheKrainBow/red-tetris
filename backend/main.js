@@ -40,10 +40,12 @@ io.on('connection', (socket) => {
     socket.on('disconnect', (reason) => { gateway.disconnect(socket, reason) });
 
     socket.on('createRoom', (data, callback) => { gateway.create_room(socket, data, callback) });
-
+    
     socket.on('joinRoom', (data, callback) => { gateway.join_room(socket, data, callback) });
 
-    socket.on('update_piece_position', (data, callback) => { gateway.update_piece_position(socket, data, callback) });
+    socket.on('new_game', (data, callback) => {gateway.new_game(socket, data, io)});
+    
+    socket.on('handle_key_press', (data, callback) => { gateway.handle_key_press(socket, data) });
 
 });
 

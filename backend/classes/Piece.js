@@ -4,7 +4,7 @@ export class Piece{
         this.rotations = this.#create_rotations();
         this.state_index = Math.floor(Math.random() * 4);
         this.state = this.rotations[this.state_index];
-        this.spawn_position = [5,7];
+        this.spawn_position = [5,10];
         this.position = this.spawn_position;
     }
     #horizontal_reflection(shape){

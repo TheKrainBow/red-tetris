@@ -7,22 +7,56 @@ export class Gateway{
         this.rooms = new Map();
     }
 
-    new_game(socket, data) {
-        games[data.room_name] = new Game();
-        this.games[data.room_name].start();
-        this.games[data.room_name].run();
+    #update_piece_position(socket, data, direction) {
+        const thisGame = this.games[data.room_name]
+        const test_piece = new Piece(thisGame.current_piece.state);
+        let position = thisGame.current_piece.position[1];
+        position += direction;
+        test_piece.position = position;
+        if (thisGame.board[socket.id].check_collisions(test_piece) === false){
+            thisGame.current_piece.position[1] = position;
+        }
     }
 
-    update_piece_position(socket, data) {
-        const thisGame = this.games[data.room_name]
-        let position = thisGame.current_piece.position[1] += 1;
-        if (thisGame.board.check_collisions === false){
-            if (data.key === "right"){
-                thisGame.current_piece[1] += 1
-            }
-            else if (data.key === "left"){
-                thisGame.current_piece[1] -= 1
-            }
+    #step_down(socket, data){
+        const thisPlayer = this.games[data.room_name][socket.id];
+        thisPlayer.step_down();
+    }
+
+    #drop_down(socket, data){
+    }
+
+    #rotate_piece(socket, data) {
+        const thisPlayer = this.games[data.room_name][socket.id];
+        const test_piece = new Piece(thisPlayer.current_piece.state);
+        test_piece.rotate();
+        if (thisPlayer.board.check_collisions(test_piece) === false){
+            thisPlayer.current_piece = test_piece;
+        }
+    }
+
+    new_game(socket, data, io) {
+        let players_ids = this.rooms[data.room_name].keys().to_array();
+        games[data.room_name] = new Game(players_ids);
+        this.games[data.room_name].start();
+        this.games[data.room_name].run(socket, io);
+    }
+
+    handle_key_press(socket, data){
+        if (data.key === "right"){
+            this.#update_piece_position(socket, data, 1);
+        }
+        else if (data.key === "left"){
+            this.#update_piece_position(socket, data, -1);
+        }
+        else if (data.key === "up"){
+            this.#rotate_piece(socket, data);
+        }
+        else if (data.key === "down"){
+            this.#step_down(socket, data);
+        }
+        else if (data.key === "space"){
+            this.#drop_down(socket, data);
         }
     }
 
@@ -32,6 +66,10 @@ export class Gateway{
           return callback({ error: "Room already exists" });
         }
         this.rooms.add(room);
+
+        const playersMap = this.rooms.get(room);
+        playersMap.set(socket.id, playerName);
+
         socket.join(room);
         return callback({
           success: true,
