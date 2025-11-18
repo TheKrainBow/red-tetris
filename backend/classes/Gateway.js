@@ -24,6 +24,23 @@ export class Gateway{
     }
 
     #drop_down(socket, data){
+        const thisPlayer = this.games[data.room_name][socket.id];
+        const piece_height = thisPlayer.current_piece.state.length;
+        const piece_lenght = thisPlayer.current_piece.state[0].length;
+        const piece_xposition = thisPlayer.current_piece.position[0]-1;
+        const rows = thisPlayer.board[0].length;
+
+        let target = 0;
+        for (let i = 0; i < piece_lenght; i++) {
+            let height = thisPlayer.spectrum[i];
+            if (thisPlayer.board.state[rows-1 - height][piece_xposition + i] & thisPlayer.current_piece.state[piece_height][i]){
+                if(height > target){
+                    target = height;
+                }
+            }
+            
+        }
+        thisPlayer.current_piece.position[1] = target -1;
     }
 
     #rotate_piece(socket, data) {

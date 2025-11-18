@@ -30,6 +30,13 @@ export class Game{
             player.set_current_piece();
         })
     }
+    #set_blocked_rows(thisPlayer, nrows_to_block){
+        this.players.forEach((id, player) => {
+            if(player.id != thisPlayer.id){
+                player.board.block_row(nrows_to_block);
+            }
+        })
+    }
 
     start(){
         this.#add_to_players_piece_queue();
@@ -46,7 +53,10 @@ export class Game{
                 return true;
             }
             player.board.update(player.current_piece);
-            player.board.remove_lines();
+            const new_lines = player.board.remove_lines();
+            if(new_lines > 0){
+                set_blocked_rows(new_lines);
+            }
             player.board.set_spectrum();
             player.set_current_piece();
             if (player.piece_queue.isEmpty()){
@@ -61,7 +71,7 @@ export class Game{
             this.players.forEach((id, player) => { 
                 player.step_down();
                 if (this.#end_game(player) === true){
-                    // do something with player_id
+                    this.players.delete(id);
                 }
             });
             // io.to(room).emit('refresh', {board: this.board, piece: this.game.current_piece.state});
