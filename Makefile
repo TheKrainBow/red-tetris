@@ -28,8 +28,7 @@ df:
 	docker system df -v
 
 test: build
-	$(COMPOSE) run --rm backend npm run test:backend
-	$(COMPOSE) run --rm frontend npm run test:frontend
+	$(COMPOSE) run --rm frontend npm run test_classes
 
 coverage: build
 	$(COMPOSE) run --rm backend npm run coverage

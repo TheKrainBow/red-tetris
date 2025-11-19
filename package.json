@@ -12,7 +12,9 @@
     "start:server": "node -r @babel/register backend/main.js",
     "test:frontend": "mocha test/fake.js test/react*.js test/redux*.js",
     "test:backend": "mocha test/server*.js",
+    "test:classes": "mocha test/test_classes.js",
     "test": "npm run test:frontend && npm run test:backend",
+    "test_classes": "npm run test:classes",
     "coverage": "NODE_ENV=test nyc --include backend --include frontend --all --reporter=text --reporter=lcov mocha"
   },
   "dependencies": {

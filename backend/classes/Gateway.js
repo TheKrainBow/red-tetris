@@ -1,129 +1,156 @@
-import { Game } from "./Game";
+import { Game } from "./Game.js";
+import { Piece } from "./Piece.js";
 
-export class Gateway{
-    games = {};
-
-    constructor(){
+export class Gateway {
+    constructor() {
+        this.games = {};
         this.rooms = new Map();
+        this.playerInfo = new Map();
     }
 
     #update_piece_position(socket, data, direction) {
-        const thisGame = this.games[data.room_name]
-        const test_piece = new Piece(thisGame.current_piece.state);
-        let position = thisGame.current_piece.position[1];
-        position += direction;
-        test_piece.position = position;
-        if (thisGame.board[socket.id].check_collisions(test_piece) === false){
-            thisGame.current_piece.position[1] = position;
-        }
+        const playerInfo = this.playerInfo.get(socket.id);
+        if (!playerInfo) return;
+
+        const game = this.games[playerInfo.room];
+        if (!game) return;
+
+        const player = game.players.get(socket.id);
+        if (!player || !player.current_piece) return;
+
+        player.current_piece.move(direction, 0, player.board);
     }
 
-    #step_down(socket, data){
-        const thisPlayer = this.games[data.room_name][socket.id];
-        thisPlayer.step_down();
+    #step_down(socket, data) {
+        const playerInfo = this.playerInfo.get(socket.id);
+        if (!playerInfo) return;
+
+        const game = this.games[playerInfo.room];
+        if (!game) return;
+
+        game.handle_player_input(socket.id, 'down');
     }
 
-    #drop_down(socket, data){
-        const thisPlayer = this.games[data.room_name][socket.id];
-        const piece_height = thisPlayer.current_piece.state.length;
-        const piece_lenght = thisPlayer.current_piece.state[0].length;
-        const piece_xposition = thisPlayer.current_piece.position[0]-1;
-        const rows = thisPlayer.board[0].length;
+    #drop_down(socket, data) {
+        const playerInfo = this.playerInfo.get(socket.id);
+        if (!playerInfo) return;
 
-        let target = 0;
-        for (let i = 0; i < piece_lenght; i++) {
-            let height = thisPlayer.spectrum[i];
-            if (thisPlayer.board.state[rows-1 - height][piece_xposition + i] & thisPlayer.current_piece.state[piece_height][i]){
-                if(height > target){
-                    target = height;
-                }
-            }
-            
+        const game = this.games[playerInfo.room];
+        if (!game) return;
+
+        const player = game.players.get(socket.id);
+        if (player) {
+            player.hard_drop();
         }
-        thisPlayer.current_piece.position[1] = target -1;
     }
 
     #rotate_piece(socket, data) {
-        const thisPlayer = this.games[data.room_name][socket.id];
-        const test_piece = new Piece(thisPlayer.current_piece.state);
-        test_piece.rotate();
-        if (thisPlayer.board.check_collisions(test_piece) === false){
-            thisPlayer.current_piece = test_piece;
-        }
+        const playerInfo = this.playerInfo.get(socket.id);
+        if (!playerInfo) return;
+
+        const game = this.games[playerInfo.room];
+        if (!game) return;
+
+        game.handle_player_input(socket.id, 'up');
     }
 
     new_game(socket, data, io) {
-        let players_ids = this.rooms[data.room_name].keys().to_array();
-        games[data.room_name] = new Game(players_ids);
-        this.games[data.room_name].start();
-        this.games[data.room_name].run(socket, io);
+        const room_name = data.room_name;
+        if (!this.rooms.has(room_name)) {
+            return;
+        }
+
+        const players_ids = Array.from(this.rooms.get(room_name).keys());
+        this.games[room_name] = new Game(players_ids, room_name);
+        this.games[room_name].run(io);
     }
 
-    handle_key_press(socket, data){
-        if (data.key === "right"){
-            this.#update_piece_position(socket, data, 1);
-        }
-        else if (data.key === "left"){
-            this.#update_piece_position(socket, data, -1);
-        }
-        else if (data.key === "up"){
-            this.#rotate_piece(socket, data);
-        }
-        else if (data.key === "down"){
-            this.#step_down(socket, data);
-        }
-        else if (data.key === "space"){
-            this.#drop_down(socket, data);
+    handle_key_press(socket, data) {
+        if (!data || !data.key) return;
+
+        switch (data.key) {
+            case "right":
+                this.#update_piece_position(socket, data, 1);
+                break;
+            case "left":
+                this.#update_piece_position(socket, data, -1);
+                break;
+            case "up":
+                this.#rotate_piece(socket, data);
+                break;
+            case "down":
+                this.#step_down(socket, data);
+                break;
+            case "space":
+                this.#drop_down(socket, data);
+                break;
         }
     }
 
-    create_room(socket, data, callback){
-        const room = crypto.createHash('md5').update(String(Date.now())).digest('hex');
-        if (this.rooms.has(room)) {
-          return callback({ error: "Room already exists" });
-        }
-        this.rooms.add(room);
-
-        const playersMap = this.rooms.get(room);
-        playersMap.set(socket.id, playerName);
-
+    #create_room(socket, data) {
+        const { room, playerName } = data;
+        this.rooms.set(room, new Map([[playerName, socket.id]]));
+        this.playerInfo.set(socket.id, { room, playerName });
         socket.join(room);
-        return callback({
-          success: true,
-          room
-        });
     }
 
-    join_room(socket, data, callback){
+    join_room(socket, data, callback) {
         const { room, playerName } = data;
         if (!room || typeof playerName !== 'string') {
-          return callback({ error: 'Invalid room or playerName' });
+            return callback({ error: 'Invalid room or name' });
         }
 
         if (!this.rooms.has(room)) {
-          return callback({ error: `Room ${room} does not exist` });
+            this.#create_room(socket, data);
+            return callback({ success: true, room, playerName });
         }
 
         const playersMap = this.rooms.get(room);
-        playersMap.set(socket.id, playerName);
 
+        const nameExists = Array.from(playersMap.values()).includes(playerName);
+        if (nameExists) {
+            return callback({ error: 'A user is already using this name' });
+        }
+        
+        playersMap.set(playerName, socket.id,);
+        this.playerInfo.set(socket.id, { room, playerName });
         socket.join(room);
 
         return callback({ success: true, room, playerName });
     }
 
-    disconnect(socket, reason){
+    disconnect(socket, reason) {
         console.log(`Socket disconnected ${socket.id}, reason: ${reason}`);
-        this.rooms.forEach((playersMap, roomName) => {
-            if (playersMap.has(socket.id)) {
+        
+        const playerInfo = this.playerInfo.get(socket.id);
+        if (playerInfo) {
+            const { room } = playerInfo;
+            
+            if (this.rooms.has(room)) {
+                const playersMap = this.rooms.get(room);
                 playersMap.delete(socket.id);
-                console.log(`Removed socket ${socket.id} from room ${roomName}`);
-
+                
                 if (playersMap.size === 0) {
-                    this.rooms.delete(roomName);
-                    console.log(`Deleted room ${roomName} because no players left`);
+                    this.rooms.delete(room);
+                    if (this.games[room]) {
+                        this.games[room].stop();
+                        delete this.games[room];
+                    }
+                } else if (this.games[room]) {
+                    this.games[room].remove_player(socket.id);
                 }
             }
-        });
+            
+            this.playerInfo.delete(socket.id);
+        }
+    }
+
+    start_game(socket, data, io) {
+        const playerInfo = this.playerInfo.get(socket.id);
+        if (!playerInfo) return { error: 'Player not in a room' };
+
+        const { room } = playerInfo;
+        this.new_game(socket, { room_name: room }, io);
+        return { success: true, room };
     }
 }
