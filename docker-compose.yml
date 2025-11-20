@@ -5,14 +5,14 @@ services:
       dockerfile: backend/Dockerfile
     env_file:
       - backend/.env
-    ports:
-      - "3004:3004"
     command: npm run srv-dev
     environment:
       - CHOKIDAR_USEPOLLING=true
     volumes:
       - .:/app
       - /app/node_modules
+    networks:
+      - red-tetrix-network
 
   frontend:
     build:
@@ -20,8 +20,6 @@ services:
       dockerfile: frontend/Dockerfile
     env_file:
       - frontend/.env
-    ports:
-      - "8080:8080"
     depends_on:
       - backend
     command: npm run client-dev
@@ -31,3 +29,28 @@ services:
     volumes:
       - .:/app
       - /app/node_modules
+    networks:
+      - red-tetrix-network
+  
+  nginx:
+    build:
+      context: ./proxy
+      dockerfile: Dockerfile
+    restart: always
+    # volumes:
+    #  - ./certbot/www/:/var/www/certbot/:ro
+    #  - ./certbot/conf/:/etc/nginx/ssl/:ro
+    container_name: nginx
+    ports:
+     - 8080:80
+     - 4430:443
+    depends_on:
+      - frontend
+    networks:
+      - red-tetrix-network
+    env_file:
+      - .env
+  
+networks: 
+  red-tetrix-network:
+    driver: bridge

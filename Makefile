@@ -1,6 +1,6 @@
 COMPOSE ?= docker compose
 
-.PHONY: build up down prune fprune deepprune df test coverage
+.PHONY: build up down prune fprune deepprune df test coverage re
 
 build:
 	$(COMPOSE) build backend frontend
@@ -28,6 +28,7 @@ df:
 	docker system df -v
 
 test: build
+	$(COMPOSE) run --rm frontend npm run test_classes
 	$(COMPOSE) run --rm backend npm run test:backend
 	$(COMPOSE) run --rm frontend npm run test:frontend
 
