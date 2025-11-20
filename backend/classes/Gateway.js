@@ -8,89 +8,44 @@ export class Gateway {
         this.playerInfo = new Map();
     }
 
-    #update_piece_position(socket, data, direction) {
-        const playerInfo = this.playerInfo.get(socket.id);
-        if (!playerInfo) return;
-
-        const game = this.games[playerInfo.room];
-        if (!game) return;
-
-        const player = game.players.get(socket.id);
-        if (!player || !player.current_piece) return;
-
-        player.current_piece.move(direction, 0, player.board);
-    }
-
-    #step_down(socket, data) {
-        const playerInfo = this.playerInfo.get(socket.id);
-        if (!playerInfo) return;
-
-        const game = this.games[playerInfo.room];
-        if (!game) return;
-
-        game.handle_player_input(socket.id, 'down');
-    }
-
-    #drop_down(socket, data) {
-        const playerInfo = this.playerInfo.get(socket.id);
-        if (!playerInfo) return;
-
-        const game = this.games[playerInfo.room];
-        if (!game) return;
-
-        const player = game.players.get(socket.id);
-        if (player) {
-            player.hard_drop();
+    #new_game(socket, roomName, io) {
+        if (!this.rooms.has(roomName)) {
+            return ;
         }
-    }
-
-    #rotate_piece(socket, data) {
-        const playerInfo = this.playerInfo.get(socket.id);
-        if (!playerInfo) return;
-
-        const game = this.games[playerInfo.room];
-        if (!game) return;
-
-        game.handle_player_input(socket.id, 'up');
-    }
-
-    new_game(socket, data, io) {
-        const room_name = data.room_name;
-        if (!this.rooms.has(room_name)) {
+        if (this.games[roomName] && this.games[roomName].isRunning) {
             return;
         }
+        let mode = Game.SINGLE_PLAYER;
 
-        const players_ids = Array.from(this.rooms.get(room_name).keys());
-        this.games[room_name] = new Game(players_ids, room_name);
-        this.games[room_name].run(io);
+        let players_info = []
+        this.rooms.get(roomName).forEach((socketId, playerName) => {
+            players_info.push({socketId, playerName})
+        });
+
+        if (players_info.length > 1){
+            mode = Game.MULTI_PLAYER;
+        }
+
+
+        this.games[roomName] = new Game(players_info, roomName, mode);
+        this.games[roomName].run(io);
     }
 
     handle_key_press(socket, data) {
         if (!data || !data.key) return;
 
-        switch (data.key) {
-            case "right":
-                this.#update_piece_position(socket, data, 1);
-                break;
-            case "left":
-                this.#update_piece_position(socket, data, -1);
-                break;
-            case "up":
-                this.#rotate_piece(socket, data);
-                break;
-            case "down":
-                this.#step_down(socket, data);
-                break;
-            case "space":
-                this.#drop_down(socket, data);
-                break;
-        }
+        const playerInfo = this.playerInfo.get(socket.id);
+        const game = this.games[playerInfo.room];
+        if (!game) return;
+
+        game.handle_key_press(playerInfo.playerName)
     }
 
     #create_room(socket, data) {
         const { room, playerName } = data;
         this.rooms.set(room, new Map([[playerName, socket.id]]));
-        this.playerInfo.set(socket.id, { room, playerName });
+        let host = true;
+        this.playerInfo.set(socket.id, { room, playerName, host });
         socket.join(room);
     }
 
@@ -102,7 +57,7 @@ export class Gateway {
 
         if (!this.rooms.has(room)) {
             this.#create_room(socket, data);
-            return callback({ success: true, room, playerName });
+            return callback({ success: true, room, playerName, host });
         }
 
         const playersMap = this.rooms.get(room);
@@ -113,10 +68,11 @@ export class Gateway {
         }
         
         playersMap.set(playerName, socket.id,);
-        this.playerInfo.set(socket.id, { room, playerName });
+        let host = false;
+        this.playerInfo.set(socket.id, { room, playerName, host });
         socket.join(room);
 
-        return callback({ success: true, room, playerName });
+        return callback({ success: true, room, playerName, host });
     }
 
     disconnect(socket, reason) {
@@ -124,11 +80,11 @@ export class Gateway {
         
         const playerInfo = this.playerInfo.get(socket.id);
         if (playerInfo) {
-            const { room } = playerInfo;
+            const { room, playerName } = playerInfo;
             
             if (this.rooms.has(room)) {
                 const playersMap = this.rooms.get(room);
-                playersMap.delete(socket.id);
+                playersMap.delete(playerName);
                 
                 if (playersMap.size === 0) {
                     this.rooms.delete(room);
@@ -136,8 +92,9 @@ export class Gateway {
                         this.games[room].stop();
                         delete this.games[room];
                     }
-                } else if (this.games[room]) {
-                    this.games[room].remove_player(socket.id);
+                }
+                else if (this.games[room]) {
+                    this.games[room].remove_player(playerName);
                 }
             }
             
@@ -149,8 +106,64 @@ export class Gateway {
         const playerInfo = this.playerInfo.get(socket.id);
         if (!playerInfo) return { error: 'Player not in a room' };
 
-        const { room } = playerInfo;
-        this.new_game(socket, { room_name: room }, io);
+        const { room, host } = playerInfo;
+        if (host === false){
+            return { success: false, room };
+        }
+        this.#new_game(socket, room , io);
         return { success: true, room };
+    }
+
+    leave_room(socket, data){
+        const playerInfo = this.playerInfo.get(socket.id);
+        if (!playerInfo) return { error: 'Player not in a room' };
+
+        const { room, playerName } = playerInfo;
+
+        this.rooms.get(room).delete(playerName);
+        socket.leave(room)
+    }
+
+    room_list(socket, data) {
+        const roomsStatus = [];
+        
+        this.rooms.forEach((playersMap, roomName) => {
+            const game = this.games[roomName];
+            const TotalConnections = playersMap.size;
+
+            let playingCount = 0;
+            let gameStatus = 'WAITING_FOR_PLAYER';
+            let gameDuration = 0;
+            let playerNames = []
+            
+            if (game) {
+                playingCount = game.players.size;
+                
+                if (game.isRunning) {
+                    gameStatus = 'PLAYING';
+                    playerNames = Array.from(game.player.keys());
+                    if (game.startTime) {
+                        gameDuration = Math.floor((Date.now() - game.startTime) / 1000);
+                    }
+                }
+            }
+            else {
+                gameStatus = 'WAITING_FOR_PLAYER';
+            }
+
+            roomsStatus.push({
+                room_name: roomName,
+                game_status: gameStatus,
+                players_playing: playingCount,
+                spectators: TotalConnections - playingCount,
+                game_duration: gameDuration,
+                players: playerNames,
+            });
+        });
+
+        socket.emit('room_list_response', {
+            success: true,
+            rooms: roomsStatus
+        });
     }
 }

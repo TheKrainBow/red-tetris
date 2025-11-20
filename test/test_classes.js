@@ -60,12 +60,12 @@ describe('Tetris Complete Test Suite', () => {
         });
 
         it('should create O piece with correct rotations', () => {
-            const oPiece = new Piece([[1, 1], [1, 1]]);
+            const oPiece = new Piece([[1, 1], [1, 1]], true);
             expect(oPiece.rotations).to.have.lengthOf(4);
         });
 
         it('should rotate piece correctly', () => {
-            const piece = new Piece([[1, 0, 0], [1, 1, 1]]);
+            const piece = new Piece([[1, 0, 0], [1, 1, 1]], true);
             const initialRotation = JSON.stringify(piece.state);
             
             piece.rotate(board);
@@ -75,7 +75,7 @@ describe('Tetris Complete Test Suite', () => {
         });
 
         it('should rotate piece backwards correctly', () => {
-            const piece = new Piece([[1, 0, 0], [1, 1, 1]]);
+            const piece = new Piece([[1, 0, 0], [1, 1, 1]], true);
             const initialRotation = JSON.stringify(piece.state);
             
             piece.rotate_backwards(board);
@@ -85,7 +85,7 @@ describe('Tetris Complete Test Suite', () => {
         });
 
         it('should move piece within boundaries', () => {
-            const piece = new Piece([[1, 1], [1, 1]]);
+            const piece = new Piece([[1, 1], [1, 1]], true);
             piece.position = [0, 0];
             
             const movedRight = piece.move(1, 0, board);
@@ -98,7 +98,7 @@ describe('Tetris Complete Test Suite', () => {
         });
 
         it('should not move piece into collision', () => {
-            const piece = new Piece([[1, 1], [1, 1]]);
+            const piece = new Piece([[1, 1], [1, 1]], true);
             piece.position = [0, 0];
             
             const movedLeft = piece.move(-1, 0, board);
@@ -107,7 +107,7 @@ describe('Tetris Complete Test Suite', () => {
         });
 
         it('should get correct block positions', () => {
-            const piece = new Piece([[1, 1], [1, 1]]);
+            const piece = new Piece([[1, 1], [1, 1]], true);
             piece.position = [3, 0];
             
             const positions = piece.get_block_positions();
@@ -193,7 +193,6 @@ describe('Tetris Complete Test Suite', () => {
             expect(board.blocked_rows).to.equal(2);
         });
 
-        // FIXED: Updated the can_move_down test to match your actual board dimensions
         it('should check if piece can move down', () => {
             const piece = {
                 state: [[1, 1], [1, 1]],
@@ -234,7 +233,7 @@ describe('Tetris Complete Test Suite', () => {
         });
 
         it('should queue and set current piece', () => {
-            const piece = new Piece([[1, 1], [1, 1]]);
+            const piece = new Piece([[1, 1], [1, 1]], true);
             player.queue_piece(piece);
             
             expect(player.piece_queue.size()).to.equal(1);
@@ -245,7 +244,7 @@ describe('Tetris Complete Test Suite', () => {
         });
 
         it('should move piece left and right', () => {
-            const piece = new Piece([[1, 1], [1, 1]]);
+            const piece = new Piece([[1, 1], [1, 1]], true);
             player.queue_piece(piece);
             player.set_current_piece();
             
@@ -259,7 +258,7 @@ describe('Tetris Complete Test Suite', () => {
         });
 
         it('should rotate piece', () => {
-            const piece = new Piece([[1, 0, 0], [1, 1, 1]]);
+            const piece = new Piece([[1, 0, 0], [1, 1, 1]], true);
             player.queue_piece(piece);
             player.set_current_piece();
             
@@ -270,7 +269,7 @@ describe('Tetris Complete Test Suite', () => {
         });
 
         it('should step piece down', () => {
-            const piece = new Piece([[1, 1], [1, 1]]);
+            const piece = new Piece([[1, 1], [1, 1]], true);
             player.queue_piece(piece);
             player.set_current_piece();
             
@@ -292,7 +291,7 @@ describe('Tetris Complete Test Suite', () => {
         });
 
         it('should hard drop piece', () => {
-            const piece = new Piece([[1, 1], [1, 1]]);
+            const piece = new Piece([[1, 1], [1, 1]], true);
             player.queue_piece(piece);
             player.set_current_piece();
             
@@ -304,51 +303,109 @@ describe('Tetris Complete Test Suite', () => {
     });
 
     describe('Game Class', () => {
-        let game;
+    let game;
 
-        beforeEach(() => {
-            game = new Game(['player1', 'player2'], 'test-room');
-        });
+    beforeEach(() => {
+        // Create game with player info objects instead of just player names
+        game = new Game([
+            { playerName: 'player1', socketId: 'socket1' },
+            { playerName: 'player2', socketId: 'socket2' }
+        ], 'test-room', Game.MULTI_PLAYER);
+    });
 
-        it('should initialize with players', () => {
-            expect(game.players.size).to.equal(2);
-            expect(game.players.has('player1')).to.be.true;
-            expect(game.players.has('player2')).to.be.true;
-        });
+    it('should initialize with players from player info objects', () => {
+        expect(game.players.size).to.equal(2);
+        expect(game.players.has('player1')).to.be.true;
+        expect(game.players.has('player2')).to.be.true;
+        expect(game.minimum_players).to.equal(Game.MULTI_PLAYER);
+        expect(game.room).to.equal('test-room');
+    });
 
-        it('should start game with pieces in queue', () => {
-            game.start();
-            
-            game.players.forEach(player => {
-                expect(player.piece_queue.size()).to.be.greaterThan(0);
-                expect(player.current_piece).to.not.be.null;
-            });
-        });
+    it('should handle single player mode', () => {
+        const singlePlayerGame = new Game([
+            { playerName: 'player1', socketId: 'socket1' }
+        ], 'test-room', Game.SINGLE_PLAYER);
+        
+        expect(singlePlayerGame.players.size).to.equal(1);
+        expect(singlePlayerGame.minimum_players).to.equal(Game.SINGLE_PLAYER);
+    });
 
-        it('should handle player input', () => {
-            game.start();
-            
-            const moved = game.handle_player_input('player1', 'right');
-            expect(moved).to.be.true;
-            
-            const rotated = game.handle_player_input('player1', 'rotate');
-            expect(rotated).to.be.true;
-        });
-
-        it('should get game state', () => {
-            game.start();
-            
-            const gameState = game.get_game_state();
-            expect(gameState).to.have.property('player1');
-            expect(gameState).to.have.property('player2');
-            expect(gameState.player1).to.have.property('board');
-            expect(gameState.player1).to.have.property('current_piece');
+    it('should start game with pieces in queue', () => {
+        game.start();
+        
+        game.players.forEach(player => {
+            expect(player.piece_queue.size()).to.be.greaterThan(0);
+            expect(player.current_piece).to.not.be.null;
         });
     });
 
+    it('should handle player input by player name', () => {
+        game.start();
+        
+        const moved = game.handle_player_input('player1', 'right');
+        expect(moved).to.be.true;
+        
+        const rotated = game.handle_player_input('player1', 'rotate');
+        expect(rotated).to.be.true;
+    });
+
+    it('should get game state with player names', () => {
+        game.start();
+        
+        const gameState = game.get_game_state();
+        expect(gameState).to.have.property('player1');
+        expect(gameState).to.have.property('player2');
+        expect(gameState.player1).to.have.property('player_name', 'player1');
+        expect(gameState.player1).to.have.property('board');
+        expect(gameState.player1).to.have.property('current_piece');
+    });
+
+    it('should remove players by player name', () => {
+        expect(game.players.has('player1')).to.be.true;
+        game.remove_player('player1');
+        expect(game.players.has('player1')).to.be.false;
+    });
+
+    it('should check if running', () => {
+        expect(game.is_running()).to.be.false;
+        game.start();
+        expect(game.is_running()).to.be.true;
+        game.stop();
+        expect(game.is_running()).to.be.false;
+    });
+});
+
+describe('Integration Tests', () => {
+    it('should handle multiple players with player info', () => {
+        const game = new Game([
+            { playerName: 'player1', socketId: 'socket1' },
+            { playerName: 'player2', socketId: 'socket2' },
+            { playerName: 'player3', socketId: 'socket3' }
+        ], 'test-room', Game.MULTI_PLAYER);
+        
+        game.start();
+        
+        expect(game.players.size).to.equal(3);
+        
+        // Each player should have their own board and pieces
+        game.players.forEach((player, playerName) => {
+            expect(player.board).to.not.be.null;
+            expect(player.current_piece).to.not.be.null;
+            expect(player.piece_queue.size()).to.be.greaterThan(0);
+        });
+        
+        const gameState = game.get_game_state();
+        expect(Object.keys(gameState)).to.have.lengthOf(3);
+        expect(gameState.player1.player_name).to.equal('player1');
+        expect(gameState.player2.player_name).to.equal('player2');
+        expect(gameState.player3.player_name).to.equal('player3');
+    });
+});
+
     describe('Integration Tests', () => {
         it('should handle multiple players', () => {
-            const game = new Game(['player1', 'player2', 'player3'], 'test-room');
+            let players = [{playerName: 'player1', socketId: 0}, {playerName: 'player2', socketId: 1}, {playerName: 'player3', socketId: 2}]
+            const game = new Game(players, 'test-room');
             game.start();
             
             expect(game.players.size).to.equal(3);
@@ -362,7 +419,5 @@ describe('Tetris Complete Test Suite', () => {
             const gameState = game.get_game_state();
             expect(Object.keys(gameState)).to.have.lengthOf(3);
         });
-
-        // REMOVED: Full game cycle test since it required update method
     });
 });

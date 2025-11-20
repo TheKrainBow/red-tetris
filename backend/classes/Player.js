@@ -2,8 +2,9 @@ import { Board } from "./Board";
 import { Queue } from "./Queue";
 
 export class Player {
-    constructor(id) {
-        this.id = id;
+    constructor(info) {
+        this.name = info.playerName;
+        this.id = info.socketId;
         this.points = 0;
         this.piece_queue = new Queue();
         this.board = new Board();

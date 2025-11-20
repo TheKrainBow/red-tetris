@@ -1,9 +1,13 @@
 export class Piece {
-    constructor(shape) {
+    constructor(shape, test=false) {
         this.shape = shape;
         this.rotations = this.#create_rotations();
-        // this.state_index = 0;
-        this.state_index = Math.floor(Math.random() * 4);
+        if (test){
+            this.state_index = 0;
+        }
+        else{
+            this.state_index = Math.floor(Math.random() * 4);
+        }
         this.state = this.rotations[this.state_index];
         this.spawn_position = [3, 0];
         this.position = [...this.spawn_position];

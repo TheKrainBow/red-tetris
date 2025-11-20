@@ -6,9 +6,11 @@ function sleep(ms) {
 }
 
 export class Game {
-    constructor(players, room) {
+    constructor(players, room, mode) {
         this.room = room;
-        this.players = new Map(players.map(player_id => [player_id, new Player(player_id)]));
+        this.players = new Map(players.map(player_info => [player_info.playerName, new Player(player_info)]));
+        this.minimum_players = mode
+        this.eliminatedPlayers = [];
         
         this.I = [[1,1,1,1]];
         this.J = [[1,0,0],[1,1,1]];
@@ -22,25 +24,28 @@ export class Game {
         this.isRunning = false;
     }
 
+    static SINGLE_PLAYER = 1;
+    static MULTI_PLAYER = 2;
+
     #add_to_players_piece_queue() {
         const randomIndex = Math.floor(Math.random() * this.shapes.length);
         const shape = this.shapes[randomIndex];
         
-        this.players.forEach((player, id) => {
+        this.players.forEach((player, player_name) => {
             const piece = new Piece(shape);
             player.queue_piece(piece);
         });
     }
 
     #set_players_piece() {
-        this.players.forEach((player, id) => {
+        this.players.forEach((player, player_name) => {
             player.set_current_piece();
         });
     }
 
     #set_blocked_rows(thisPlayer, nrows_to_block) {
-        this.players.forEach((player, id) => {
-            if (player.id !== thisPlayer.id) {
+        this.players.forEach((player, player_name) => {
+            if (player.player_name !== thisPlayer.player_name) {
                 player.board.block_row(nrows_to_block);
             }
         });
@@ -52,9 +57,10 @@ export class Game {
         }
         this.#set_players_piece();
         this.isRunning = true;
+        this.startTime = Date.now();
     }
 
-    #end_turn(player) {
+    #end_game(player) {
         const canMoveDown = player.board.can_move_down(player.current_piece);
         
         if (!canMoveDown) {
@@ -76,11 +82,43 @@ export class Game {
                 this.#add_to_players_piece_queue();
             }
 
-            if (player.board.check_collision(player.current_piece)) {
+            if (!player.board.can_move_down(player.current_piece)) {
                 return true;
             }
         }
         return false;
+    }
+
+    #send_game_state(io) {
+    
+        this.players.forEach((currentPlayer, currentPlayerName) => {
+            const playerGameState = {
+                self: {
+                    player_name: currentPlayerName,
+                    board: currentPlayer.board.get_state(),
+                    current_piece: {
+                        state: currentPlayer.current_piece.state,
+                        position: currentPlayer.current_piece.position
+                    },
+                    next_piece: currentPlayer.piece_queue.peek().shape,
+                    points: currentPlayer.points,
+                },
+                opponents: {}
+            };
+            this.players.forEach((otherPlayer, otherPlayerId) => {
+                if (otherPlayerId !== currentPlayerName) {
+                    playerGameState.opponents[otherPlayerId] = {
+                        spectrum: otherPlayer.get_spectrum()
+                    };
+                }
+            });
+
+            io.to(currentPlayer.id).emit('refresh', playerGameState);
+        });
+    } 
+
+    stop() {
+        this.isRunning = false;
     }
 
     async run(io) {
@@ -89,69 +127,36 @@ export class Game {
         this.start();
         
         while (this.isRunning && this.players.size > 1) {
-            const eliminatedPlayers = [];
             
-            this.players.forEach((player, id) => {
+            this.players.forEach((player, player_name) => {
                 const moved = player.step_down();
                 
-                if (this.#end_turn(player)) {
-                    eliminatedPlayers.push(id);
-                    this.players.delete(id);
-                    io.to(this.room).emit('player_eliminated', { player_id: id });
+                if (this.#end_game(player)) {
+                    this.eliminatedPlayers.push(player_name);
+                    this.players.delete(player_name);
+                    io.to(this.room).emit('player_eliminated', { player_name: player_name });
                 }
             });
             
-            if (this.players.size === 1) {
+            if (this.players.size < this.minimum_players) {
                 this.stop()
                 io.to(this.room).emit('game_over', gameState);
                 break;
             }
 
-            this.send_game_state(io);
+            this.#send_game_state(io);
                  
             await sleep(500);
         }
-    }
-
-    send_game_state(io) {
-    const gameStates = {};
-    
-    this.players.forEach((currentPlayer, currentPlayerId) => {
-        const playerGameState = {
-            self: {
-                player_id: currentPlayerId,
-                board: currentPlayer.board.get_state(),
-                current_piece: {
-                    state: currentPlayer.current_piece.state,
-                    position: currentPlayer.current_piece.position
-                },
-                next_piece: currentPlayer.piece_queue.peek().shape,
-                points: currentPlayer.points,
-                spectrum: currentPlayer.get_spectrum()
-            },
-            opponents: {}
-        };
-        this.players.forEach((otherPlayer, otherPlayerId) => {
-            if (otherPlayerId !== currentPlayerId) {
-                playerGameState.opponents[otherPlayerId] = {
-                    spectrum: otherPlayer.get_spectrum()
-                };
-            }
-        });
-        
-        io.to(currentPlayer).emit('refresh', playerGameState);
-    });
-    
-    return gameStates;
-}
+    } 
 
     get_game_state() {
         const gameState = {};
-        this.players.forEach((player, id) => {
+        this.players.forEach((player, player_name) => {
             const nextPieces = [];
             
-            gameState[id] = {
-                player_id: id,
+            gameState[player_name] = {
+                player_name: player_name,
                 board: player.board.get_state(),
                 current_piece: {
                     state: player.current_piece.state,
@@ -165,8 +170,8 @@ export class Game {
         return gameState;
     }
 
-    handle_player_input(player_id, action) {
-        const player = this.players.get(player_id);
+    handle_player_input(player_name, action) {
+        const player = this.players.get(player_name);
         if (!player || !player.current_piece) return false;
         
         let success = false;
@@ -194,7 +199,12 @@ export class Game {
         return success;
     }
 
-    stop() {
-        this.isRunning = false;
+    remove_player(player_name){
+        this.eliminatedPlayers.push(player_name);
+        this.players.delete(player_name);
+    }
+
+    is_running(){
+        return this.isRunning;
     }
 }
