@@ -9,6 +9,7 @@ import reducer from './reducers'
 import Router from './Router'
 import { loadSkyboxCube } from './three/Skybox.jsx'
 import { ShopStateProvider } from './context/ShopStateContext'
+import socketClient from './utils/socketClient'
 
 const initialState = {}
 

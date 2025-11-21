@@ -3,6 +3,7 @@ import Button from '../components/Button'
 import Tetromino, { TetrominoType } from '../components/Tetromino.jsx'
 import FallingField from '../components/FallingField.jsx'
 import { getLocalStorageItem } from '../utils/storage'
+import socketClient from '../utils/socketClient.js'
 
 const USERNAME_KEY = 'username'
 
@@ -37,9 +38,20 @@ export default function Multiplayer() {
     window.location.hash = '#/'
   }
 
-  const onCreate = () => {
-    // Placeholder for create flow
-    alert('Create server (placeholder)')
+  const onCreate = async () => {
+    const playerName = username || getLocalStorageItem(USERNAME_KEY, '')
+    const roomName = 'Some Serious Game'
+    if (!playerName) {
+      alert('Please set a username first.')
+      return
+    }
+    try {
+      await socketClient.joinRoom(roomName, playerName)
+      // TODO: Navigate to lobby/game page when it exists
+    } catch (err) {
+      console.error('Failed to create/join room', err)
+      alert('Failed to create server. Please try again.')
+    }
   }
 
   const onJoin = () => {

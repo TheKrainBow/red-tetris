@@ -26,6 +26,7 @@
     "redux-logger": "^3",
     "redux-thunk": "^2",
     "socket.io": "^4",
+    "socket.io-client": "^4",
     "debug": "^4",
     "three": "^0.160.0",
     "@react-three/fiber": "^8.15.10"
@@ -42,7 +43,6 @@
     "mocha": "^11",
     "nyc": "^17",
     "react-test-renderer": "^18",
-    "socket.io-client": "^4",
     "webpack": "^5",
     "webpack-cli": "^5",
     "webpack-dev-server": "^5",
