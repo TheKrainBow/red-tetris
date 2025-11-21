@@ -4,6 +4,7 @@ import Tetromino, { TetrominoType } from '../components/Tetromino.jsx'
 import FallingField from '../components/FallingField.jsx'
 import { getLocalStorageItem } from '../utils/storage'
 import socketClient from '../utils/socketClient.js'
+import { navigate } from '../utils/navigation'
 
 const USERNAME_KEY = 'username'
 
@@ -35,7 +36,7 @@ export default function Multiplayer() {
   const selectedServer = servers.find(s => s.id === selected) || null
 
   const onCancel = () => {
-    window.location.hash = '#/'
+    navigate('/')
   }
 
   const onCreate = async () => {

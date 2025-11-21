@@ -2,73 +2,91 @@ import React, { useEffect, useState } from 'react'
 import MainMenu from './pages/MainMenu'
 import Multiplayer from './pages/Multiplayer'
 import Singleplayer from './pages/Singleplayer'
-import CreateGame from './pages/CreateGame'
 import Login from './pages/Login'
 import Shop from './pages/Shop'
 import Options from './pages/Options'
 import SkyboxBackground from './three/Skybox.jsx'
 import UtilityDock from './components/UtilityDock'
 import Leaderboard from './pages/Leaderboard'
+import Game from './pages/Game'
+import { replace } from './utils/navigation'
 
 const USERNAME_KEY = 'username'
 
 const getRoute = () => {
-  const hash = window.location.hash || '#/'
-  // normalize
-  if (hash === '#') return '/'
-  return hash.replace('#', '')
+  const path = (typeof window !== 'undefined' && window.location && window.location.pathname) ? window.location.pathname : '/'
+  if (!path || path === '#') return '/'
+  return path
+}
+
+const parseGamePath = (route) => {
+  if (!route) return null
+  const parts = route.split('/').filter(Boolean)
+  if (parts.length >= 2) {
+    return {
+      room: decodeURIComponent(parts[0]),
+      player: decodeURIComponent(parts[1]),
+    }
+  }
+  return null
 }
 
 export default function Router() {
   const [route, setRoute] = useState(getRoute())
+  const [gamePath, setGamePath] = useState(parseGamePath(getRoute()))
 
   useEffect(() => {
-    const onHashChange = () => {
-      setRoute(getRoute())
+    const onPop = () => {
+      const next = getRoute()
+      setRoute(next)
+      setGamePath(parseGamePath(next))
     }
-    window.addEventListener('hashchange', onHashChange)
-    return () => window.removeEventListener('hashchange', onHashChange)
+    window.addEventListener('popstate', onPop)
+    return () => {
+      window.removeEventListener('popstate', onPop)
+    }
   }, [])
 
   useEffect(() => {
     const username = localStorage.getItem(USERNAME_KEY)
     // Guard routes
     if (!username && route !== '/login') {
-      window.location.hash = '#/login'
+      replace('/login')
       return
     }
     if (username && route === '/login') {
-      window.location.hash = '#/'
+      replace('/')
     }
   }, [route])
 
   let page
-  switch (route) {
-    case '/login':
-      page = <Login />
-      break
-    case '/leaderboard':
-      page = <Leaderboard />
-      break
-    case '/shop':
-      page = <Shop />
-      break
-    case '/options':
-      page = <Options />
-      break
-    case '/singleplayer':
-      page = <Singleplayer />
-      break
-    case '/singleplayer/create':
-      page = <CreateGame />
-      break
-    case '/multiplayer':
-      page = <Multiplayer />
-      break
-    case '/':
-    default:
-      page = <MainMenu />
-      break
+  if (gamePath) {
+    page = <Game room={gamePath.room} player={gamePath.player} />
+  } else {
+    switch (route) {
+      case '/login':
+        page = <Login />
+        break
+      case '/leaderboard':
+        page = <Leaderboard />
+        break
+      case '/shop':
+        page = <Shop />
+        break
+      case '/options':
+        page = <Options />
+        break
+      case '/singleplayer':
+        page = <Singleplayer />
+        break
+      case '/multiplayer':
+        page = <Multiplayer />
+        break
+      case '/':
+      default:
+        page = <MainMenu />
+        break
+    }
   }
 
   return (

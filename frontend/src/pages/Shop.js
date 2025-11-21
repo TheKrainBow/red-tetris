@@ -26,6 +26,7 @@ import {
   describeCraftEffects,
 } from '../utils/shopLogic'
 import { useShopState } from '../context/ShopStateContext'
+import { navigate } from '../utils/navigation'
 
 // Camera spawn from latest console snapshot
 const CAM_POS = [-0.800, 2.038, -2.262]
@@ -368,7 +369,7 @@ export default function Shop() {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  const onBack = () => { window.location.hash = '#/' }
+  const onBack = () => { navigate('/') }
   const [activeTab, setActiveTab] = useState('shops')
 
   function resetShop() {

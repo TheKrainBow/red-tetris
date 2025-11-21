@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import Button from '../components/Button'
 import SpinningCube from '../components/SpinningCube.jsx'
 import { getLocalStorageItem } from '../utils/storage'
+import { navigate } from '../utils/navigation'
 import {
   SPAWN_MATERIALS,
   getStoredSpawnRates,
@@ -26,7 +27,7 @@ export default function CreateGame() {
   const [editingKey, setEditingKey] = useState(null)
   const [draftVal, setDraftVal] = useState('')
 
-  const onCancel = () => { window.location.hash = '#/singleplayer' }
+  const onCancel = () => { navigate('/singleplayer') }
   const onStart = () => {
     alert('Starting game with probabilities: ' + JSON.stringify(probs))
   }

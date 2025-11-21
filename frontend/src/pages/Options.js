@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import Button from '../components/Button'
+import { navigate } from '../utils/navigation'
 
 function useLocalNumber(key, def) {
   const [v, setV] = useState(() => {
@@ -16,10 +17,10 @@ export default function Options() {
   useEffect(() => { if (window.setSfxVolume) window.setSfxVolume(sfx) }, [sfx])
   useEffect(() => { if (window.setMusicVolume) window.setMusicVolume(music) }, [music])
 
-  const onBack = () => { window.location.hash = '#/' }
+  const onBack = () => { navigate('/') }
   const onChangeUsername = () => {
     try { localStorage.removeItem('username') } catch (_) {}
-    window.location.hash = '#/login'
+    navigate('/login')
   }
   const onResetAccount = () => {
     const zero = { Dirt: 0, Stone: 0, Iron: 0, Diamond: 0, Emerald: 0 }

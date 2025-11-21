@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { navigate } from '../utils/navigation'
 
 const USERNAME_KEY = 'username'
 
@@ -8,7 +9,7 @@ export default function Home() {
   useEffect(() => {
     const name = localStorage.getItem(USERNAME_KEY) || ''
     if (!name) {
-      window.location.hash = '#/login'
+      navigate('/login')
     } else {
       setUsername(name)
     }
@@ -16,7 +17,7 @@ export default function Home() {
 
   const logout = () => {
     localStorage.removeItem(USERNAME_KEY)
-    window.location.hash = '#/login'
+    navigate('/login')
   }
 
   return (
@@ -29,4 +30,3 @@ export default function Home() {
     </div>
   )
 }
-

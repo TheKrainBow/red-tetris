@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { navigate } from '../utils/navigation'
 
 const USERNAME_KEY = 'username'
 
@@ -8,7 +9,7 @@ export default function Login() {
   useEffect(() => {
     const existing = localStorage.getItem(USERNAME_KEY)
     if (existing && existing.trim().length > 0) {
-      window.location.hash = '#/'
+      navigate('/')
     }
   }, [])
 
@@ -17,7 +18,7 @@ export default function Login() {
     const name = username.trim()
     if (!name) return
     localStorage.setItem(USERNAME_KEY, name)
-    window.location.hash = '#/'
+    navigate('/')
   }
 
   return (

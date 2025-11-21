@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import Button from '../components/Button'
 import SpinningCube from '../components/SpinningCube.jsx'
 import { getLocalStorageItem } from '../utils/storage'
+import { navigate } from '../utils/navigation'
 
 const ICONS = {
   Dirt: '/blocks/Dirt.jpg',
@@ -219,7 +220,7 @@ export default function Leaderboard() {
           </div>
         </div>
         <div className="lb-back">
-          <Button className="ui-btn-slim" onClick={() => { window.location.hash = '#/' }}>Back</Button>
+          <Button className="ui-btn-slim" onClick={() => { navigate('/') }}>Back</Button>
         </div>
       </div>
     </div>

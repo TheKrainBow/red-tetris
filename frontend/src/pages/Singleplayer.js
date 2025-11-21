@@ -1,6 +1,7 @@
 import React, { useMemo, useRef, useState } from 'react'
 import Button from '../components/Button'
 import { getLocalStorageItem } from '../utils/storage'
+import { navigate } from '../utils/navigation'
 
 const USERNAME_KEY = 'username'
 
@@ -57,8 +58,12 @@ export default function Singleplayer() {
   const games = sampleHistory
   const selectedGame = games.find(g => g.id === selected) || null
 
-  const onCancel = () => { window.location.hash = '#/' }
-  const onCreate = () => { window.location.hash = '#/singleplayer/create' }
+  const onCancel = () => { navigate('/') }
+  const onCreate = () => {
+    const name = username || getLocalStorageItem(USERNAME_KEY, '') || 'Guest'
+    const target = `/${encodeURIComponent('Heinz_singleplayer')}/${encodeURIComponent(name)}`
+    navigate(target)
+  }
   const onView = () => { if (selectedGame) alert(`Viewing ${selectedGame.name} (placeholder)`) }
 
   return (

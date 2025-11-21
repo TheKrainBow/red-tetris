@@ -2,6 +2,7 @@ import React, { useMemo, useState, useEffect } from 'react'
 import Button from '../components/Button'
 import { loadSkyboxCube } from '../three/Skybox.jsx'
 import { getLocalStorageItem } from '../utils/storage'
+import { navigate } from '../utils/navigation'
 
 const USERNAME_KEY = 'username'
 
@@ -10,21 +11,10 @@ export function readUsername() {
   return getLocalStorageItem(USERNAME_KEY, '') || ''
 }
 
-export function navToMultiplayer(win = typeof window !== 'undefined' ? window : undefined) {
-  if (win && win.location) win.location.hash = '#/multiplayer'
-}
-
-export function navToSingleplayer(win = typeof window !== 'undefined' ? window : undefined) {
-  if (win && win.location) win.location.hash = '#/singleplayer'
-}
-
-export function navToShop(win = typeof window !== 'undefined' ? window : undefined) {
-  if (win && win.location) win.location.hash = '#/shop'
-}
-
-export function navToLeaderboard(win = typeof window !== 'undefined' ? window : undefined) {
-  if (win && win.location) win.location.hash = '#/leaderboard'
-}
+export function navToMultiplayer() { navigate('/multiplayer') }
+export function navToSingleplayer() { navigate('/singleplayer') }
+export function navToShop() { navigate('/shop') }
+export function navToLeaderboard() { navigate('/leaderboard') }
 
 export function attachReady(promise, setReady) {
   let mounted = true
@@ -49,18 +39,18 @@ export default function MainMenu() {
       <div className={`mm-content ${bgReady ? 'mm-ready' : ''}`}>
         <img className="mm-logo" src="/ui/Craftetris.png" alt="Craftetris" />
         <div className="mm-primary">
-          <Button onClick={() => navToSingleplayer(window)}>Singleplayer</Button>
-          <Button onClick={() => navToMultiplayer(window)}>Multiplayer</Button>
-          <Button onClick={() => navToShop(window)}>
+          <Button onClick={() => navToSingleplayer()}>Singleplayer</Button>
+          <Button onClick={() => navToMultiplayer()}>Multiplayer</Button>
+          <Button onClick={() => navToShop()}>
             <span className="btn-inline"><img className="btn-emerald" src="/blocks/EmeraldItem.png" alt="" />Trading outpost</span>
           </Button>
         </div>
         <div className="mm-row">
           <div className="mm-row-center">
-            <Button className="ui-btn-narrow" onClick={() => { window.location.hash = '#/options' }}>Options...</Button>
+            <Button className="ui-btn-narrow" onClick={() => { navigate('/options') }}>Options...</Button>
             <Button className="ui-btn-narrow">Quit game</Button>
           </div>
-          <Button size="small" className="mm-leader" title="Leaderboard" onClick={() => navToLeaderboard(window)}>🏆</Button>
+          <Button size="small" className="mm-leader" title="Leaderboard" onClick={() => navToLeaderboard()}>🏆</Button>
         </div>
       </div>
 
