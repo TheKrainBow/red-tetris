@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import Button from '../components/Button'
 import socketClient from '../utils/socketClient.js'
 import { navigate } from '../utils/navigation'
@@ -34,6 +35,16 @@ const STONE_SOUNDS = [
   '/sounds/stone/Stone4.ogg',
 ]
 
+const materialKeyFromVal = (val) => {
+  switch (val) {
+    case 1: return 'dirt'
+    case 2: return 'stone'
+    case 3: return 'iron'
+    case 4: return 'diamond'
+    default: return null
+  }
+}
+
 const formatTime = (ms) => {
   if (!ms || ms < 0) return '00:00'
   const total = Math.floor(ms / 1000)
@@ -67,6 +78,8 @@ export default function Game({ room, player }) {
   const { setInventory } = useShopState()
   const [bonusBadges, setBonusBadges] = useState([])
   const [bonusFlash, setBonusFlash] = useState({ dirt: false, stone: false, iron: false, diamond: false })
+  const awardLagMs = 800
+  const shardLayerRef = useRef(null)
 
   const currentCellValue = (rowIdx, colIdx) => {
     const [posX, posY] = currentPiece.pos || [0, 0]
@@ -127,6 +140,37 @@ export default function Game({ room, player }) {
     }, delayMs)
   }
 
+  const queueAward = (matKey, amount = 0, delayMs = 0) => {
+    if (!matKey || !amount) return
+    setTimeout(() => {
+      setInventory((prev) => ({
+        ...prev,
+        [matKey]: (prev[matKey] || 0) + amount,
+      }))
+      setCollected((prev) => ({
+        ...prev,
+        [matKey]: prev[matKey] + amount,
+      }))
+    }, delayMs)
+  }
+
+  const getInventoryDest = (materialVal) => {
+    const panel = document.querySelector('.utility-panel-inventory')
+    if (!panel || panel.offsetParent === null) return null
+    const alt =
+      materialVal === 1 ? 'Dirt' :
+      materialVal === 2 ? 'Stone' :
+      materialVal === 3 ? 'Iron' :
+      materialVal === 4 ? 'Diamond' : null
+    if (!alt) return null
+    const img = panel.querySelector(`.shop-inventory-entry img[alt="${alt}"]`)
+    const target = img?.closest('.shop-inventory-entry') || img
+    if (!target) return null
+    const valueEl = target.querySelector('.shop-inventory-value') || target
+    const rect = valueEl.getBoundingClientRect()
+    return { x: rect.right - rect.width * 0.15, y: rect.top + rect.height / 2 }
+  }
+
   const spawnShard = (cell) => {
     const boardEl = boardRef.current
     if (!boardEl) return
@@ -136,17 +180,20 @@ export default function Game({ room, player }) {
       x: rect.left + cell.col * cellSize + cellSize / 2,
       y: rect.top + cell.row * cellSize + cellSize / 2,
     }
-    const invEl = document.querySelector('.shop-utility-button img[alt=\"Inventory\"]')
-    if (!invEl) return
-    const invRect = invEl.getBoundingClientRect()
-    const dest = {
+    const material = cell.val || 1
+    const matKey = cell.matKey || materialKeyFromVal(material)
+    const invTarget = getInventoryDest(material)
+    const invEl = invTarget ? null : document.querySelector('.shop-utility-button img[alt=\"Inventory\"]')
+    const invRect = invTarget ? null : invEl?.getBoundingClientRect()
+    const dest = invTarget || (invRect ? {
       x: invRect.left + invRect.width / 2,
       y: invRect.top + invRect.height / 2,
-    }
+    } : null)
+    if (!dest) return
     const id = shardIdRef.current++
     const delay = cell.delay || 0
-    const material = cell.val || 1
-    setShards((prev) => [...prev, { id, start, dest, phase: 'start', delay, material }])
+    const awardAmount = cell.awardAmount || 1
+    setShards((prev) => [...prev, { id, start, dest, phase: 'start', delay, material, matKey, awardAmount }])
     requestAnimationFrame(() => {
       setShards((prev) => prev.map((s) => (s.id === id ? { ...s, phase: 'accelerate' } : s)))
     })
@@ -154,13 +201,28 @@ export default function Game({ room, player }) {
       setShards((prev) => prev.map((s) => (s.id === id ? { ...s, phase: 'done' } : s)))
     }, 650 + delay)
     setTimeout(() => {
+      if (matKey && awardAmount) {
+        queueAward(matKey, awardAmount, 0)
+      }
       setShards((prev) => prev.filter((s) => s.id !== id))
-    }, 1000 + delay)
+    }, awardLagMs + delay)
   }
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000)
     return () => clearInterval(timer)
+  }, [])
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return
+    const el = document.createElement('div')
+    el.className = 'game-shard-layer'
+    document.body.appendChild(el)
+    shardLayerRef.current = el
+    return () => {
+      shardLayerRef.current = null
+      document.body.removeChild(el)
+    }
   }, [])
 
   useEffect(() => {
@@ -287,7 +349,7 @@ export default function Game({ room, player }) {
         clearedLineCells.forEach((cell) => {
           delay += 2 + Math.random() * 3 // tiny stagger between destroyed blocks
           playMaterialSound(cell.val, delay)
-          spawnShard({ ...cell, delay })
+          spawnShard({ ...cell, delay, awardAmount: 1, matKey: materialKeyFromVal(cell.val) })
         })
 
         if (clearedLineCells.length) {
@@ -314,23 +376,6 @@ export default function Game({ room, player }) {
             bonus[key] = Math.floor(count * bonusMultiplier)
           })
 
-          setCollected((prev) => {
-            const next = {
-              dirt: prev.dirt + delta.dirt,
-              stone: prev.stone + delta.stone,
-              iron: prev.iron + delta.iron,
-              diamond: prev.diamond + delta.diamond,
-            }
-            return next
-          })
-          setInventory((prev) => ({
-            ...prev,
-            dirt: (prev.dirt || 0) + delta.dirt,
-            stone: (prev.stone || 0) + delta.stone,
-            iron: (prev.iron || 0) + delta.iron,
-            diamond: (prev.diamond || 0) + delta.diamond,
-          }))
-
           // spawn bonus shards + badges for fortune multiplier (using cleared cells)
           Object.entries(bonus).forEach(([matKey, extraCount]) => {
             if (!extraCount) return
@@ -345,15 +390,7 @@ export default function Game({ room, player }) {
             for (let i = 0; i < shardCount; i++) {
               const baseCell = cells[i % (cells.length || 1)] || { row: 0, col: 0 }
               const perShard = Math.ceil(extraCount / shardCount)
-              spawnShard({ val: materialVal, row: baseCell.row, col: baseCell.col, delay: 200 + 4 + Math.random() * 4 })
-              setInventory((prev) => ({
-                ...prev,
-                [matKey]: (prev[matKey] || 0) + perShard,
-              }))
-              setCollected((prev) => ({
-                ...prev,
-                [matKey]: prev[matKey] + perShard,
-              }))
+              spawnShard({ val: materialVal, row: baseCell.row, col: baseCell.col, delay: 200 + 4 + Math.random() * 4, awardAmount: perShard, matKey })
             }
 
             // single aggregated badge
@@ -511,35 +548,38 @@ export default function Game({ room, player }) {
         <Button onClick={handleLeave} className="ui-btn-wide">Leave Lobby</Button>
       </div>
 
-      <div className="game-shard-layer" aria-hidden="true">
-        {bonusBadges.map((b) => (
-          <div
-            key={b.id}
-            className="game-bonus-badge active"
-            style={{
-              left: `${b.left || 0}px`,
-              top: `${b.top || 80}px`,
-            }}
-          >
-            <div className="game-bonus-icon" style={{ backgroundImage: `url(${b.icon})` }} />
-            <span>+{b.amount}</span>
-          </div>
-        ))}
-        {shards.map((s) => (
-          <div
-            key={s.id}
-            className={`game-shard ${s.phase === 'accelerate' ? 'accelerate' : ''} ${s.phase === 'done' ? 'done' : ''}`}
-            style={{
-              left: s.start.x,
-              top: s.start.y,
-              transitionDelay: `${s.delay || 0}ms`,
-              transform: (s.phase === 'accelerate' || s.phase === 'done')
-                ? `translate(${s.dest.x - s.start.x}px, ${s.dest.y - s.start.y}px) scale(0.7)`
-                : 'translate(0,0) scale(1)',
-            }}
-          />
-        ))}
-      </div>
+      {shardLayerRef.current && createPortal(
+        <div aria-hidden="true">
+          {bonusBadges.map((b) => (
+            <div
+              key={b.id}
+              className="game-bonus-badge active"
+              style={{
+                left: `${b.left || 0}px`,
+                top: `${b.top || 80}px`,
+              }}
+            >
+              <div className="game-bonus-icon" style={{ backgroundImage: `url(${b.icon})` }} />
+              <span>+{b.amount}</span>
+            </div>
+          ))}
+          {shards.map((s) => (
+            <div
+              key={s.id}
+              className={`game-shard ${s.phase === 'accelerate' ? 'accelerate' : ''} ${s.phase === 'done' ? 'done' : ''}`}
+              style={{
+                left: s.start.x,
+                top: s.start.y,
+                transitionDelay: `${s.delay || 0}ms`,
+                transform: (s.phase === 'accelerate' || s.phase === 'done')
+                  ? `translate(${s.dest.x - s.start.x}px, ${s.dest.y - s.start.y}px) scale(0.7)`
+                  : 'translate(0,0) scale(1)',
+              }}
+            />
+          ))}
+        </div>,
+        shardLayerRef.current
+      )}
 
       {showConfirmLeave && (
         <div className="game-modal-backdrop">
