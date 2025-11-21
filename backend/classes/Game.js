@@ -51,13 +51,24 @@ export class Game {
         });
     }
 
-    start() {
+    start(io) {
         for (let i = 0; i < 3; i++) {
             this.#add_to_players_piece_queue();
         }
         this.#set_players_piece();
         this.isRunning = true;
         this.startTime = Date.now();
+
+        const room_name = this.room;
+        const player_list = Array.from(this.players.values());
+        const starting_time = this.startTime
+        
+        const game_start = {
+            type: "game_start",
+            data:{room_name, player_list, starting_time}
+        }
+
+        io.to(this.room).emit('game_start', game_start);
     }
 
     #end_game(player) {
@@ -92,28 +103,23 @@ export class Game {
     #send_game_state(io) {
     
         this.players.forEach((currentPlayer, currentPlayerName) => {
+            let spectrums = []
             const playerGameState = {
-                self: {
-                    player_name: currentPlayerName,
-                    board: currentPlayer.board.get_state(),
-                    current_piece: {
-                        state: currentPlayer.current_piece.state,
-                        position: currentPlayer.current_piece.position
+                    Board: currentPlayer.board.get_state(),
+                    CurrentPiece: {
+                        shape: currentPlayer.current_piece.state,
+                        pos: currentPlayer.current_piece.position,
+                        material: 1
                     },
-                    next_piece: currentPlayer.piece_queue.peek().shape,
-                    points: currentPlayer.points,
-                },
-                opponents: {}
+                    NextPiece: {Shape: currentPlayer.piece_queue.peek().shape},
             };
             this.players.forEach((otherPlayer, otherPlayerId) => {
                 if (otherPlayerId !== currentPlayerName) {
-                    playerGameState.opponents[otherPlayerId] = {
-                        spectrum: otherPlayer.get_spectrum()
-                    };
+                    spectrums.push(otherPlayer.get_spectrum())
                 }
             });
-
-            io.to(currentPlayer.id).emit('refresh', playerGameState);
+            playerGameState["Spectrums"] = spectrums;
+            io.to(currentPlayer.id).emit('room_boards', playerGameState);
         });
     } 
 
@@ -124,9 +130,9 @@ export class Game {
     async run(io) {
         if (this.isRunning) return;
         
-        this.start();
+        this.start(io);
         
-        while (this.isRunning && this.players.size > 1) {
+        while (this.isRunning && this.players.size >= this.minimum_players) {
             
             this.players.forEach((player, player_name) => {
                 const moved = player.step_down();
@@ -140,7 +146,6 @@ export class Game {
             
             if (this.players.size < this.minimum_players) {
                 this.stop()
-                io.to(this.room).emit('game_over', gameState);
                 break;
             }
 
@@ -148,6 +153,14 @@ export class Game {
                  
             await sleep(500);
         }
+        this.stop();
+        const room_name = this.room;
+        const winner = this.players.size === 1 ? this.players.keys().value : "";
+        const game_end = {
+            type: "game_end",
+            data: { room_name, winner }
+        };
+        io.to(this.room).emit('game_end', game_end);
     } 
 
     get_game_state() {
