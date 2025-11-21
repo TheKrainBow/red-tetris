@@ -120,7 +120,13 @@ export class Gateway {
 
         const { room, playerName } = playerInfo;
 
+        const game = this.games[room];
+
         this.rooms.get(room).delete(playerName);
+        game.remove_player(playerName);
+        const player_list = {type: player_list, data: Array.from(game.players.values())};
+        
+        socket.to(room).emit("player_list", player_list);
         socket.leave(room)
     }
 
