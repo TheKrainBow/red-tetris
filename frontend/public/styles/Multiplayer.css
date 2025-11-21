@@ -577,6 +577,23 @@
 .game-row { display: grid; grid-template-columns: repeat(10, var(--cell)); }
 .game-cell { width: var(--cell); height: var(--cell); border: 1px solid rgba(255,255,255,0.08); box-sizing: border-box; background: rgba(0,0,0,0.08); }
 .game-cell.filled { background-size: cover; background-position: center; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.55); }
+.game-cell.ghost { background: rgba(255,255,255,0.08); border: 1px dashed rgba(255,255,255,0.35); box-shadow: none; }
+.game-shard-layer { pointer-events: none; position: fixed; inset: 0; z-index: 20; overflow: visible; }
+.game-shard {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  background: url('/blocks/Dirt.jpg') center/cover no-repeat;
+  border: 1px solid rgba(0,0,0,0.35);
+  box-shadow: 0 6px 10px rgba(0,0,0,0.4);
+  border-radius: 3px;
+  transform-origin: center;
+  transition: transform 0.65s cubic-bezier(0.22, 0.61, 0.36, 1), opacity 0.55s ease;
+  opacity: 0.95;
+}
+.game-shard.accelerate { opacity: 0.9; }
+.game-shard.done { opacity: 0; }
 .game-sidebar {
   display: flex; flex-direction: column; gap: 12px;
   background: rgba(18,18,18,0.7); border: 3px solid #000; border-radius: 10px; padding: 12px;
@@ -594,7 +611,7 @@
 .game-stat-value { font-size: 20px; font-weight: 700; color: #fff; text-shadow: 1px 1px 0 #000; }
 .game-next { display: inline-flex; flex-direction: column; gap: 3px; padding: 6px; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; }
 .game-next-row { display: flex; gap: 3px; }
-.game-next-cell { width: 18px; height: 18px; border: 1px solid rgba(255,255,255,0.08); background: rgba(0,0,0,0.35); }
+.game-next-cell { width: 18px; height: 18px; border: 1px solid rgba(255,255,255,0.08); background: transparent; }
 .game-next-cell.filled { background-size: cover; background-position: center; }
 .game-next-empty { font-size: 12px; color: #9da9b5; }
 .game-collect { display: flex; flex-direction: column; gap: 4px; }
