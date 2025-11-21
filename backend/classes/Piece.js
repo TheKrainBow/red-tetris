@@ -9,7 +9,7 @@ export class Piece {
             this.state_index = Math.floor(Math.random() * 4);
         }
         this.state = this.rotations[this.state_index];
-        this.spawn_position = [3, 0];
+        this.spawn_position = [3, 0 - this.shape.length + 1];
         this.position = [...this.spawn_position];
     }
 

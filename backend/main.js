@@ -43,7 +43,7 @@ io.on('connection', (socket) => {
 
     socket.on('start_game', (data, callback) => {gateway.start_game(socket, data, io)});
     
-    socket.on('handle_key_press', (data, callback) => { gateway.handle_key_press(socket, data) });
+    socket.on('handle_key_press', (data, callback) => { gateway.handle_key_press(socket, data, io) });
 
     socket.on('leave_room', (data, callback) => { gateway.leave_room(socket, data) });
 

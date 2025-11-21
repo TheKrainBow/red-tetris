@@ -31,14 +31,31 @@ export class Gateway {
         this.games[roomName].run(io);
     }
 
-    handle_key_press(socket, data) {
+    handle_key_press(socket, data, io) {
         if (!data || !data.key) return;
 
         const playerInfo = this.playerInfo.get(socket.id);
-        const game = this.games[playerInfo.room];
-        if (!game) return;
+        if (!playerInfo) return;
 
-        game.handle_key_press(playerInfo.playerName)
+        const game = this.games[playerInfo.room];
+        if (!game || !game.is_running()) return;
+
+        const keyMap = {
+            ArrowLeft: 'left',
+            ArrowRight: 'right',
+            ArrowUp: 'rotate',
+            ArrowDown: 'down',
+            Space: 'hard_drop',
+            ' ': 'hard_drop',
+        };
+
+        const action = keyMap[data.key];
+        if (!action) return;
+
+        const handled = game.handle_player_input(playerInfo.playerName, action);
+        if (handled && io) {
+            game.broadcast_state(io);
+        }
     }
 
     #create_room(socket, data) {

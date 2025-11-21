@@ -92,11 +92,12 @@ export class Game {
             if (player.piece_queue.size() < 3) {
                 this.#add_to_players_piece_queue();
             }
-
+            
             if (!player.board.can_move_down(player.current_piece)) {
                 return true;
             }
         }
+        const moved = player.step_down();
         return false;
     }
 
@@ -135,13 +136,13 @@ export class Game {
         while (this.isRunning && this.players.size >= this.minimum_players) {
             
             this.players.forEach((player, player_name) => {
-                const moved = player.step_down();
                 
                 if (this.#end_game(player)) {
                     this.eliminatedPlayers.push(player_name);
                     this.players.delete(player_name);
                     io.to(this.room).emit('player_eliminated', { player_name: player_name });
                 }
+                
             });
             
             if (this.players.size < this.minimum_players) {
@@ -210,6 +211,11 @@ export class Game {
         }
         
         return success;
+    }
+
+    broadcast_state(io) {
+        if (!io || !this.isRunning) return;
+        this.#send_game_state(io);
     }
 
     remove_player(player_name){
