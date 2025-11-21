@@ -61,7 +61,7 @@ export default function Singleplayer() {
   const onCancel = () => { navigate('/') }
   const onCreate = () => {
     const name = username || getLocalStorageItem(USERNAME_KEY, '') || 'Guest'
-    const target = `/${encodeURIComponent('Heinz_singleplayer')}/${encodeURIComponent(name)}`
+    const target = `/${encodeURIComponent(name)}_singleplayer/${encodeURIComponent(name)}`
     navigate(target)
   }
   const onView = () => { if (selectedGame) alert(`Viewing ${selectedGame.name} (placeholder)`) }

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import Button from '../components/Button'
 import socketClient from '../utils/socketClient.js'
 import { navigate } from '../utils/navigation'
+import { useShopState } from '../context/ShopStateContext'
 
 const BOARD_WIDTH = 10
 const BOARD_HEIGHT = 20
@@ -62,6 +63,10 @@ export default function Game({ room, player }) {
   const [shards, setShards] = useState([])
   const boardRef = useRef(null)
   const suppressShardsRef = useRef(false)
+  const prevPieceRef = useRef(defaultPiece)
+  const { setInventory } = useShopState()
+  const [bonusBadges, setBonusBadges] = useState([])
+  const [bonusFlash, setBonusFlash] = useState({ dirt: false, stone: false, iron: false, diamond: false })
 
   const currentCellValue = (rowIdx, colIdx) => {
     const [posX, posY] = currentPiece.pos || [0, 0]
@@ -127,7 +132,7 @@ export default function Game({ room, player }) {
     if (!boardEl) return
     const rect = boardEl.getBoundingClientRect()
     const cellSize = rect.width / BOARD_WIDTH
-    const start = {
+    const start = cell.start || {
       x: rect.left + cell.col * cellSize + cellSize / 2,
       y: rect.top + cell.row * cellSize + cellSize / 2,
     }
@@ -140,7 +145,8 @@ export default function Game({ room, player }) {
     }
     const id = shardIdRef.current++
     const delay = cell.delay || 0
-    setShards((prev) => [...prev, { id, start, dest, phase: 'start', delay }])
+    const material = cell.val || 1
+    setShards((prev) => [...prev, { id, start, dest, phase: 'start', delay, material }])
     requestAnimationFrame(() => {
       setShards((prev) => prev.map((s) => (s.id === id ? { ...s, phase: 'accelerate' } : s)))
     })
@@ -187,23 +193,46 @@ export default function Game({ room, player }) {
 
       const prevBoard = prevBoardRef.current || []
       const addedCells = []
-      const clearedCells = []
+      const clearedLineCells = []
       const height = cleanBoard.length
       const width = cleanBoard[0]?.length || 0
-      if (hasPrevBoardRef.current && height && width) {
+      if (height && width) {
+        // track added cells (for sounds)
         for (let r = 0; r < height; r++) {
           for (let c = 0; c < width; c++) {
             const prevVal = Number(prevBoard?.[r]?.[c] || 0)
             const curVal = Number(cleanBoard?.[r]?.[c] || 0)
             if (prevVal === 0 && curVal !== 0) {
               addedCells.push(curVal)
-            } else if (prevVal !== 0 && curVal === 0) {
-              clearedCells.push({ val: prevVal, row: r, col: c })
             }
           }
         }
-      } else {
-        hasPrevBoardRef.current = true
+
+        // Predict cleared lines using previous board plus previous falling piece
+        const prevWithPiece = prevBoard.map((row) => [...row])
+        const lastPiece = prevPieceRef.current || defaultPiece
+        const [px, py] = lastPiece.pos || [0, 0]
+        if (Array.isArray(lastPiece.shape) && lastPiece.shape.length) {
+          for (let y = 0; y < lastPiece.shape.length; y++) {
+            for (let x = 0; x < lastPiece.shape[y].length; x++) {
+              if (!lastPiece.shape[y][x]) continue
+              const gx = px + x
+              const gy = py + y
+              if (gy >= 0 && gy < height && gx >= 0 && gx < width) {
+                prevWithPiece[gy][gx] = lastPiece.material || 1
+              }
+            }
+          }
+        }
+        for (let r = 0; r < height; r++) {
+          const row = prevWithPiece[r] || []
+          const wasFull = row.length === width && row.every((v) => Number(v) !== 0)
+          if (wasFull) {
+            for (let c = 0; c < width; c++) {
+              clearedLineCells.push({ val: Number(row[c] || 0), row: r, col: c })
+            }
+          }
+        }
       }
 
       setBoard(cleanBoard)
@@ -218,6 +247,7 @@ export default function Game({ room, player }) {
       const curPos = Array.isArray(curPiece.pos) ? curPiece.pos : Array.isArray(curPiece.Pos) ? curPiece.Pos : [0, 0]
       const curMaterial = curPiece.material || curPiece.Material || 1
       setCurrentPiece({ shape: curShape, pos: curPos, material: curMaterial })
+      prevPieceRef.current = { shape: curShape, pos: curPos, material: curMaterial }
 
       const fullRows = new Set()
       cleanBoard.forEach((row, idx) => {
@@ -236,38 +266,126 @@ export default function Game({ room, player }) {
       }
       prevFullRowsRef.current = fullRows
 
-      const collectedCounts = { dirt: 0, stone: 0, iron: 0, diamond: 0 }
-      cleanBoard.forEach((row) => {
-        row.forEach((cell) => {
-          switch (cell) {
-            case 1: collectedCounts.dirt += 1; break
-            case 2: collectedCounts.stone += 1; break
-            case 3: collectedCounts.iron += 1; break
-            case 4: collectedCounts.diamond += 1; break
-            default: break
-          }
-        })
-      })
-      setCollected(collectedCounts)
-
       // Play sounds after counts are updated to reflect the move
       if (!suppressShardsRef.current) {
         addedCells.forEach((mat) => playMaterialSound(mat))
         let delay = 0
-        clearedCells.forEach((cell) => {
+        if (!clearedLineCells.length) {
+          console.debug('No cleared lines detected; maybe full rows unchanged', {
+            hasPrev: hasPrevBoardRef.current,
+            width,
+            height,
+            lastPiece: prevPieceRef.current,
+          })
+        } else {
+          console.debug('Cleared line cells', clearedLineCells)
+        }
+        const linesCleared = width ? Math.round(clearedLineCells.length / width) : 0
+        if (linesCleared > 0) {
+          setFortuneMultiplier((fm) => fm + linesCleared * 0.01)
+        }
+        clearedLineCells.forEach((cell) => {
           delay += 2 + Math.random() * 3 // tiny stagger between destroyed blocks
           playMaterialSound(cell.val, delay)
           spawnShard({ ...cell, delay })
         })
+
+        if (clearedLineCells.length) {
+          const delta = { dirt: 0, stone: 0, iron: 0, diamond: 0 }
+          clearedLineCells.forEach((cell) => {
+            switch (cell.val) {
+              case 1: delta.dirt += 1; break
+              case 2: delta.stone += 1; break
+              case 3: delta.iron += 1; break
+              case 4: delta.diamond += 1; break
+              default: break
+            }
+          })
+          const bonus = {}
+          const cellsByMaterial = clearedLineCells.reduce((acc, cell) => {
+            const key = cell.val === 1 ? 'dirt' : cell.val === 2 ? 'stone' : cell.val === 3 ? 'iron' : cell.val === 4 ? 'diamond' : null
+            if (!key) return acc
+            acc[key] = acc[key] || []
+            acc[key].push(cell)
+            return acc
+          }, {})
+          const bonusMultiplier = Math.max(0, (fortuneMultiplier || 1) - 1)
+          Object.entries(delta).forEach(([key, count]) => {
+            bonus[key] = Math.floor(count * bonusMultiplier)
+          })
+
+          setCollected((prev) => {
+            const next = {
+              dirt: prev.dirt + delta.dirt,
+              stone: prev.stone + delta.stone,
+              iron: prev.iron + delta.iron,
+              diamond: prev.diamond + delta.diamond,
+            }
+            return next
+          })
+          setInventory((prev) => ({
+            ...prev,
+            dirt: (prev.dirt || 0) + delta.dirt,
+            stone: (prev.stone || 0) + delta.stone,
+            iron: (prev.iron || 0) + delta.iron,
+            diamond: (prev.diamond || 0) + delta.diamond,
+          }))
+
+          // spawn bonus shards + badges for fortune multiplier (using cleared cells)
+          Object.entries(bonus).forEach(([matKey, extraCount]) => {
+            if (!extraCount) return
+            const materialVal = matKey === 'dirt' ? 1 : matKey === 'stone' ? 2 : matKey === 'iron' ? 3 : matKey === 'diamond' ? 4 : 1
+            const cells = cellsByMaterial[matKey] || []
+            const lineRows = Array.from(new Set(cells.map((c) => c.row))).sort((a, b) => a - b)
+            const labelRow = lineRows.length
+              ? lineRows[Math.floor((lineRows.length - 1) / 2)]
+              : (cells[0]?.row ?? 0)
+
+            const shardCount = Math.max(1, Math.min(extraCount, cells.length || 1))
+            for (let i = 0; i < shardCount; i++) {
+              const baseCell = cells[i % (cells.length || 1)] || { row: 0, col: 0 }
+              const perShard = Math.ceil(extraCount / shardCount)
+              spawnShard({ val: materialVal, row: baseCell.row, col: baseCell.col, delay: 200 + 4 + Math.random() * 4 })
+              setInventory((prev) => ({
+                ...prev,
+                [matKey]: (prev[matKey] || 0) + perShard,
+              }))
+              setCollected((prev) => ({
+                ...prev,
+                [matKey]: prev[matKey] + perShard,
+              }))
+            }
+
+            // single aggregated badge
+            const id = `${Date.now()}-${matKey}-${extraCount}`
+            const iconUrl = CELL_TEXTURES[materialVal]
+            const boardRect = boardRef.current?.getBoundingClientRect()
+            const cellSize = boardRect ? boardRect.width / BOARD_WIDTH : 26
+            const badgePos = boardRect
+              ? {
+                  left: boardRect.left - cellSize * 1.1,
+                  top: boardRect.top + (labelRow + 0.5) * cellSize,
+                }
+              : { left: window.innerWidth * 0.3, top: 80 }
+            setBonusBadges((prev) => [...prev, { id, mat: matKey, icon: iconUrl, amount: extraCount, ...badgePos }])
+            setTimeout(() => {
+              setBonusBadges((prev) => prev.filter((b) => b.id !== id))
+            }, 1200)
+            setBonusFlash((prev) => ({ ...prev, [matKey]: true }))
+            setTimeout(() => setBonusFlash((prev) => ({ ...prev, [matKey]: false })), 520)
+          })
+        }
       }
 
       prevBoardRef.current = cleanBoard
+      hasPrevBoardRef.current = true
     })
 
     const offStart = socketClient.on('game_start', (data = {}) => {
       const t = data.starting_time || data.start_time || Date.now()
       setStartTime(Number(t))
       setRunning(true)
+      setCollected({ dirt: 0, stone: 0, iron: 0, diamond: 0 })
       suppressShardsRef.current = false
       prevBoardRef.current = makeEmptyBoard()
       hasPrevBoardRef.current = false
@@ -374,10 +492,10 @@ export default function Game({ room, player }) {
           <div className="game-stat">
             <div className="game-stat-label">Collected Blocks</div>
             <div className="game-collect">
-              <div className="game-collect-row"><span>Dirt</span><span>{collected.dirt}</span></div>
-              <div className="game-collect-row"><span>Stone</span><span>{collected.stone}</span></div>
-              <div className="game-collect-row"><span>Iron</span><span>{collected.iron}</span></div>
-              <div className="game-collect-row"><span>Diamond</span><span>{collected.diamond}</span></div>
+              <div className={`game-collect-row ${bonusFlash.dirt ? 'bonus-flash' : ''}`}><span>Dirt</span><span>{collected.dirt}</span></div>
+              <div className={`game-collect-row ${bonusFlash.stone ? 'bonus-flash' : ''}`}><span>Stone</span><span>{collected.stone}</span></div>
+              <div className={`game-collect-row ${bonusFlash.iron ? 'bonus-flash' : ''}`}><span>Iron</span><span>{collected.iron}</span></div>
+              <div className={`game-collect-row ${bonusFlash.diamond ? 'bonus-flash' : ''}`}><span>Diamond</span><span>{collected.diamond}</span></div>
             </div>
           </div>
 
@@ -394,6 +512,19 @@ export default function Game({ room, player }) {
       </div>
 
       <div className="game-shard-layer" aria-hidden="true">
+        {bonusBadges.map((b) => (
+          <div
+            key={b.id}
+            className="game-bonus-badge active"
+            style={{
+              left: `${b.left || 0}px`,
+              top: `${b.top || 80}px`,
+            }}
+          >
+            <div className="game-bonus-icon" style={{ backgroundImage: `url(${b.icon})` }} />
+            <span>+{b.amount}</span>
+          </div>
+        ))}
         {shards.map((s) => (
           <div
             key={s.id}
@@ -402,7 +533,7 @@ export default function Game({ room, player }) {
               left: s.start.x,
               top: s.start.y,
               transitionDelay: `${s.delay || 0}ms`,
-              transform: s.phase === 'accelerate'
+              transform: (s.phase === 'accelerate' || s.phase === 'done')
                 ? `translate(${s.dest.x - s.start.x}px, ${s.dest.y - s.start.y}px) scale(0.7)`
                 : 'translate(0,0) scale(1)',
             }}
