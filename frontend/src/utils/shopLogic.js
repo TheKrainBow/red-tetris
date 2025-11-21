@@ -45,12 +45,13 @@ export function describeEffect(item, level) {
   if (item.effect_type === 'line_break_bonus') {
     const base = Number(item.effect_base) || 0
     const growth = Number(item.effect_growth_multiplier) || 1
-    let total = 0
-    if (level > 0) {
-      if (growth === 1) total = base * level
-      else total = base * ((Math.pow(growth, level) - 1) / (growth - 1))
+    const bonusAtLevel = (n) => {
+      if (n <= 0) return 0
+      if (growth === 1) return base * Math.pow(growth, n - 1)
+      return base * Math.pow(growth, n - 1)
     }
-    const nextIncrement = base * Math.pow(growth, level)
+    const total = bonusAtLevel(level)
+    const nextIncrement = bonusAtLevel(level + 1) - total
     const targetName = (getResourceName(item.affects || '') || '').toLowerCase() || 'resource'
     return {
       current: `${total.toFixed(2)} bonus ${targetName} per collected lines`,

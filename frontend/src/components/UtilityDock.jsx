@@ -376,13 +376,13 @@ function StatsPanel({ purchases, spawnCaps, inventory, craftCounts }) {
   const resourceCaps = SPAWN_MATERIALS.map((mat) => {
     const key = mat.key
     const cap = typeof spawnCaps?.[key] === 'number' ? spawnCaps[key] : SPAWN_CAP_DEFAULTS[key] || 0
-    return { label: mat.label, value: `${(cap * 100).toFixed(2)}%`, icon: getResourceIcon(key) }
+    return { label: mat.label, value: `${(cap * 100).toFixed(2)}%`, icon: getResourceIcon(key), rawValue: cap, alwaysShow: true }
   })
   const lineBonuses = SPAWN_MATERIALS.map((mat) => {
     const item = SHOP_ITEMS.find((it) => it.effect_type === 'line_break_bonus' && formatResourceId(it.affects) === mat.key)
     const level = item ? (purchases?.[item.id] || 0) : 0
     const bonus = computeLineBonus(item, level)
-    return { label: mat.label, value: bonus.toFixed(2), icon: getResourceIcon(mat.key) }
+    return { label: mat.label, value: bonus.toFixed(2), icon: getResourceIcon(mat.key), rawValue: bonus }
   })
   const fortuneFromUpgrades = computeFortuneFromUpgrades(purchases)
   const fortuneFromCrafts = computeFortuneFromCrafts(craftCounts, inventory)
@@ -398,18 +398,25 @@ function StatsPanel({ purchases, spawnCaps, inventory, craftCounts }) {
     {
       heading: 'Fortune Multiplier:',
       entries: [
-        { label: 'Per line break', value: '+1.00%', icon: '/ui/clover.png' },
-        { label: 'From upgrades', value: `+${fortuneFromUpgrades.toFixed(2)}%`, icon: '/ui/clover.png' },
-        { label: 'From crafts', value: `+${fortuneFromCrafts.toFixed(2)}%`, icon: '/ui/clover.png' },
+        { label: 'Per line break', value: '+1.00%', icon: '/ui/clover.png', rawValue: 1 },
+        { label: 'From upgrades', value: `+${fortuneFromUpgrades.toFixed(2)}%`, icon: '/ui/clover.png', rawValue: fortuneFromUpgrades },
+        { label: 'From crafts', value: `+${fortuneFromCrafts.toFixed(2)}%`, icon: '/ui/clover.png', rawValue: fortuneFromCrafts },
       ],
     },
     {
       heading: 'Shop reductions:',
       entries: [
-        { label: 'From upgrades', value: '-0.00%', icon: RESOURCE_ICONS.emerald },
+        { label: 'From upgrades', value: '-0.00%', icon: RESOURCE_ICONS.emerald, rawValue: 0 },
       ],
     },
   ]
+  const isZeroStat = (value) => typeof value === 'number' && Math.abs(value) < 1e-6
+  const visibleSections = sections
+    .map((section) => {
+      const entries = section.entries.filter((entry) => entry.alwaysShow || !isZeroStat(entry.rawValue))
+      return { ...section, entries }
+    })
+    .filter((section) => section.entries.length > 0)
 
   return (
     <div className="shop-panel">
@@ -417,7 +424,7 @@ function StatsPanel({ purchases, spawnCaps, inventory, craftCounts }) {
         <h4 className="shop-panel-title">Statistics</h4>
       </div>
       <div className="shop-stat-sections">
-        {sections.map((section) => (
+        {visibleSections.map((section) => (
           <div key={section.heading} className="shop-stat-section">
             <div className="shop-stat-heading">{section.heading}</div>
             <ul className="shop-stat-list">

@@ -41,9 +41,9 @@ shops:
     affects: dirt
     resource_cost: stone
     starting_price: 5
-    price_growth_multiplier: 1.50
+    price_growth_multiplier: 1.40
     effect_base: 1
-    effect_growth_multiplier: 1.20
+    effect_growth_multiplier: 1.30
     max_level: 50
 
   - id: iron_spawn_rate
@@ -85,9 +85,9 @@ shops:
     affects: iron
     resource_cost: diamond
     starting_price: 5
-    price_growth_multiplier: 1.60
+    price_growth_multiplier: 1.55
     effect_base: 1
-    effect_growth_multiplier: 1.30
+    effect_growth_multiplier: 1.23
     max_level: 50
 
 trades:
@@ -122,8 +122,8 @@ trades:
 
 crafts:
   # Placeholder craft for now; effects can be filled later
-  - id: silly_relic
-    name: "Silly Relic"
+  - id: fortune_enchant
+    name: "Fortune Enchantment"
     cost:
       dirt: 135
       stone: 65
@@ -135,17 +135,83 @@ crafts:
       fortune_multiplier_percent: 200
     max_crafts: 1
     craft_time_seconds: 0
-  - id: another_relic
-    name: "More Robust"
+  - id: diamond_detector
+    name: "Diamond Detector"
     cost:
-      dirt: 12
-      stone: 12
-      iron: 12
-      diamond: 12
+      dirt: 900
+      stone: 750
+      iron: 320
+      diamond: 100
     outputs:
-      another_relic: 1
+      diamond_detector: 1
     effects:
-      fortune_multiplier_percent: 200
+      diamond_line_break_bonus: 1
+    max_crafts: 10
+    craft_time_seconds: 0
+  - id: bonus_multiplayer
+    name: "Duplication Glitch"
+    cost:
+      dirt: 12000
+      stone: 9800
+      iron: 7600
+      diamond: 420
+    outputs:
+      bonus_multiplayer: 1
+    effects:
+      line_break_bonus_multiplayer: 1.5
+    max_crafts: 10
+    craft_time_seconds: 0
+  - id: dirt_battle_pass
+    name: "Dirt Battle Pass"
+    cost:
+      dirt: 1000
+    outputs:
+      dirt_battle_pass: 1
+    effects:
+      shop_reduction: 20
+    max_crafts: 1
+    craft_time_seconds: 0
+  - id: stone_battle_pass
+    name: "Stone Battle Pass"
+    cost:
+      stone: 1000
+    outputs:
+      stone_battle_pass: 1
+    effects:
+      shop_reduction: 20
+    max_crafts: 1
+    craft_time_seconds: 0
+  - id: iron_battle_pass
+    name: "Iron Battle Pass"
+    cost:
+      iron: 1000
+    outputs:
+      iron_battle_pass: 1
+    effects:
+      shop_reduction: 20
+    max_crafts: 1
+    craft_time_seconds: 0
+  - id: diamond_battle_pass
+    name: "Diamond Battle Pass"
+    cost:
+      diamond: 1000
+    outputs:
+      diamond_battle_pass: 1
+    effects:
+      shop_reduction: 20
+    max_crafts: 1
+    craft_time_seconds: 0
+  - id: delux_battle_pass
+    name: "Delux Battle Pass"
+    cost:
+      dirt: 1000
+      stone: 1000
+      iron: 1000
+      diamond: 1000
+    outputs:
+      delux_battle_pass: 1
+    effects:
+      shop_reduction: 200
     max_crafts: 1
     craft_time_seconds: 0
 
