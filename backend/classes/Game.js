@@ -12,13 +12,13 @@ export class Game {
         this.minimum_players = mode
         this.eliminatedPlayers = [];
         
-        this.I = [[1,1,1,1]];
-        this.J = [[1,0,0],[1,1,1]];
-        this.L = [[1,1,1],[1,0,0]];
+        this.I = [[0,0,0,0],[1,1,1,1],[0,0,0,0],[0,0,0,0]];
+        this.J = [[1,0,0],[1,1,1],[0,0,0]];
+        this.L = [[1,1,1],[1,0,0],[0,0,0]];
         this.O = [[1,1],[1,1]];
-        this.S = [[0,1,1],[1,1,0]];
-        this.T = [[0,1,0],[1,1,1]];
-        this.Z = [[1,1,0],[0,1,1]];
+        this.S = [[0,1,1],[1,1,0],[0,0,0]];
+        this.T = [[0,1,0],[1,1,1],[0,0,0]];
+        this.Z = [[1,1,0],[0,1,1],[0,0,0]];
         
         this.shapes = [this.I, this.J, this.L, this.O, this.S, this.T, this.Z];
         this.isRunning = false;
@@ -71,11 +71,8 @@ export class Game {
         io.to(this.room).emit('game_start', game_start);
     }
 
-    #end_game(player) {
-        const canMoveDown = player.board.can_move_down(player.current_piece);
-        
-        if (!canMoveDown) {
-            player.board.lock_piece(player.current_piece);
+    #end_turn(player){
+        player.board.lock_piece(player.current_piece);
             const lines_cleared = player.board.remove_lines();
             
             if (lines_cleared > 0) {
@@ -87,12 +84,21 @@ export class Game {
             
             player.set_spectrum();
             
-            player.set_current_piece();
+            if(!this.eliminatedPlayers.includes(player.name)){
+                player.set_current_piece();
+            }
             
             if (player.piece_queue.size() < 3) {
                 this.#add_to_players_piece_queue();
             }
+    }
+
+    #end_game(player) {
+        const canMoveDown = player.board.can_move_down(player.current_piece);
+        
+        if (!canMoveDown) {
             
+            this.#end_turn(player);
             if (!player.board.can_move_down(player.current_piece)) {
                 return true;
             }
@@ -136,11 +142,15 @@ export class Game {
         while (this.isRunning && this.players.size >= this.minimum_players) {
             
             this.players.forEach((player, player_name) => {
+
+                if (this.eliminatedPlayers.includes(player_name)){
+                    this.players.delete(player_name);
+                    io.to(this.room).emit('player_eliminated', { player_name: player_name });
+                }
                 
                 if (this.#end_game(player)) {
                     this.eliminatedPlayers.push(player_name);
-                    this.players.delete(player_name);
-                    io.to(this.room).emit('player_eliminated', { player_name: player_name });
+                    
                 }
                 
             });
@@ -205,6 +215,7 @@ export class Game {
                 break;
             case 'hard_drop':
                 success = player.hard_drop();
+                this.#end_turn(player);
                 break;
             default:
                 console.log(`Unknown action: ${action}`);

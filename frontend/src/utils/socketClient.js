@@ -7,7 +7,7 @@ const COMMAND_TIMEOUT = 5500
 const DEFAULT_SOCKET_PATH = '/socket.io'
 
 const getDefaultUrl = () => {
-  if (typeof window === 'undefined') return env.SOCKET_URL || 'http://localhost:3004'
+  if (typeof window === 'undefined') return env.SOCKET_URL || 'http://localhost:8080'
   const forced = window.__WS_URL__ || env.SOCKET_URL
   if (forced) return forced
   const proto = window.location.protocol === 'https:' ? 'https' : 'http'
@@ -20,7 +20,7 @@ const getDefaultUrl = () => {
     return `${proto}://${host}`
   }
 
-  const port = configuredPort || 3004
+  const port = configuredPort || 8080
   return `${proto}://${host}:${port}`
 }
 
