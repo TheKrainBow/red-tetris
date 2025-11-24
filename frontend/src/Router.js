@@ -8,6 +8,7 @@ import Options from './pages/Options'
 import SkyboxBackground from './three/Skybox.jsx'
 import UtilityDock from './components/UtilityDock'
 import Leaderboard from './pages/Leaderboard'
+import CreateServer from './pages/CreateServer'
 import Game from './pages/Game'
 import { replace } from './utils/navigation'
 
@@ -19,10 +20,20 @@ const getRoute = () => {
   return path
 }
 
+const RESERVED_ROUTES = new Set([
+  '',
+  'login',
+  'leaderboard',
+  'shop',
+  'options',
+  'singleplayer',
+  'multiplayer',
+])
+
 const parseGamePath = (route) => {
   if (!route) return null
   const parts = route.split('/').filter(Boolean)
-  if (parts.length >= 2) {
+  if (parts.length >= 2 && !RESERVED_ROUTES.has(parts[0])) {
     return {
       room: decodeURIComponent(parts[0]),
       player: decodeURIComponent(parts[1]),
@@ -81,6 +92,9 @@ export default function Router() {
         break
       case '/multiplayer':
         page = <Multiplayer />
+        break
+      case '/multiplayer/create':
+        page = <CreateServer />
         break
       case '/':
       default:

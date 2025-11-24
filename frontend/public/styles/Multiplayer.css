@@ -80,6 +80,99 @@
 
 .mp-footer { position: absolute; left: 0; right: 0; bottom: 0; height: var(--mp-band-h); display: flex; align-items: center; justify-content: center; gap: 14px; z-index: 4; }
 
+/* Create server form */
+.mp-form-wrap { align-items: center; }
+.srv-card {
+  width: min(520px, 92vw);
+  margin: 0 auto;
+  padding: 0 20px 12px;
+}
+.srv-root .mp-title,
+.srv-root .srv-label,
+.srv-root .srv-mode-btn,
+.srv-root .srv-mode,
+.srv-root .srv-mode-label,
+.srv-root .srv-input,
+.srv-root .ui-btn {
+  font-size: 16px;
+}
+.srv-field { margin-bottom: 16px; }
+.srv-root .srv-field { margin-bottom: 34px; }
+.srv-label {
+  display: block;
+  color: #ddd;
+  margin-bottom: 6px;
+  text-shadow: 2px 2px 0 #000;
+}
+.srv-input {
+  width: 100%;
+  padding: 12px 14px;
+  background: linear-gradient(#0f0f0f, #171717);
+  border: 2px solid #000;
+  color: #fff;
+  border-radius: 4px;
+  box-shadow:
+    inset 1px 1px 0 rgba(255,255,255,0.25),
+    inset -1px -1px 0 rgba(0,0,0,0.55);
+  font-size: 16px;
+}
+.srv-input:focus { outline: 2px solid #c6a200; }
+.srv-mode-btn {
+  width: 100%;
+  padding: 12px 14px;
+  margin: 0 0 16px 0;
+  background: linear-gradient(#9a9a9a, #757575);
+  border: 2px solid #000;
+  border-radius: 4px;
+  box-shadow:
+    inset 1px 1px 0 rgba(255,255,255,0.38),
+    inset -1px -1px 0 rgba(0,0,0,0.62),
+    0 2px 0 rgba(0,0,0,0.45);
+  color: #fff;
+  font-weight: 400;
+  cursor: pointer;
+  text-shadow:
+    -1px 0 0 #000,
+    1px 0 0 #000,
+    0 -1px 0 #000,
+    0 1px 0 #000;
+}
+.srv-mode-btn:hover,
+.srv-mode-btn:focus-visible {
+  background: linear-gradient(#8fb2e8, #6f8fc6);
+  color: #f0d774;
+}
+.srv-mode-btn:hover .srv-mode-label,
+.srv-mode-btn:focus-visible .srv-mode-label {
+  color: #f0d774;
+}
+.srv-mode-btn:active { transform: translateY(1px); }
+.srv-mode-label {
+  color: #fff;
+  margin-right: 6px;
+  text-shadow:
+    -1px 0 0 #000,
+    1px 0 0 #000,
+    0 -1px 0 #000,
+    0 1px 0 #000;
+}
+.srv-mode { margin-left: 0; }
+.srv-root .srv-mode .mp-mode {
+  text-shadow:
+    -1px 0 0 #000,
+    1px 0 0 #000,
+    0 -1px 0 #000,
+    0 1px 0 #000;
+}
+.srv-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+.srv-actions .ui-btn { min-width: 200px; }
+
 .shop-root { position: relative; width: 100%; min-height: 100vh; overflow: hidden; }
 
 /* Right-side modal (rounded), floats above 3D with margin around */
@@ -874,6 +967,9 @@
 .game-modal-title { font-size: 18px; font-weight: 700; }
 .game-modal-body { font-size: 14px; color: #cfd8e3; }
 .game-modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+.game-modal-actions .ui-btn,
+.game-modal-actions .ui-btn-wide,
+.game-modal-actions .ui-btn-narrow { min-width: auto; padding-left: 14px; padding-right: 14px; }
 .game-timer-float {
   position: fixed;
   top: 12px;

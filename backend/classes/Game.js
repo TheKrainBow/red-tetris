@@ -111,6 +111,7 @@ export class Game {
     
         this.players.forEach((currentPlayer, currentPlayerName) => {
             let spectrums = []
+            const clearedRows = currentPlayer.board.consume_cleared_rows();
             const playerGameState = {
                     Board: currentPlayer.board.get_state(),
                     CurrentPiece: {
@@ -119,6 +120,8 @@ export class Game {
                         material: 1
                     },
                     NextPiece: {Shape: currentPlayer.piece_queue.peek().shape},
+                    ClearedRows: clearedRows,
+                    LinesCleared: Array.isArray(clearedRows) ? clearedRows.length : 0,
             };
             this.players.forEach((otherPlayer, otherPlayerId) => {
                 if (otherPlayerId !== currentPlayerName) {

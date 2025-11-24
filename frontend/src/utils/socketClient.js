@@ -66,13 +66,17 @@ export function parseEventPayload(type, payload = {}) {
     case 'player_list':
       return Array.isArray(payload) ? payload : Array.isArray(payload?.data) ? payload.data : []
     case 'room_boards': {
-      const board = Array.isArray(payload.Board) ? payload.Board : []
-      const spectrums = Array.isArray(payload.Spectrums) ? payload.Spectrums : []
-      const currentPiece = payload.CurrentPiece || {}
-      const nextPiece = payload.NextPiece || {}
+      const board = Array.isArray(payload.Board) ? payload.Board : Array.isArray(payload.board) ? payload.board : []
+      const spectrums = Array.isArray(payload.Spectrums) ? payload.Spectrums : Array.isArray(payload.spectrums) ? payload.spectrums : []
+      const clearedRows = Array.isArray(payload.ClearedRows) ? payload.ClearedRows : Array.isArray(payload.clearedRows) ? payload.clearedRows : []
+      const linesCleared = payload.LinesCleared ?? payload.linesCleared ?? clearedRows.length ?? 0
+      const currentPiece = payload.CurrentPiece || payload.currentPiece || {}
+      const nextPiece = payload.NextPiece || payload.nextPiece || {}
       return {
         board,
         spectrums,
+        clearedRows,
+        linesCleared,
         currentPiece: {
           pos: currentPiece.Pos || currentPiece.pos || [0, 0],
           shape: currentPiece.Shape || currentPiece.shape || [],

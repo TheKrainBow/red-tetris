@@ -2,6 +2,7 @@ export class Board {
     constructor() {
         this.state = this.#createBoard(20, 10);
         this.blocked_rows = 0;
+        this.last_cleared_rows = [];
     }
 
     #createBoard(rows, cols) {
@@ -76,6 +77,7 @@ export class Board {
         const cols = this.state[0].length;
         let new_board = [];
         let lines_cleared = 0;
+        const cleared_rows = [];
 
         for (let i = 0; i < rows; i++) {
             let full_row = true;
@@ -89,6 +91,7 @@ export class Board {
                 new_board.push([...this.state[i]]);
             } else {
                 lines_cleared++;
+                cleared_rows.push(i);
             }
         }
 
@@ -97,7 +100,14 @@ export class Board {
         }
 
         this.state = new_board;
+        this.last_cleared_rows = cleared_rows;
         return lines_cleared;
+    }
+
+    consume_cleared_rows() {
+        const rows = this.last_cleared_rows || [];
+        this.last_cleared_rows = [];
+        return rows;
     }
 
     block_row(nrows_to_block) {

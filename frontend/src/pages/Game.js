@@ -4,6 +4,7 @@ import Button from '../components/Button'
 import socketClient from '../utils/socketClient.js'
 import { navigate } from '../utils/navigation'
 import { useShopState } from '../context/ShopStateContext'
+import { SHOP_ITEMS, CRAFT_ITEMS, formatResourceId } from '../utils/shopData'
 
 const BOARD_WIDTH = 10
 const BOARD_HEIGHT = 20
@@ -52,6 +53,63 @@ const formatTime = (ms) => {
   const m = String(Math.floor(total / 60)).padStart(2, '0')
   const s = String(total % 60).padStart(2, '0')
   return `${m}:${s}`
+}
+
+const computeStackedEffect = (perLevel, growth, level) => {
+  if (!level || level <= 0) return 0
+  if (!perLevel) return 0
+  if (growth === 1) return perLevel * level
+  return perLevel * ((1 - Math.pow(growth, level)) / (1 - growth))
+}
+
+const computeFortuneFromUpgrades = (purchases = {}) => {
+  let total = 0
+  for (const item of SHOP_ITEMS) {
+    if (item.effect_type !== 'fortune_multiplier') continue
+    const level = purchases[item.id] || 0
+    if (!level) continue
+    const perLevel = Number(item.effect_per_level) || 0
+    const growth = Number(item.effect_growth_multiplier) || 1
+    const stacked = computeStackedEffect(perLevel, growth, level)
+    total += stacked * 100
+  }
+  return total
+}
+
+const getFortuneEffectPercent = (effects = {}) => {
+  if (!effects) return 0
+  if (effects.fortune_multiplier_percent != null) {
+    return Number(effects.fortune_multiplier_percent) || 0
+  }
+  if (effects.fortune_multiplier != null) {
+    return (Number(effects.fortune_multiplier) || 0) * 100
+  }
+  return 0
+}
+
+const getCraftCount = (craft, inventory, craftCounts) => {
+  if (craftCounts && typeof craftCounts[craft.id] === 'number') {
+    return craftCounts[craft.id]
+  }
+  if (!craft?.outputs) return 0
+  const [key, amount] = Object.entries(craft.outputs)[0] || []
+  if (!key) return 0
+  const have = inventory?.[formatResourceId(key)] || 0
+  const perCraft = Number(amount) || 1
+  if (perCraft <= 0) return 0
+  return Math.floor(have / perCraft)
+}
+
+const computeFortuneFromCrafts = (craftCounts = {}, inventory) => {
+  let total = 0
+  for (const craft of CRAFT_ITEMS) {
+    const crafted = getCraftCount(craft, inventory, craftCounts)
+    if (!crafted) continue
+    const bonusPercent = getFortuneEffectPercent(craft.effects)
+    if (!bonusPercent) continue
+    total += bonusPercent * crafted
+  }
+  return total
 }
 
 export default function Game({ room, player }) {
@@ -107,7 +165,9 @@ export default function Game({ room, player }) {
   const boardRef = useRef(null)
   const suppressShardsRef = useRef(false)
   const prevPieceRef = useRef(defaultPiece)
-  const { setInventory } = useShopState()
+  const { setInventory, purchases, craftCounts, inventory } = useShopState()
+  const fortuneBaseRef = useRef(1)
+  const fortuneRemainderRef = useRef({ dirt: 0, stone: 0, iron: 0, diamond: 0 })
   const [bonusBadges, setBonusBadges] = useState([])
   const [bonusFlash, setBonusFlash] = useState({ dirt: false, stone: false, iron: false, diamond: false })
   const awardLagMs = 800
@@ -248,6 +308,13 @@ export default function Game({ room, player }) {
   }, [])
 
   useEffect(() => {
+    const fortuneFromShop = computeFortuneFromUpgrades(purchases) + computeFortuneFromCrafts(craftCounts, inventory)
+    const baseMultiplier = 1 + fortuneFromShop / 100
+    fortuneBaseRef.current = baseMultiplier
+    setFortuneMultiplier((prev) => Math.max(prev, baseMultiplier))
+  }, [purchases, craftCounts, inventory])
+
+  useEffect(() => {
     if (typeof document === 'undefined') return
     const el = document.createElement('div')
     el.className = 'game-shard-layer'
@@ -286,12 +353,15 @@ export default function Game({ room, player }) {
     const offBoards = socketClient.on('room_boards', (payload = {}) => {
       const b = Array.isArray(payload.Board) ? payload.Board : payload.board || []
       const cleanBoard = Array.isArray(b) && b.length ? b : makeEmptyBoard()
+      const clearedRowsFromServer = Array.isArray(payload.ClearedRows) ? payload.ClearedRows : Array.isArray(payload.clearedRows) ? payload.clearedRows : []
+      const linesClearedHint = Number(payload.LinesCleared ?? payload.linesCleared ?? 0) || 0
 
       const prevBoard = prevBoardRef.current || []
       const addedCells = []
       const clearedLineCells = []
       const height = cleanBoard.length
       const width = cleanBoard[0]?.length || 0
+      let prevWithPiece = null
       if (height && width) {
         // track added cells (for sounds)
         for (let r = 0; r < height; r++) {
@@ -305,7 +375,7 @@ export default function Game({ room, player }) {
         }
 
         // Predict cleared lines using previous board plus previous falling piece
-        const prevWithPiece = prevBoard.map((row) => [...row])
+        prevWithPiece = prevBoard.map((row) => [...row])
         const lastPiece = prevPieceRef.current || defaultPiece
         const [px, py] = lastPiece.pos || [0, 0]
         if (Array.isArray(lastPiece.shape) && lastPiece.shape.length) {
@@ -328,6 +398,20 @@ export default function Game({ room, player }) {
               clearedLineCells.push({ val: Number(row[c] || 0), row: r, col: c })
             }
           }
+        }
+
+        if (clearedRowsFromServer.length) {
+          const seenRows = new Set(clearedLineCells.map((c) => c.row))
+          const sourceBoard = prevWithPiece || prevBoard
+          clearedRowsFromServer.forEach((rowIdx) => {
+            if (typeof rowIdx !== 'number') return
+            if (rowIdx < 0 || rowIdx >= height) return
+            if (seenRows.has(rowIdx)) return
+            for (let c = 0; c < width; c++) {
+              const val = Number(sourceBoard?.[rowIdx]?.[c] || 1) || 1
+              clearedLineCells.push({ val, row: rowIdx, col: c })
+            }
+          })
         }
       }
 
@@ -366,11 +450,19 @@ export default function Game({ room, player }) {
       previouslyFull.forEach((idx) => {
         if (!fullRows.has(idx)) cleared += 1
       })
-      if (cleared > 0) {
-        totalClearedRef.current += cleared
-        setFortuneMultiplier(1 + totalClearedRef.current)
+      const clearedFromServer = linesClearedHint && linesClearedHint > cleared ? linesClearedHint : 0
+      const totalClears = Math.max(cleared, clearedFromServer)
+      if (totalClears > 0) {
+        totalClearedRef.current += totalClears
       }
       prevFullRowsRef.current = fullRows
+
+      const inferredLinesCleared = width ? Math.round(clearedLineCells.length / width) : 0
+      const linesCleared = linesClearedHint ? Math.max(linesClearedHint, inferredLinesCleared) : inferredLinesCleared
+      const baseFortune = fortuneBaseRef.current || 1
+      const targetFortune = baseFortune + (totalClearedRef.current || 0) * 0.03
+      let computedFortune = Math.max(fortuneMultiplier || targetFortune, targetFortune)
+      if (!Number.isFinite(computedFortune)) computedFortune = targetFortune
 
       // Play sounds after counts are updated to reflect the move
       if (!suppressShardsRef.current) {
@@ -385,10 +477,6 @@ export default function Game({ room, player }) {
           })
         } else {
           console.debug('Cleared line cells', clearedLineCells)
-        }
-        const linesCleared = width ? Math.round(clearedLineCells.length / width) : 0
-        if (linesCleared > 0) {
-          setFortuneMultiplier((fm) => fm + linesCleared * 0.05)
         }
         clearedLineCells.forEach((cell) => {
           delay += 2 + Math.random() * 3 // tiny stagger between destroyed blocks
@@ -407,7 +495,6 @@ export default function Game({ room, player }) {
               default: break
             }
           })
-          const bonus = {}
           const cellsByMaterial = clearedLineCells.reduce((acc, cell) => {
             const key = cell.val === 1 ? 'dirt' : cell.val === 2 ? 'stone' : cell.val === 3 ? 'iron' : cell.val === 4 ? 'diamond' : null
             if (!key) return acc
@@ -415,9 +502,21 @@ export default function Game({ room, player }) {
             acc[key].push(cell)
             return acc
           }, {})
-          const bonusMultiplier = Math.max(0, (fortuneMultiplier || 1) - 1)
+          const remainder = fortuneRemainderRef.current
+          const bonus = {}
+          const fortune = Math.max(computedFortune || 1, 1)
           Object.entries(delta).forEach(([key, count]) => {
-            bonus[key] = Math.floor(count * bonusMultiplier)
+            if (!count) {
+              bonus[key] = 0
+              return
+            }
+            const targetTotal = count * fortune
+            const bonusNeeded = Math.max(0, targetTotal - count)
+            const carry = Number(remainder[key] || 0)
+            const accrued = bonusNeeded + carry
+            const extras = Math.floor(accrued + 1e-9)
+            remainder[key] = accrued - extras
+            bonus[key] = extras
           })
 
           // spawn bonus shards + badges for fortune multiplier (using cleared cells)
@@ -458,6 +557,7 @@ export default function Game({ room, player }) {
         }
       }
 
+      setFortuneMultiplier(computedFortune)
       prevBoardRef.current = cleanBoard
       hasPrevBoardRef.current = true
     })
@@ -469,6 +569,9 @@ export default function Game({ room, player }) {
       setEliminated(false)
       setWinnerName('')
       setCollected({ dirt: 0, stone: 0, iron: 0, diamond: 0 })
+      totalClearedRef.current = 0
+      setFortuneMultiplier(fortuneBaseRef.current || 1)
+      fortuneRemainderRef.current = { dirt: 0, stone: 0, iron: 0, diamond: 0 }
       suppressShardsRef.current = false
       prevBoardRef.current = makeEmptyBoard()
       hasPrevBoardRef.current = false
@@ -565,7 +668,7 @@ export default function Game({ room, player }) {
                   ))}
                 </div>
               ) : (
-                <div className="game-spectrums-empty">Waiting for other players…</div>
+                <div className="game-spectrums-empty"></div>
               )}
             </div>
           </div>
