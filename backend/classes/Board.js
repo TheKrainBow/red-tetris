@@ -52,14 +52,6 @@ export class Board {
         return !this.check_collision(test_piece);
     }
 
-    can_spawn(piece) {
-        const test_piece = {
-            state: piece.state,
-            position: [piece.position[0], piece.position[1]]
-        };
-        return !this.check_collision(test_piece);
-    }
-
     lock_piece(piece) {
         const [x, y] = piece.position;
         const piece_state = piece.state;
@@ -119,14 +111,6 @@ export class Board {
             this.state.push(garbage_row);
         }
         this.blocked_rows += nrows_to_block;
-    }
-
-    check_bottom_collision(piece) {
-        const test_piece = {
-            state: piece.state,
-            position: [piece.position[0], piece.position[1] + 1]
-        };
-        return this.check_collision(test_piece);
     }
 
     update(piece) {
