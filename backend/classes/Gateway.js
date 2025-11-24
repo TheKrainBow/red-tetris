@@ -27,7 +27,7 @@ export class Gateway {
         }
 
 
-        this.games[roomName] = new Game(players_info, roomName, mode);
+        this.games[roomName] = new Game(players_info, roomName, mode, 500);
         this.games[roomName].run(io);
     }
 
@@ -141,8 +141,12 @@ export class Gateway {
 
         this.rooms.get(room).delete(playerName);
         game.remove_player(playerName);
-        const player_list = {type: player_list, data: Array.from(game.players.values())};
-        
+        this.playerInfo.delete(socket.id);
+        const player_list = {type: "player_list", data: Array.from(game.players.keys())};
+        if (player_list.data.length !== 0){
+            const next_host = game.get(player_list.data[0]).id;
+            this.playerInfo[next_host].host = true;
+        }
         socket.to(room).emit("player_list", player_list);
         socket.leave(room)
     }

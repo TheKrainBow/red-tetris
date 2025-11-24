@@ -6,7 +6,7 @@ function sleep(ms) {
 }
 
 export class Game {
-    constructor(players, room, mode) {
+    constructor(players, room, mode, gravity=500) {
         this.room = room;
         this.players = new Map(players.map(player_info => [player_info.playerName, new Player(player_info)]));
         this.minimum_players = mode
@@ -22,6 +22,7 @@ export class Game {
         
         this.shapes = [this.I, this.J, this.L, this.O, this.S, this.T, this.Z];
         this.isRunning = false;
+        this.gravity = gravity;
     }
 
     static SINGLE_PLAYER = 1;
@@ -30,9 +31,10 @@ export class Game {
     #add_to_players_piece_queue() {
         const randomIndex = Math.floor(Math.random() * this.shapes.length);
         const shape = this.shapes[randomIndex];
+        const material = Math.floor(Math.random() * 4) + 1;
         
         this.players.forEach((player, player_name) => {
-            const piece = new Piece(shape);
+            const piece = new Piece(shape, material);
             player.queue_piece(piece);
         });
     }
@@ -45,7 +47,7 @@ export class Game {
 
     #set_blocked_rows(thisPlayer, nrows_to_block) {
         this.players.forEach((player, player_name) => {
-            if (player.player_name !== thisPlayer.player_name) {
+            if (player.name !== thisPlayer.name) {
                 player.board.block_row(nrows_to_block);
             }
         });
@@ -110,25 +112,25 @@ export class Game {
     #send_game_state(io) {
     
         this.players.forEach((currentPlayer, currentPlayerName) => {
-            let spectrums = []
+            let opponents = []
             const clearedRows = currentPlayer.board.consume_cleared_rows();
             const playerGameState = {
                     Board: currentPlayer.board.get_state(),
                     CurrentPiece: {
                         shape: currentPlayer.current_piece.state,
                         pos: currentPlayer.current_piece.position,
-                        material: 1
+                        material: currentPlayer.current_piece.material,
                     },
-                    NextPiece: {Shape: currentPlayer.piece_queue.peek().shape},
+                    NextPiece: {Shape: currentPlayer.piece_queue.peek().state},
                     ClearedRows: clearedRows,
                     LinesCleared: Array.isArray(clearedRows) ? clearedRows.length : 0,
             };
             this.players.forEach((otherPlayer, otherPlayerId) => {
                 if (otherPlayerId !== currentPlayerName) {
-                    spectrums.push(otherPlayer.get_spectrum())
+                    opponents.push({name: otherPlayer.name, spectrum: otherPlayer.get_spectrum()})
                 }
             });
-            playerGameState["Spectrums"] = spectrums;
+            playerGameState["Opponents"] = opponents;
             io.to(currentPlayer.id).emit('room_boards', playerGameState);
         });
     } 
@@ -165,7 +167,7 @@ export class Game {
 
             this.#send_game_state(io);
                  
-            await sleep(500);
+            await sleep(this.gravity);
         }
         this.stop();
         const room_name = this.room;

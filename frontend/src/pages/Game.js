@@ -719,7 +719,7 @@ export default function Game({ room, player }) {
                         <div
                           key={cIdx}
                           className={`game-next-cell ${cell === 1 ? 'filled' : ''}`}
-                          style={cell === 1 ? { backgroundImage: `url(${CELL_TEXTURES[1]})` } : undefined}
+                          style={cell != 0 ? { backgroundImage: `url(${CELL_TEXTURES[cell]})` } : undefined}
                         />
                       ))}
                     </div>

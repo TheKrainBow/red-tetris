@@ -1,6 +1,7 @@
 export class Piece {
-    constructor(shape, test=false) {
+    constructor(shape, material=1, test=false) {
         this.shape = shape;
+        this.material = material;
         this.rotations = this.#create_rotations();
         if (test){
             this.state_index = 0;
@@ -62,7 +63,8 @@ export class Piece {
         for (let j = 0; j < cols; j++) {
             const newRow = [];
             for (let i = 0; i < rows; i++) {
-                newRow.push(shape[i][j]);
+                let material = shape[i][j] != 0 ? this.material : 0;
+                newRow.push(material);
             }
             output.push(newRow);
         }

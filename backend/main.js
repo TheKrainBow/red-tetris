@@ -20,6 +20,8 @@ const server = http.createServer(app);
 
 // Create Socket.IO server (attached to the HTTP server)
 const io = new SocketIOServer(server, {
+  pingInterval: 25000,
+  pingTimeout: 60000,
   cors: {
     origin: clientAddr,
     credentials: true
