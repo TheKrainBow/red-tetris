@@ -7,6 +7,7 @@ import { useShopState } from '../context/ShopStateContext'
 
 const BOARD_WIDTH = 10
 const BOARD_HEIGHT = 20
+const USERNAME_KEY = 'username'
 
 const makeEmptyBoard = () => Array.from({ length: BOARD_HEIGHT }, () => Array.from({ length: BOARD_WIDTH }, () => 0))
 
@@ -65,6 +66,37 @@ export default function Game({ room, player }) {
   const [roomJoined, setRoomJoined] = useState(false)
   const [joinError, setJoinError] = useState(null)
   const [now, setNow] = useState(Date.now())
+  const [spectrums, setSpectrums] = useState([])
+  const spectrumCellSize = useMemo(() => {
+    const count = spectrums.length || 1
+    if (count <= 4) return 9
+    if (count <= 8) return 8
+    if (count <= 12) return 7
+    return 6
+  }, [spectrums.length])
+  const spectrumRows = useMemo(() => {
+    const list = Array.isArray(spectrums) ? spectrums : []
+    const n = list.length
+    if (n === 0) return []
+    if (n <= 3) return [list]
+    if (n === 4) return [list.slice(0, 2), list.slice(2)]
+    if (n === 5) return [list.slice(0, 3), list.slice(3)]
+    if (n === 6) return [list.slice(0, 3), list.slice(3, 6)]
+    const rows = []
+    let idx = 0
+    const first = Math.min(4, n - idx)
+    rows.push(list.slice(idx, idx + first))
+    idx += first
+    const second = Math.min(4, n - idx)
+    rows.push(list.slice(idx, idx + second))
+    idx += second
+    while (idx < n) {
+      const count = Math.min(4, n - idx)
+      rows.push(list.slice(idx, idx + count))
+      idx += count
+    }
+    return rows
+  }, [spectrums])
 
   const prevFullRowsRef = useRef(new Set())
   const totalClearedRef = useRef(0)
@@ -80,6 +112,8 @@ export default function Game({ room, player }) {
   const [bonusFlash, setBonusFlash] = useState({ dirt: false, stone: false, iron: false, diamond: false })
   const awardLagMs = 800
   const shardLayerRef = useRef(null)
+  const [eliminated, setEliminated] = useState(false)
+  const [winnerName, setWinnerName] = useState('')
 
   const currentCellValue = (rowIdx, colIdx) => {
     const [posX, posY] = currentPiece.pos || [0, 0]
@@ -301,6 +335,16 @@ export default function Game({ room, player }) {
       setRunning(true)
       setStartTime((prev) => prev || Date.now())
 
+      const rawSpectrums = payload.Spectrums || payload.spectrums || payload.spectrum || []
+      const cleanedSpectrums = Array.isArray(rawSpectrums)
+        ? rawSpectrums.slice(0, 15).map((spec) => (
+          Array.isArray(spec)
+            ? spec.slice(0, BOARD_WIDTH).map((v) => Number(v) || 0)
+            : []
+        ))
+        : []
+      setSpectrums(cleanedSpectrums)
+
       const next = payload.NextPiece?.Shape || payload.nextPiece?.shape || payload.nextPiece?.Shape || payload.nextPiece || []
       setNextPiece(Array.isArray(next) ? next : [])
 
@@ -344,7 +388,7 @@ export default function Game({ room, player }) {
         }
         const linesCleared = width ? Math.round(clearedLineCells.length / width) : 0
         if (linesCleared > 0) {
-          setFortuneMultiplier((fm) => fm + linesCleared * 0.01)
+          setFortuneMultiplier((fm) => fm + linesCleared * 0.05)
         }
         clearedLineCells.forEach((cell) => {
           delay += 2 + Math.random() * 3 // tiny stagger between destroyed blocks
@@ -422,22 +466,39 @@ export default function Game({ room, player }) {
       const t = data.starting_time || data.start_time || Date.now()
       setStartTime(Number(t))
       setRunning(true)
+      setEliminated(false)
+      setWinnerName('')
       setCollected({ dirt: 0, stone: 0, iron: 0, diamond: 0 })
       suppressShardsRef.current = false
       prevBoardRef.current = makeEmptyBoard()
       hasPrevBoardRef.current = false
     })
-    const offEnd = socketClient.on('game_end', () => {
+    const offEnd = socketClient.on('game_end', (payload = {}) => {
+      const winner = payload?.data?.winner ?? payload?.winner
+      setWinnerName(winner || '')
+      // Even if winner is empty (singleplayer), treat as finished so controls re-enable
       setRunning(false)
       suppressShardsRef.current = true
+      if (winner) {
+        // future: could show winner UI
+      }
+    })
+    const offEliminated = socketClient.on('player_eliminated', (payload = {}) => {
+      const name = payload.player_name || payload.playerName || payload.player
+      const stored = (typeof window !== 'undefined' && window.localStorage) ? window.localStorage.getItem(USERNAME_KEY) : null
+      const selfName = stored || player
+      if (name && selfName && name === selfName) {
+        setEliminated(true)
+      }
     })
 
     return () => {
       offBoards && offBoards()
       offStart && offStart()
       offEnd && offEnd()
+      offEliminated && offEliminated()
     }
-  }, [])
+  }, [player])
 
   const onStartGame = async () => {
     if (!room || !player) return
@@ -445,6 +506,7 @@ export default function Game({ room, player }) {
       await socketClient.startGame(room, player)
       if (!startTime) setStartTime(Date.now())
       setRunning(true)
+      setEliminated(false)
     } catch (err) {
       alert('Unable to start game')
       console.error(err)
@@ -474,78 +536,122 @@ export default function Game({ room, player }) {
     <div className="game-root">
       <div className="game-layout">
         <div className="game-left">
-          {/* Left column: controls and future spectator spectrums */}
           <div className="game-left-stack">
-            {/* reserved for spectrums or lobby info */}
+            <div className="game-spectrums">
+              {spectrums.length ? (
+                <div className="game-spectrums-grid">
+                  {spectrumRows.map((row, rowIdx) => (
+                    <div key={`spec-row-${rowIdx}`} className="game-spectrums-row" style={{ '--spec-cols': row.length }}>
+                      {row.map((spectrum, idx) => (
+                        <div key={`spec-${rowIdx}-${idx}`} className="game-spectrum-card">
+                          <div
+                            className="game-spectrum-grid"
+                            style={{ '--s-cell': `${spectrumCellSize}px` }}
+                            aria-label={`Spectrum ${rowIdx * 4 + idx + 1}`}
+                          >
+                            {Array.from({ length: BOARD_HEIGHT }, (_, rIdx) => (
+                              <div key={`r-${rIdx}`} className="game-spectrum-row">
+                                {Array.from({ length: BOARD_WIDTH }, (_, cIdx) => {
+                                  const heightVal = Number(spectrum?.[cIdx] || 0)
+                                  const filled = BOARD_HEIGHT - rIdx <= heightVal
+                                  return <div key={`c-${cIdx}`} className={`game-spectrum-cell ${filled ? 'filled' : ''}`} />
+                                })}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="game-spectrums-empty">Waiting for other players…</div>
+              )}
+            </div>
           </div>
         </div>
 
-        <div className="game-board">
-          <div className="game-grid" ref={boardRef}>
-            {board.map((row, rIdx) => (
-              <div key={rIdx} className="game-row">
-                {row.map((cell, cIdx) => {
-                  // Overlay the active piece on top of the board for display only
-                  const val = cell || currentCellValue(rIdx, cIdx)
-                  const isGhost = !val && ghostCells.has(`${cIdx},${rIdx}`)
-                  return (
-                    <div
-                      key={cIdx}
-                      className={`game-cell ${val ? 'filled' : ''} ${isGhost ? 'ghost' : ''}`}
-                      style={val ? { backgroundImage: `url(${CELL_TEXTURES[val] || '/ui/Dirt.png'})` } : undefined}
-                    />
-                  )
-                })}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="game-sidebar">
-          <div className="game-stat">
-            <div className="game-stat-label">Fortune Mult</div>
-            <div className="game-stat-value">x{fortuneMultiplier.toFixed(2)}</div>
-          </div>
-
-          <div className="game-stat">
-            <div className="game-stat-label">Next Piece</div>
-            <div className="game-next">
-              {nextPiece && Array.isArray(nextPiece) && nextPiece.length ? (
-                nextPiece.map((row, rIdx) => (
-                  <div key={rIdx} className="game-next-row">
-                    {row.map((cell, cIdx) => (
+        <div className="game-board-shell">
+          <div className={`game-board ${eliminated ? 'eliminated' : ''}`}>
+            <div className="game-grid" ref={boardRef}>
+              {board.map((row, rIdx) => (
+                <div key={rIdx} className="game-row">
+                  {row.map((cell, cIdx) => {
+                    // Overlay the active piece on top of the board for display only
+                    const val = cell || currentCellValue(rIdx, cIdx)
+                    const isGhost = !val && ghostCells.has(`${cIdx},${rIdx}`)
+                    return (
                       <div
                         key={cIdx}
-                        className={`game-next-cell ${cell === 1 ? 'filled' : ''}`}
-                        style={cell === 1 ? { backgroundImage: `url(${CELL_TEXTURES[1]})` } : undefined}
+                        className={`game-cell ${val ? 'filled' : ''} ${isGhost ? 'ghost' : ''}`}
+                        style={val ? { backgroundImage: `url(${CELL_TEXTURES[val] || '/ui/Dirt.png'})` } : undefined}
                       />
-                    ))}
-                  </div>
-                ))
-              ) : <div className="game-next-empty">Unknown</div>}
+                    )
+                  })}
+                </div>
+              ))}
             </div>
+            {(eliminated || winnerName) && (
+              <div className="game-board-overlay">
+                <div className="game-over-text">Game Over</div>
+                {winnerName && <div className="game-over-subtext">Winner: {winnerName}</div>}
+              </div>
+            )}
           </div>
 
-          <div className="game-stat">
-            <div className="game-stat-label">Collected Blocks</div>
-            <div className="game-collect">
-              <div className={`game-collect-row ${bonusFlash.dirt ? 'bonus-flash' : ''}`}><span>Dirt</span><span>{collected.dirt}</span></div>
-              <div className={`game-collect-row ${bonusFlash.stone ? 'bonus-flash' : ''}`}><span>Stone</span><span>{collected.stone}</span></div>
-              <div className={`game-collect-row ${bonusFlash.iron ? 'bonus-flash' : ''}`}><span>Iron</span><span>{collected.iron}</span></div>
-              <div className={`game-collect-row ${bonusFlash.diamond ? 'bonus-flash' : ''}`}><span>Diamond</span><span>{collected.diamond}</span></div>
+          <div className="game-float-panel">
+            <div className="game-card game-card-two">
+              <div className="game-stat-inline">
+                <div className="game-stat-label">Fortune Mult</div>
+                <div className="game-stat-value">x{fortuneMultiplier.toFixed(2)}</div>
+              </div>
             </div>
-          </div>
 
-          <div className="game-stat">
-            <div className="game-stat-label">Time Elapsed</div>
-            <div className="game-stat-value">{formatTime(elapsed)}</div>
+            <div className="game-card game-card-next">
+              <div className="game-next">
+                {nextPiece && Array.isArray(nextPiece) && nextPiece.length ? (
+                  nextPiece.map((row, rIdx) => (
+                    <div key={rIdx} className="game-next-row">
+                      {row.map((cell, cIdx) => (
+                        <div
+                          key={cIdx}
+                          className={`game-next-cell ${cell === 1 ? 'filled' : ''}`}
+                          style={cell === 1 ? { backgroundImage: `url(${CELL_TEXTURES[1]})` } : undefined}
+                        />
+                      ))}
+                    </div>
+                  ))
+                ) : <div className="game-next-empty">Unknown</div>}
+              </div>
+            </div>
+
+            <div className="game-card game-card-collect">
+              <div className="game-stat-label">Collected Blocks</div>
+              <div className="game-collect">
+                <div className={`game-collect-row ${bonusFlash.dirt ? 'bonus-flash' : ''}`}><span>Dirt</span><span>{collected.dirt}</span></div>
+                <div className={`game-collect-row ${bonusFlash.stone ? 'bonus-flash' : ''}`}><span>Stone</span><span>{collected.stone}</span></div>
+                <div className={`game-collect-row ${bonusFlash.iron ? 'bonus-flash' : ''}`}><span>Iron</span><span>{collected.iron}</span></div>
+                <div className={`game-collect-row ${bonusFlash.diamond ? 'bonus-flash' : ''}`}><span>Diamond</span><span>{collected.diamond}</span></div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
+      <div className="game-timer-float game-card game-card-two">
+        <div className="game-stat-inline">
+          <div className="game-stat-label">Time Elapsed</div>
+          <div className="game-stat-value">{formatTime(elapsed)}</div>
+        </div>
+      </div>
+
       <div className="game-footer">
-        <Button onClick={onStartGame} className="ui-btn-wide">Start Game</Button>
-        <Button onClick={handleLeave} className="ui-btn-wide">Leave Lobby</Button>
+        <div className="game-footer-left">
+          <Button onClick={onStartGame} className="ui-btn-wide" disabled={running}>Start Game</Button>
+        </div>
+        <div className="game-footer-right">
+          <Button onClick={handleLeave} className="ui-btn-wide">Back</Button>
+        </div>
       </div>
 
       {shardLayerRef.current && createPortal(
