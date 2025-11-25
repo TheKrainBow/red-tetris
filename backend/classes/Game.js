@@ -29,12 +29,15 @@ export class Game {
     static MULTI_PLAYER = 2;
 
     #add_to_players_piece_queue() {
-        const randomIndex = Math.floor(Math.random() * this.shapes.length);
-        const shape = this.shapes[randomIndex];
+        const randomShapeIndex = Math.floor(Math.random() * this.shapes.length);
+        const shape = this.shapes[randomShapeIndex];
         const material = Math.floor(Math.random() * 4) + 1;
+        const randomRotationIndex = Math.floor(Math.random() * 4);
         
         this.players.forEach((player, player_name) => {
             const piece = new Piece(shape, material);
+            piece.state_index = randomRotationIndex;
+            piece.state = piece.rotations[piece.state_index];
             player.queue_piece(piece);
         });
     }
@@ -202,8 +205,10 @@ export class Game {
     handle_player_input(player_name, action) {
         const player = this.players.get(player_name);
         if (!player || !player.current_piece) return false;
+        if (this.eliminatedPlayers.includes(player_name)) return false;
         
         let success = false;
+
         
         switch (action) {
             case 'left':
