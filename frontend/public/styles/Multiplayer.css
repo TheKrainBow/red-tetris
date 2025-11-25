@@ -711,6 +711,12 @@
   background: rgba(50,56,65,0.9);
   border: none;
 }
+.game-spectrum-name {
+  color: #d9e4f2;
+  font-size: 12px;
+  font-weight: 600;
+  text-shadow: 1px 1px 0 #000;
+}
 .game-spectrums-empty {
   font-size: 13px;
   color: #9da9b5;
@@ -725,7 +731,11 @@
     align-items: start;
     gap: 16px;
   }
-  .game-left { display: none; }
+  .game-left {
+    display: flex;
+    width: min(420px, 94vw);
+    justify-self: center;
+  }
   .game-sidebar {
     width: min(440px, 94vw);
     justify-self: center;
@@ -825,6 +835,10 @@
   transition: transform 0.65s cubic-bezier(0.22, 0.61, 0.36, 1), opacity 0.55s ease;
   opacity: 0.95;
 }
+.game-shard.mat-dirt { background-image: url('/blocks/Dirt.jpg'); }
+.game-shard.mat-stone { background-image: url('/blocks/Stone.jpeg'); }
+.game-shard.mat-iron { background-image: url('/blocks/Iron.jpeg'); }
+.game-shard.mat-diamond { background-image: url('/blocks/Diamond.jpg'); }
 .game-shard.accelerate { opacity: 0.9; }
 .game-shard.done { opacity: 0; transition-delay: 0ms !important; }
 .game-bonus-badge {

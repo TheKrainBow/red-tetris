@@ -47,6 +47,23 @@ const materialKeyFromVal = (val) => {
   }
 }
 
+const materialValFromKey = (key) => {
+  switch (key) {
+    case 'dirt': return 1
+    case 'stone': return 2
+    case 'iron': return 3
+    case 'diamond': return 4
+    default: return null
+  }
+}
+
+const MATERIAL_LABELS = {
+  dirt: 'Dirt',
+  stone: 'Stone',
+  iron: 'Iron',
+  diamond: 'Diamond',
+}
+
 const formatTime = (ms) => {
   if (!ms || ms < 0) return '00:00'
   const total = Math.floor(ms / 1000)
@@ -124,16 +141,16 @@ export default function Game({ room, player }) {
   const [roomJoined, setRoomJoined] = useState(false)
   const [joinError, setJoinError] = useState(null)
   const [now, setNow] = useState(Date.now())
-  const [spectrums, setSpectrums] = useState([])
+  const [opponents, setOpponents] = useState([])
   const spectrumCellSize = useMemo(() => {
-    const count = spectrums.length || 1
+    const count = opponents.length || 1
     if (count <= 4) return 9
     if (count <= 8) return 8
     if (count <= 12) return 7
     return 6
-  }, [spectrums.length])
+  }, [opponents.length])
   const spectrumRows = useMemo(() => {
-    const list = Array.isArray(spectrums) ? spectrums : []
+    const list = Array.isArray(opponents) ? opponents : []
     const n = list.length
     if (n === 0) return []
     if (n <= 3) return [list]
@@ -154,7 +171,8 @@ export default function Game({ room, player }) {
       idx += count
     }
     return rows
-  }, [spectrums])
+  }, [opponents])
+  const hasOpponents = opponents && opponents.length > 0
 
   const prevFullRowsRef = useRef(new Set())
   const totalClearedRef = useRef(0)
@@ -248,14 +266,13 @@ export default function Game({ room, player }) {
     }, delayMs)
   }
 
-  const getInventoryDest = (materialVal) => {
+  const getInventoryDest = (materialVal, matKeyOverride) => {
     const panel = document.querySelector('.utility-panel-inventory')
     if (!panel || panel.offsetParent === null) return null
-    const alt =
-      materialVal === 1 ? 'Dirt' :
-      materialVal === 2 ? 'Stone' :
-      materialVal === 3 ? 'Iron' :
-      materialVal === 4 ? 'Diamond' : null
+    const matKey = matKeyOverride || materialKeyFromVal(materialVal)
+    const alt = matKey
+      ? MATERIAL_LABELS[matKey] || (matKey.charAt(0).toUpperCase() + matKey.slice(1))
+      : null
     if (!alt) return null
     const img = panel.querySelector(`.shop-inventory-entry img[alt="${alt}"]`)
     const target = img?.closest('.shop-inventory-entry') || img
@@ -276,7 +293,7 @@ export default function Game({ room, player }) {
     }
     const material = cell.val || 1
     const matKey = cell.matKey || materialKeyFromVal(material)
-    const invTarget = getInventoryDest(material)
+    const invTarget = getInventoryDest(material, matKey)
     const invEl = invTarget ? null : document.querySelector('.shop-utility-button img[alt=\"Inventory\"]')
     const invRect = invTarget ? null : invEl?.getBoundingClientRect()
     const dest = invTarget || (invRect ? {
@@ -367,11 +384,11 @@ export default function Game({ room, player }) {
         for (let r = 0; r < height; r++) {
           for (let c = 0; c < width; c++) {
             const prevVal = Number(prevBoard?.[r]?.[c] || 0)
-            const curVal = Number(cleanBoard?.[r]?.[c] || 0)
-            if (prevVal === 0 && curVal !== 0) {
-              addedCells.push(curVal)
-            }
+          const curVal = Number(cleanBoard?.[r]?.[c] || 0)
+          if (prevVal === 0 && curVal !== 0) {
+            addedCells.push(curVal)
           }
+        }
         }
 
         // Predict cleared lines using previous board plus previous falling piece
@@ -415,19 +432,37 @@ export default function Game({ room, player }) {
         }
       }
 
+      const normalizeSpectrum = (val) => {
+        if (Array.isArray(val)) return val
+        if (val && typeof val === 'object') return Object.values(val)
+        return []
+      }
+
+      const rawOpponentsVal = payload.Opponents ?? payload.opponents ?? payload.opponent
+      const hasOpponentsPayload = 'Opponents' in payload || 'opponents' in payload || 'opponent' in payload
+      let cleanedOpponents = []
+      if (hasOpponentsPayload) {
+        if (Array.isArray(rawOpponentsVal)) {
+          cleanedOpponents = rawOpponentsVal.slice(0, 15).map((opp, idx) => {
+            const name = typeof opp?.name === 'string' ? opp.name : `Player ${idx + 1}`
+            const specArr = normalizeSpectrum(opp?.spectrum ?? opp)
+            const spectrum = specArr.slice(0, BOARD_WIDTH).map((v) => Number(v) || 0)
+            return { name, spectrum }
+          })
+        } else if (rawOpponentsVal && typeof rawOpponentsVal === 'object') {
+          cleanedOpponents = Object.entries(rawOpponentsVal).slice(0, 15).map(([key, val], idx) => {
+            const name = typeof val?.name === 'string' ? val.name : key || `Player ${idx + 1}`
+            const specArr = normalizeSpectrum(val?.spectrum ?? val)
+            const spectrum = specArr.slice(0, BOARD_WIDTH).map((v) => Number(v) || 0)
+            return { name, spectrum }
+          })
+        }
+        setOpponents(cleanedOpponents)
+      }
+
       setBoard(cleanBoard)
       setRunning(true)
       setStartTime((prev) => prev || Date.now())
-
-      const rawSpectrums = payload.Spectrums || payload.spectrums || payload.spectrum || []
-      const cleanedSpectrums = Array.isArray(rawSpectrums)
-        ? rawSpectrums.slice(0, 15).map((spec) => (
-          Array.isArray(spec)
-            ? spec.slice(0, BOARD_WIDTH).map((v) => Number(v) || 0)
-            : []
-        ))
-        : []
-      setSpectrums(cleanedSpectrums)
 
       const next = payload.NextPiece?.Shape || payload.nextPiece?.shape || payload.nextPiece?.Shape || payload.nextPiece || []
       setNextPiece(Array.isArray(next) ? next : [])
@@ -641,26 +676,29 @@ export default function Game({ room, player }) {
         <div className="game-left">
           <div className="game-left-stack">
             <div className="game-spectrums">
-              {spectrums.length ? (
+              {hasOpponents ? (
                 <div className="game-spectrums-grid">
                   {spectrumRows.map((row, rowIdx) => (
                     <div key={`spec-row-${rowIdx}`} className="game-spectrums-row" style={{ '--spec-cols': row.length }}>
-                      {row.map((spectrum, idx) => (
+                      {row.map((opponent, idx) => (
                         <div key={`spec-${rowIdx}-${idx}`} className="game-spectrum-card">
                           <div
                             className="game-spectrum-grid"
                             style={{ '--s-cell': `${spectrumCellSize}px` }}
-                            aria-label={`Spectrum ${rowIdx * 4 + idx + 1}`}
+                            aria-label={`Spectrum ${rowIdx * 4 + idx + 1} for ${opponent?.name || 'opponent'}`}
                           >
                             {Array.from({ length: BOARD_HEIGHT }, (_, rIdx) => (
                               <div key={`r-${rIdx}`} className="game-spectrum-row">
                                 {Array.from({ length: BOARD_WIDTH }, (_, cIdx) => {
-                                  const heightVal = Number(spectrum?.[cIdx] || 0)
+                                  const heightVal = Number(opponent?.spectrum?.[cIdx] || 0)
                                   const filled = BOARD_HEIGHT - rIdx <= heightVal
                                   return <div key={`c-${cIdx}`} className={`game-spectrum-cell ${filled ? 'filled' : ''}`} />
                                 })}
                               </div>
                             ))}
+                          </div>
+                          <div className="game-spectrum-name">
+                            {opponent?.name || `Player ${rowIdx * 4 + idx + 1}`}
                           </div>
                         </div>
                       ))}
@@ -772,20 +810,26 @@ export default function Game({ room, player }) {
               <span>+{b.amount}</span>
             </div>
           ))}
-          {shards.map((s) => (
-            <div
-              key={s.id}
-              className={`game-shard ${s.phase === 'accelerate' ? 'accelerate' : ''} ${s.phase === 'done' ? 'done' : ''}`}
-              style={{
-                left: s.start.x,
-                top: s.start.y,
-                transitionDelay: `${s.delay || 0}ms`,
-                transform: (s.phase === 'accelerate' || s.phase === 'done')
-                  ? `translate(${s.dest.x - s.start.x}px, ${s.dest.y - s.start.y}px) scale(0.7)`
-                  : 'translate(0,0) scale(1)',
-              }}
-            />
-          ))}
+          {shards.map((s) => {
+            const matKey = s.matKey || materialKeyFromVal(s.material)
+            const matVal = materialValFromKey(matKey) || s.material || 1
+            const texture = CELL_TEXTURES[matVal] || CELL_TEXTURES[1]
+            return (
+              <div
+                key={s.id}
+                className={`game-shard ${s.phase === 'accelerate' ? 'accelerate' : ''} ${s.phase === 'done' ? 'done' : ''} ${matKey ? `mat-${matKey}` : ''}`}
+                style={{
+                  left: s.start.x,
+                  top: s.start.y,
+                  transitionDelay: `${s.delay || 0}ms`,
+                  backgroundImage: `url(${texture})`,
+                  transform: (s.phase === 'accelerate' || s.phase === 'done')
+                    ? `translate(${s.dest.x - s.start.x}px, ${s.dest.y - s.start.y}px) scale(0.7)`
+                    : 'translate(0,0) scale(1)',
+                }}
+              />
+            )
+          })}
         </div>,
         shardLayerRef.current
       )}

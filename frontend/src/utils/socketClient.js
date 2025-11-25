@@ -67,14 +67,15 @@ export function parseEventPayload(type, payload = {}) {
       return Array.isArray(payload) ? payload : Array.isArray(payload?.data) ? payload.data : []
     case 'room_boards': {
       const board = Array.isArray(payload.Board) ? payload.Board : Array.isArray(payload.board) ? payload.board : []
-      const spectrums = Array.isArray(payload.Spectrums) ? payload.Spectrums : Array.isArray(payload.spectrums) ? payload.spectrums : []
+      const opponents = payload.Opponents ?? payload.opponents ?? payload.opponent
       const clearedRows = Array.isArray(payload.ClearedRows) ? payload.ClearedRows : Array.isArray(payload.clearedRows) ? payload.clearedRows : []
       const linesCleared = payload.LinesCleared ?? payload.linesCleared ?? clearedRows.length ?? 0
       const currentPiece = payload.CurrentPiece || payload.currentPiece || {}
       const nextPiece = payload.NextPiece || payload.nextPiece || {}
       return {
         board,
-        spectrums,
+        // pass opponents through in both cases to preserve shape; consumer can normalize
+        ...(opponents !== undefined ? { Opponents: opponents, opponents } : {}),
         clearedRows,
         linesCleared,
         currentPiece: {
