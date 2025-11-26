@@ -56,25 +56,31 @@ export class Game {
         });
     }
 
-    start(io) {
-        for (let i = 0; i < 3; i++) {
-            this.#add_to_players_piece_queue();
-        }
-        this.#set_players_piece();
-        this.isRunning = true;
-        this.startTime = Date.now();
-
-        const room_name = this.room;
-        const player_list = Array.from(this.players.values());
-        const starting_time = this.startTime
-        
-        const game_start = {
-            type: "game_start",
-            data:{room_name, player_list, starting_time}
-        }
-
-        io.to(this.room).emit('game_start', game_start);
-    }
+    #send_game_state(io) {
+    
+        this.players.forEach((currentPlayer, currentPlayerName) => {
+            let opponents = []
+            const clearedRows = currentPlayer.board.consume_cleared_rows();
+            const playerGameState = {
+                    Board: currentPlayer.board.get_state(),
+                    CurrentPiece: {
+                        shape: currentPlayer.current_piece.state,
+                        pos: currentPlayer.current_piece.position,
+                        material: currentPlayer.current_piece.material,
+                    },
+                    NextPiece: {Shape: currentPlayer.piece_queue.peek().state},
+                    ClearedRows: clearedRows,
+                    LinesCleared: Array.isArray(clearedRows) ? clearedRows.length : 0,
+            };
+            this.players.forEach((otherPlayer, otherPlayerId) => {
+                if (otherPlayerId !== currentPlayerName) {
+                    opponents.push({name: otherPlayer.name, spectrum: otherPlayer.get_spectrum()})
+                }
+            });
+            playerGameState["Opponents"] = opponents;
+            io.to(currentPlayer.id).emit('room_boards', playerGameState);
+        });
+    } 
 
     #end_turn(player){
         player.board.lock_piece(player.current_piece);
@@ -112,31 +118,25 @@ export class Game {
         return false;
     }
 
-    #send_game_state(io) {
-    
-        this.players.forEach((currentPlayer, currentPlayerName) => {
-            let opponents = []
-            const clearedRows = currentPlayer.board.consume_cleared_rows();
-            const playerGameState = {
-                    Board: currentPlayer.board.get_state(),
-                    CurrentPiece: {
-                        shape: currentPlayer.current_piece.state,
-                        pos: currentPlayer.current_piece.position,
-                        material: currentPlayer.current_piece.material,
-                    },
-                    NextPiece: {Shape: currentPlayer.piece_queue.peek().state},
-                    ClearedRows: clearedRows,
-                    LinesCleared: Array.isArray(clearedRows) ? clearedRows.length : 0,
-            };
-            this.players.forEach((otherPlayer, otherPlayerId) => {
-                if (otherPlayerId !== currentPlayerName) {
-                    opponents.push({name: otherPlayer.name, spectrum: otherPlayer.get_spectrum()})
-                }
-            });
-            playerGameState["Opponents"] = opponents;
-            io.to(currentPlayer.id).emit('room_boards', playerGameState);
-        });
-    } 
+    start(io) {
+        for (let i = 0; i < 3; i++) {
+            this.#add_to_players_piece_queue();
+        }
+        this.#set_players_piece();
+        this.isRunning = true;
+        this.startTime = Date.now();
+
+        const room_name = this.room;
+        const player_list = Array.from(this.players.values());
+        const starting_time = this.startTime
+        
+        const game_start = {
+            type: "game_start",
+            data:{room_name, player_list, starting_time}
+        }
+
+        io.to(this.room).emit('game_start', game_start);
+    }
 
     stop() {
         this.isRunning = false;
@@ -239,9 +239,8 @@ export class Game {
         this.#send_game_state(io);
     }
 
-    remove_player(player_name){
+    eliminate_player(player_name){
         this.eliminatedPlayers.push(player_name);
-        this.players.delete(player_name);
     }
 
     is_running(){

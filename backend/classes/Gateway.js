@@ -31,6 +31,14 @@ export class Gateway {
         this.games[roomName].run(io);
     }
 
+    #create_room(socket, data) {
+        const { room, playerName } = data;
+        this.rooms.set(room, new Map([[playerName, socket.id]]));
+        let host = true;
+        this.playerInfo.set(socket.id, { room, playerName, host });
+        socket.join(room);
+    }
+
     handle_key_press(socket, data, io) {
         if (!data || !data.key) return;
 
@@ -58,14 +66,6 @@ export class Gateway {
         }
     }
 
-    #create_room(socket, data) {
-        const { room, playerName } = data;
-        this.rooms.set(room, new Map([[playerName, socket.id]]));
-        let host = true;
-        this.playerInfo.set(socket.id, { room, playerName, host });
-        socket.join(room);
-    }
-
     join_room(socket, data, callback) {
         const { room, playerName } = data;
         if (!room || typeof playerName !== 'string') {
@@ -79,7 +79,7 @@ export class Gateway {
 
         const playersMap = this.rooms.get(room);
 
-        const nameExists = Array.from(playersMap.values()).includes(playerName);
+        const nameExists = Array.from(playersMap.keys()).includes(playerName);
         if (nameExists) {
             return callback({ error: 'A user is already using this name' });
         }
@@ -92,31 +92,44 @@ export class Gateway {
         return callback({ success: true, room, playerName, host });
     }
 
-    disconnect(socket, reason) {
-        console.log(`Socket disconnected ${socket.id}, reason: ${reason}`);
-        
-        const playerInfo = this.playerInfo.get(socket.id);
+    remove_player(playerInfo){
         if (playerInfo) {
             const { room, playerName } = playerInfo;
-            
+
+            const game = this.games[room];
+
             if (this.rooms.has(room)) {
                 const playersMap = this.rooms.get(room);
                 playersMap.delete(playerName);
+                const player_list = {type: "player_list", data: Array.from(playersMap.keys())};
                 
-                if (playersMap.size === 0) {
+                if (player_list.data.length === 0) {
                     this.rooms.delete(room);
-                    if (this.games[room]) {
-                        this.games[room].stop();
+                    if (game) {
+                        game.stop();
                         delete this.games[room];
                     }
                 }
-                else if (this.games[room]) {
-                    this.games[room].remove_player(playerName);
+                else {
+                    const next_host = playersMap.get(player_list.data[0]);
+                    if (playerInfo.host == true){
+                        this.playerInfo.get(next_host).host = true;
+                    }
+                    if (game) {
+                        game.eliminate_player(playerName);
+                    }
+                    return player_list;
                 }
             }
-            
-            this.playerInfo.delete(socket.id);
         }
+        return undefined;
+    }
+
+    disconnect(socket, reason) {
+        console.log(`Socket disconnected ${socket.id}, reason: ${reason}`);
+        const playerInfo = this.playerInfo.get(socket.id);
+        this.remove_player(playerInfo);
+        this.playerInfo.delete(socket.id);
     }
 
     start_game(socket, data, io) {
@@ -133,22 +146,14 @@ export class Gateway {
 
     leave_room(socket, data){
         const playerInfo = this.playerInfo.get(socket.id);
-        if (!playerInfo) return { error: 'Player not in a room' };
-
-        const { room, playerName } = playerInfo;
-
-        const game = this.games[room];
-
-        this.rooms.get(room).delete(playerName);
-        game.remove_player(playerName);
-        this.playerInfo.delete(socket.id);
-        const player_list = {type: "player_list", data: Array.from(game.players.keys())};
-        if (player_list.data.length !== 0){
-            const next_host = game.get(player_list.data[0]).id;
-            this.playerInfo[next_host].host = true;
+        const player_list = this.remove_player(playerInfo);
+        if (player_list){
+            socket.to(playerInfo.room).emit("player_list", player_list);
         }
-        socket.to(room).emit("player_list", player_list);
-        socket.leave(room)
+        this.playerInfo.delete(socket.id);
+        if (this.rooms.has(playerInfo.room)){
+            socket.leave(playerInfo.room);
+        }
     }
 
     room_list(socket, data) {
