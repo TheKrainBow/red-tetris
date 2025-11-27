@@ -39,7 +39,7 @@ export class Gateway {
         socket.join(room);
     }
 
-    handle_key_press(socket, data, io) {
+    async handle_key_press(socket, data, io) {
         if (!data || !data.key) return;
 
         const playerInfo = this.playerInfo.get(socket.id);
@@ -66,7 +66,7 @@ export class Gateway {
         }
     }
 
-    join_room(socket, data, callback) {
+    async join_room(socket, data, callback) {
         const { room, playerName } = data;
         if (!room || typeof playerName !== 'string') {
             return callback({ error: 'Invalid room or name' });
@@ -92,7 +92,7 @@ export class Gateway {
         return callback({ success: true, room, playerName, host });
     }
 
-    remove_player(playerInfo){
+    async remove_player(playerInfo){
         if (playerInfo) {
             const { room, playerName } = playerInfo;
 
@@ -125,14 +125,14 @@ export class Gateway {
         return undefined;
     }
 
-    disconnect(socket, reason) {
+    async disconnect(socket, reason) {
         console.log(`Socket disconnected ${socket.id}, reason: ${reason}`);
         const playerInfo = this.playerInfo.get(socket.id);
         this.remove_player(playerInfo);
         this.playerInfo.delete(socket.id);
     }
 
-    start_game(socket, data, io) {
+    async start_game(socket, data, io) {
         const playerInfo = this.playerInfo.get(socket.id);
         if (!playerInfo) return { error: 'Player not in a room' };
 
@@ -144,7 +144,7 @@ export class Gateway {
         return { success: true, room };
     }
 
-    leave_room(socket, data){
+    async leave_room(socket, data){
         const playerInfo = this.playerInfo.get(socket.id);
         const player_list = this.remove_player(playerInfo);
         if (player_list){
@@ -156,7 +156,7 @@ export class Gateway {
         }
     }
 
-    room_list(socket, data) {
+    async room_list(socket, data) {
         const roomsStatus = [];
         
         this.rooms.forEach((playersMap, roomName) => {

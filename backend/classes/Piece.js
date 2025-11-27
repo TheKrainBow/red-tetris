@@ -82,12 +82,12 @@ export class Piece {
         return output;
     }
 
-    #isIPiece() {
+    #is_I_piece() {
         return this.shape.some(row => row.filter(cell => cell !== 0).length === 4);
     }
 
-    #getWallKickTests(fromState, toState) {
-        const isI = this.#isIPiece();
+    #get_wall_kick_tests(fromState, toState) {
+        const isI = this.#is_I_piece();
         const kickData = isI ? Piece.#I_WALL_KICK_DATA : Piece.#WALL_KICK_DATA;
         
         let testType;
@@ -104,7 +104,7 @@ export class Piece {
     rotate(board) {
         const oldState = this.state_index;
         const newState = (this.state_index + 1) % 4;
-        const tests = this.#getWallKickTests(oldState, newState);
+        const tests = this.#get_wall_kick_tests(oldState, newState);
         
         for (const [x, y] of tests) {
             const newPosition = [this.position[0] + x, this.position[1] + y];
@@ -126,7 +126,7 @@ export class Piece {
     rotate_backwards(board) {
         const oldState = this.state_index;
         const newState = (this.state_index + 3) % 4;
-        const tests = this.#getWallKickTests(oldState, newState);
+        const tests = this.#get_wall_kick_tests(oldState, newState);
         
         for (const [x, y] of tests) {
             const newPosition = [this.position[0] + x, this.position[1] + y];
