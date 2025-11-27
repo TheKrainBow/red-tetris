@@ -82,7 +82,7 @@ export class Board {
         for (let i = 0; i < rows; i++) {
             let full_row = true;
             for (let j = 0; j < cols; j++) {
-                if (this.state[i][j] === 0) {
+                if (this.state[i][j] === 0 || i > (rows-1 - this.blocked_rows)) {
                     full_row = false;
                     break;
                 }
@@ -111,14 +111,14 @@ export class Board {
     }
 
     block_row(nrows_to_block) {
+        const rows = this.state.length;
+        const columns = this.state[0].length;
+        let index = rows - 1 - this.blocked_rows;
+        
         for (let i = 0; i < nrows_to_block; i++) {
-            this.state.shift();
-            
-            const garbage_row = Array(10).fill(1);
-            const hole = Math.floor(Math.random() * 10);
-            garbage_row[hole] = 0;
-            
-            this.state.push(garbage_row);
+            for (let j = 0; j < columns; j++) {
+                this.state[index - i][j] = 5;
+            }
         }
         this.blocked_rows += nrows_to_block;
     }
