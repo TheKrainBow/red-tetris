@@ -11,6 +11,7 @@ export class Game {
         this.players = new Map(players.map(player_info => [player_info.playerName, new Player(player_info)]));
         this.minimum_players = mode
         this.eliminatedPlayers = [];
+        this.onStatusChange = null;
         
         this.I = [[0,0,0,0],[1,1,1,1],[0,0,0,0],[0,0,0,0]];
         this.J = [[1,0,0],[1,1,1],[0,0,0]];
@@ -27,6 +28,12 @@ export class Game {
 
     static SINGLE_PLAYER = 1;
     static MULTI_PLAYER = 2;
+
+    #notifyStatusChange() {
+        if (typeof this.onStatusChange === 'function') {
+            this.onStatusChange();
+        }
+    }
 
     #add_to_players_piece_queue() {
         const randomShapeIndex = Math.floor(Math.random() * this.shapes.length);
@@ -136,6 +143,7 @@ export class Game {
         }
 
         io.to(this.room).emit('game_start', game_start);
+        this.#notifyStatusChange();
     }
 
     stop() {
@@ -154,10 +162,12 @@ export class Game {
                 if (this.eliminatedPlayers.includes(player_name)){
                     this.players.delete(player_name);
                     io.to(this.room).emit('player_eliminated', { player_name: player_name });
+                    this.#notifyStatusChange();
                 }
                 
                 if (this.#end_game(player)) {
                     this.eliminatedPlayers.push(player_name);
+                    this.#notifyStatusChange();
                     
                 }
                 
@@ -180,6 +190,7 @@ export class Game {
             data: { room_name, winner }
         };
         io.to(this.room).emit('game_end', game_end);
+        this.#notifyStatusChange();
     } 
 
     get_game_state() {

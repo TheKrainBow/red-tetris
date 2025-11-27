@@ -173,6 +173,8 @@ export default function Game({ room, player }) {
     return rows
   }, [opponents])
   const hasOpponents = opponents && opponents.length > 0
+  const gameRunning = Boolean(playerRoster?.game_running)
+  const rosterPlayers = useMemo(() => Array.isArray(playerRoster?.players) ? playerRoster.players : [], [playerRoster])
 
   const prevFullRowsRef = useRef(new Set())
   const totalClearedRef = useRef(0)
@@ -192,6 +194,8 @@ export default function Game({ room, player }) {
   const shardLayerRef = useRef(null)
   const [eliminated, setEliminated] = useState(false)
   const [winnerName, setWinnerName] = useState('')
+  const [isHost, setIsHost] = useState(false)
+  const [playerRoster, setPlayerRoster] = useState({ room, players: [], counts: {}, game_running: false })
 
   const currentCellValue = (rowIdx, colIdx) => {
     const [posX, posY] = currentPiece.pos || [0, 0]
@@ -360,11 +364,39 @@ export default function Game({ room, player }) {
     if (!room || !player) return
     socketClient.joinRoom(room, player)
       .then((res) => {
-        setRoomJoined(!res?.error)
-        setJoinError(res?.error || null)
+        const payload = res?.data ?? res
+        setRoomJoined(!payload?.error)
+        setJoinError(payload?.error || null)
+        const hostVal = payload?.data?.host ?? payload?.host
+        if (typeof hostVal === 'boolean') setIsHost(hostVal)
       })
       .catch((err) => setJoinError(err?.message || 'Failed to join room'))
   }, [room, player])
+
+  useEffect(() => {
+    const offRoster = socketClient.on('player_list', (payload = {}) => {
+      const normalized = payload?.players
+        ? payload
+        : payload?.data?.players
+          ? payload.data
+          : Array.isArray(payload)
+            ? { players: payload }
+            : {}
+      // Debug roster payloads to troubleshoot visibility issues
+      console.log('[player_list] raw payload', payload)
+      console.log('[player_list] normalized payload', normalized)
+      setPlayerRoster(normalized || {})
+      if (Array.isArray(normalized?.players)) {
+        const me = normalized.players.find((p) => p?.name === player)
+        if (me && typeof me.host === 'boolean') {
+          setIsHost(Boolean(me.host))
+        }
+      }
+    })
+    return () => {
+      offRoster && offRoster()
+    }
+  }, [])
 
   useEffect(() => {
     const offBoards = socketClient.on('room_boards', (payload = {}) => {
@@ -775,6 +807,59 @@ export default function Game({ room, player }) {
                 <div className={`game-collect-row ${bonusFlash.diamond ? 'bonus-flash' : ''}`}><span>Diamond</span><span>{collected.diamond}</span></div>
               </div>
             </div>
+
+            <div className="game-card game-card-roster">
+              {(() => {
+                const players = Array.isArray(playerRoster?.players) ? playerRoster.players : []
+                const buckets = {
+                  playing: players.filter((p) => (p?.status || '').toLowerCase() === 'playing'),
+                  eliminated: players.filter((p) => (p?.status || '').toLowerCase() === 'eliminated'),
+                  spectating: players.filter((p) => (p?.status || '').toLowerCase() === 'spectating'),
+                  waiting: players.filter((p) => {
+                    const status = (p?.status || '').toLowerCase()
+                    return !status || status === 'waiting'
+                  }),
+                }
+
+              const renderSection = (label, list, tag) => {
+                if (!list.length) return null
+                return (
+                  <>
+                    <div className="game-roster-heading">{label}</div>
+                    <div className="game-roster-list">
+                      {list.map((p, idx) => {
+                        const status = (p?.status || tag || 'waiting').toLowerCase()
+                        const isEliminated = status === 'eliminated'
+                        const key = `${p?.name || 'player'}-${status}-${idx}-${label}`
+                        const isSelf = (p?.name || '').toLowerCase() === (player || '').toLowerCase()
+                        return (
+                          <div className="game-roster-row" key={key}>
+                            <div className={`game-roster-name ${isEliminated ? 'is-eliminated' : ''} ${isSelf ? 'is-self' : ''}`}>
+                              {p?.host ? <span className="game-roster-host" title="Host">*</span> : null}
+                              <span className="game-roster-text">{p?.name || 'Unknown player'}</span>
+                            </div>
+                            <span className={`game-roster-tag status-${status || 'unknown'}`}>{tag}</span>
+                          </div>
+                        )
+                        })}
+                      </div>
+                    </>
+                  )
+                }
+
+                const sections = [
+                  renderSection('Playing', buckets.playing, 'Playing'),
+                  renderSection('Eliminated', buckets.eliminated, 'Eliminated'),
+                  renderSection('Spectators', buckets.spectating, 'Spectating'),
+                  renderSection('Waiting', buckets.waiting, 'Waiting'),
+                ].filter(Boolean)
+
+                if (!sections.length) {
+                  return <div className="game-roster-list"><div className="game-roster-empty">No players yet.</div></div>
+                }
+                return sections
+              })()}
+            </div>
           </div>
         </div>
       </div>
@@ -788,7 +873,9 @@ export default function Game({ room, player }) {
 
       <div className="game-footer">
         <div className="game-footer-left">
-          <Button onClick={onStartGame} className="ui-btn-wide" disabled={running}>Start Game</Button>
+          {isHost && (
+            <Button onClick={onStartGame} className="ui-btn-wide" disabled={running}>Start Game</Button>
+          )}
         </div>
         <div className="game-footer-right">
           <Button onClick={handleLeave} className="ui-btn-wide">Back</Button>
@@ -846,6 +933,7 @@ export default function Game({ room, player }) {
           </div>
         </div>
       )}
+
     </div>
   )
 }

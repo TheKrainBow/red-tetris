@@ -28,7 +28,7 @@ const io = new SocketIOServer(server, {
   },
 });
 
-const gateway = new Gateway();
+const gateway = new Gateway(io);
 
 // --- Socket.IO connection handling ---
 io.on('connection', (socket) => {
@@ -41,15 +41,30 @@ io.on('connection', (socket) => {
 
     socket.on('disconnect', (reason) => { gateway.disconnect(socket, reason) });
     
-    socket.on('join_room', (data, callback) => { gateway.join_room(socket, data, callback) });
+    socket.on('join_room', async (data, callback) => {
+      const response = await gateway.join_room(socket, data);
+      callback && callback(response);
+    });
 
-    socket.on('start_game', (data, callback) => {gateway.start_game(socket, data, io)});
+    socket.on('start_game', async (data, callback) => {
+      const response = await gateway.start_game(socket, data, io);
+      callback && callback(response);
+    });
     
-    socket.on('handle_key_press', (data, callback) => { gateway.handle_key_press(socket, data, io) });
+    socket.on('handle_key_press', async (data, callback) => {
+      const response = await gateway.handle_key_press(socket, data, io);
+      callback && callback(response);
+    });
 
-    socket.on('leave_room', (data, callback) => { gateway.leave_room(socket, data) });
+    socket.on('leave_room', async (data, callback) => {
+      const response = await gateway.leave_room(socket, data);
+      callback && callback(response);
+    });
 
-    socket.on('room_list', (data, callback) => { gateway.room_list(socket, data) });
+    socket.on('room_list', async (data, callback) => {
+      const response = await gateway.room_list(socket, data);
+      callback && callback(response);
+    });
 
 });
 

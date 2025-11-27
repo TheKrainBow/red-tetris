@@ -61,17 +61,25 @@ const createEmitter = () => {
   }
 }
 
+const normalizeEventPayload = (payload) => (payload && typeof payload === 'object' && Object.prototype.hasOwnProperty.call(payload, 'data'))
+  ? payload.data
+  : payload
+
 export function parseEventPayload(type, payload = {}) {
+  const body = normalizeEventPayload(payload)
   switch (type) {
     case 'player_list':
-      return Array.isArray(payload) ? payload : Array.isArray(payload?.data) ? payload.data : []
+      if (body && typeof body === 'object' && (Array.isArray(body.players) || body.room || body.counts)) {
+        return body
+      }
+      return Array.isArray(body) ? { players: body } : Array.isArray(body?.data) ? { players: body.data } : { players: [] }
     case 'room_boards': {
-      const board = Array.isArray(payload.Board) ? payload.Board : Array.isArray(payload.board) ? payload.board : []
-      const opponents = payload.Opponents ?? payload.opponents ?? payload.opponent
-      const clearedRows = Array.isArray(payload.ClearedRows) ? payload.ClearedRows : Array.isArray(payload.clearedRows) ? payload.clearedRows : []
-      const linesCleared = payload.LinesCleared ?? payload.linesCleared ?? clearedRows.length ?? 0
-      const currentPiece = payload.CurrentPiece || payload.currentPiece || {}
-      const nextPiece = payload.NextPiece || payload.nextPiece || {}
+      const board = Array.isArray(body.Board) ? body.Board : Array.isArray(body.board) ? body.board : []
+      const opponents = body.Opponents ?? body.opponents ?? body.opponent
+      const clearedRows = Array.isArray(body.ClearedRows) ? body.ClearedRows : Array.isArray(body.clearedRows) ? body.clearedRows : []
+      const linesCleared = body.LinesCleared ?? body.linesCleared ?? clearedRows.length ?? 0
+      const currentPiece = body.CurrentPiece || body.currentPiece || {}
+      const nextPiece = body.NextPiece || body.nextPiece || {}
       return {
         board,
         // pass opponents through in both cases to preserve shape; consumer can normalize
@@ -90,24 +98,24 @@ export function parseEventPayload(type, payload = {}) {
     }
     case 'game_start':
       return {
-        room_name: payload.room_name || payload.roomName || '',
-        player_list: payload.player_list || payload.players || [],
-        starting_time: payload.starting_time || payload.start_time || payload.timestamp || null,
+        room_name: body.room_name || body.roomName || '',
+        player_list: body.player_list || body.players || [],
+        starting_time: body.starting_time || body.start_time || body.timestamp || null,
       }
     case 'game_end':
       return {
-        room_name: payload.room_name || payload.roomName || '',
-        winner: payload.winner || payload.player || '',
+        room_name: body.room_name || body.roomName || '',
+        winner: body.winner || body.player || '',
       }
     case 'room_list_response':
       return {
-        success: payload.success !== false,
-        rooms: Array.isArray(payload.rooms) ? payload.rooms : [],
+        success: body?.success !== false,
+        rooms: Array.isArray(body?.rooms) ? body.rooms : [],
       }
     case 'game_history':
-      return Array.isArray(payload.games) ? payload.games : payload
+      return Array.isArray(body?.games) ? body.games : body
     default:
-      return payload
+      return body
   }
 }
 
@@ -121,6 +129,10 @@ class MockTetrisSocket {
     this.mockPlayers = ['You', 'MockBot']
     this.gameStartTime = null
     this.tickTimer = null
+  }
+
+  _wrapCommandResponse(event, data) {
+    return { event, data }
   }
 
   connect() {
@@ -146,20 +158,20 @@ class MockTetrisSocket {
         this.playerName = payload.playerName || payload.player || this.playerName
         if (!this.mockPlayers.includes(this.playerName)) this.mockPlayers.unshift(this.playerName)
         this._emit('player_list', [...this.mockPlayers])
-        return Promise.resolve({ success: true, room: this.roomName, playerName: this.playerName, host: true, mock: true })
+        return Promise.resolve(this._wrapCommandResponse('join_room', { success: true, room: this.roomName, playerName: this.playerName, host: true, mock: true }))
       }
       case 'start_game': {
         this.gameStartTime = Date.now()
         this._emit('game_start', { room_name: this.roomName, player_list: [...this.mockPlayers], starting_time: this.gameStartTime })
-        return Promise.resolve({ success: true, room: this.roomName, mock: true })
+        return Promise.resolve(this._wrapCommandResponse('start_game', { success: true, room: this.roomName, mock: true }))
       }
       case 'handle_key_press': {
         this._emit('room_boards', this._buildMockBoardState())
-        return Promise.resolve({ acknowledged: true, mock: true })
+        return Promise.resolve(this._wrapCommandResponse('handle_key_press', { success: true, acknowledged: true, mock: true }))
       }
       case 'leave_room': {
         this._emit('player_list', this.mockPlayers.filter((p) => p !== this.playerName))
-        return Promise.resolve({ success: true, left: this.roomName, mock: true })
+        return Promise.resolve(this._wrapCommandResponse('leave_room', { success: true, left: this.roomName, mock: true }))
       }
       case 'room_list': {
         const duration = this.gameStartTime ? Math.floor((Date.now() - this.gameStartTime) / 1000) : 0
@@ -179,7 +191,7 @@ class MockTetrisSocket {
           mock: true,
         }
         this._emit('room_list_response', response)
-        return Promise.resolve(response)
+        return Promise.resolve(this._wrapCommandResponse('room_list', response))
       }
       case 'game_history': {
         const games = {
@@ -197,10 +209,10 @@ class MockTetrisSocket {
           mock: true,
         }
         this._emit('game_history', games)
-        return Promise.resolve(games)
+        return Promise.resolve(this._wrapCommandResponse('game_history', games))
       }
       default:
-        return Promise.resolve({ mock: true })
+        return Promise.resolve(this._wrapCommandResponse(event, { mock: true }))
     }
   }
 
@@ -299,6 +311,17 @@ class TetrisSocketClient {
   }
 
   async sendCommand(event, payload = {}, opts = {}) {
+    const normalizeCommandResponse = (command, response) => {
+      if (response && typeof response === 'object') {
+        const evt = response.event || response.type || command
+        if (Object.prototype.hasOwnProperty.call(response, 'data')) {
+          return { event: evt, data: response.data, raw: response }
+        }
+        return { event: evt, data: response, raw: response }
+      }
+      return { event: command, data: response }
+    }
+
     if (this.mock) return this.mock.sendCommand(event, payload)
     if (!this.socket) await this.connect()
     const timeout = opts.timeout || COMMAND_TIMEOUT
@@ -318,7 +341,7 @@ class TetrisSocketClient {
       const timer = setTimeout(() => finish({ ok: false, timeout: true }), timeout)
       try {
         this.socket.emit(event, payload, (response) => {
-          finish(response || { ok: true })
+          finish(normalizeCommandResponse(event, response || { ok: true }))
         })
       } catch (err) {
         finish({ ok: false, error: err })
