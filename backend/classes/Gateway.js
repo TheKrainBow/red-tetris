@@ -74,6 +74,7 @@ export class Gateway {
 
         if (!this.rooms.has(room)) {
             this.#create_room(socket, data);
+            const host = true;
             return callback({ success: true, room, playerName, host });
         }
 
