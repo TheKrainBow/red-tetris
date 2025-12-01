@@ -252,6 +252,7 @@ export class Gateway {
             const host = true;
             const response = this.#formatCommandResponse('join_room', { success: true, room, playerName, host });
             this.#broadcast_player_list(room);
+            this.#broadcast_lobby_room(room);
             return response;
         }
 
