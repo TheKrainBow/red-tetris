@@ -271,14 +271,14 @@ export class Gateway {
             let playingCount = 0;
             let gameStatus = 'WAITING_FOR_PLAYER';
             let gameDuration = 0;
-            let playerNames = []
+            let playerNames = Array.from(playersMap.keys());
             
             if (game) {
                 playingCount = game.players.size;
                 
                 if (game.isRunning) {
                     gameStatus = 'PLAYING';
-                    playerNames = Array.from(game.player.keys());
+                    playerNames = Array.from(game.players.keys());
                     if (game.startTime) {
                         gameDuration = Math.floor((Date.now() - game.startTime) / 1000);
                     }

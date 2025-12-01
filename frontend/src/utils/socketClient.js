@@ -2,7 +2,7 @@ import { io } from 'socket.io-client'
 
 const env = (typeof process !== 'undefined' && process.env) ? process.env : {}
 
-const EVENT_TYPES = ['player_list', 'room_boards', 'game_start', 'game_end', 'room_list_response', 'game_history']
+const EVENT_TYPES = ['player_list', 'room_boards', 'game_start', 'game_end', 'room_list_response', 'room_list', 'game_history']
 const COMMAND_TIMEOUT = 5500
 const DEFAULT_SOCKET_PATH = '/socket.io'
 
@@ -125,6 +125,7 @@ export function parseEventPayload(type, payload = {}) {
         winner: body.winner || body.player || '',
       }
     case 'room_list_response':
+    case 'room_list':
       return {
         success: body?.success !== false,
         rooms: Array.isArray(body?.rooms) ? body.rooms : [],

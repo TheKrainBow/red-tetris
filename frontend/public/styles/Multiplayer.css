@@ -53,6 +53,64 @@
 .mp-row + .mp-row { border-top: 1px solid rgba(0,0,0,0.5); }
 .mp-row:hover { background: rgba(255,255,255,0.05); }
 .mp-row.selected { outline: 2px solid #c6a200; background: rgba(255,220,120,0.06); }
+.mp-row.mp-row-separator {
+  cursor: default;
+  background: transparent;
+  justify-content: center;
+  padding: 12px 0;
+}
+.mp-separator-col {
+  text-align: center;
+  pointer-events: none;
+}
+.mp-separator-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #fff;
+  font-size: 18px;
+  text-shadow: 2px 2px 0 #000;
+  letter-spacing: 0.4px;
+  margin-bottom: 4px;
+}
+.mp-separator-icon {
+  width: 26px;
+  height: 26px;
+  display: inline-block;
+  background-size: contain;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+.mp-sep-icon-coop { background-image: url('/ui/Firework.png'); }
+.mp-sep-icon-single { background-image: url('/ui/Sword.png'); transform: rotate(-12deg); }
+.mp-sep-icon-clock { background-image: url('/ui/Clock.gif'); }
+.mp-sep-icon-pvp {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  transform: rotate(15deg);
+}
+.mp-sep-icon-pvp::before,
+.mp-sep-icon-pvp::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url('/ui/Sword.png');
+  background-size: contain;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  transform-origin: center;
+}
+.mp-sep-icon-pvp::before { transform: rotate(-15deg) translate(-8px, 0px); }
+.mp-sep-icon-pvp::after { transform: scaleX(-1) rotate(15deg) translate(0px, 0px) ; }
+.mp-separator-dots {
+  font-family: monospace;
+  color: #fff;
+  text-shadow: 2px 2px 0 #000;
+  letter-spacing: 6px;
+}
 
 .mp-icon {
   width: 48px; height: 48px; border: 1px solid #000; border-radius: 6px;
@@ -62,12 +120,23 @@
 }
 .bg-green { background: #6c3 !important; }
 .bg-orange { background: #f90 !important; }
+.bg-red { background: #e45c5c !important; }
+.bg-blue { background: #7ca6ff !important; }
 
 .mp-info { display: flex; align-items: baseline; gap: 12px; flex: 1; }
 .mp-col { flex: 1; }
 .mp-name { color: #fff; font-size: 18px; text-shadow: 2px 2px 0 #000; }
+.mp-name-primary { color: #fff; }
+.mp-name-sep { color: #c8c8c8; }
+.mp-tag-mode { font-weight: 600; }
+.mp-tag-single { color: #7ce070; }
+.mp-tag-pvp { color: #e45c5c; }
+.mp-tag-coop { color: #7ca6ff; }
+.mp-tag-status { font-weight: 600; }
+.mp-tag-status-waiting { color: #7ce070; }
+.mp-tag-status-running { color: #e45c5c; }
 .mp-count { margin-left: auto; color: #c0ffb4; text-shadow: 2px 2px 0 #000; }
-.mp-players { margin-left: 74px; color: #ddd; font-size: 14px; text-shadow: 2px 2px 0 #000; }
+.mp-players { margin-left: 0; color: #ddd; font-size: 14px; text-shadow: 2px 2px 0 #000; }
 /* Generic secondary line used by Singleplayer history (no icon) */
 .mp-meta { color: #ddd; font-size: 14px; text-shadow: 2px 2px 0 #000; }
 
