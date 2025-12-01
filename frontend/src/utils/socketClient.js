@@ -2,7 +2,7 @@ import { io } from 'socket.io-client'
 
 const env = (typeof process !== 'undefined' && process.env) ? process.env : {}
 
-const EVENT_TYPES = ['player_list', 'room_boards', 'game_start', 'game_end', 'player_kick', 'room_list_response', 'room_list', 'game_history', 'lobby_rooms', 'lobby_update']
+const EVENT_TYPES = ['player_list', 'room_boards', 'game_start', 'game_end', 'player_kick', 'room_list_response', 'room_list', 'game_history', 'lobby_rooms', 'lobby_update', 'room_settings']
 const COMMAND_TIMEOUT = 5500
 const DEFAULT_SOCKET_PATH = '/socket.io'
 
@@ -139,6 +139,12 @@ export function parseEventPayload(type, payload = {}) {
         ...(body || {}),
         room: body?.room,
       }
+    case 'room_settings':
+      return {
+        ...(body || {}),
+        gamemode: body?.gamemode || body?.room_gamemode,
+        room_gamemode: body?.gamemode || body?.room_gamemode,
+      }
     case 'game_history':
       return Array.isArray(body?.games) ? body.games : body
     default:
@@ -154,12 +160,19 @@ class MockTetrisSocket {
     this.roomName = 'mock-room'
     this.playerName = 'You'
     this.mockPlayers = ['You', 'MockBot']
+    this.gamemode = 'Normal'
     this.gameStartTime = null
     this.tickTimer = null
   }
 
   _wrapCommandResponse(event, data) {
     return { event, data }
+  }
+
+  _normalizeGamemode(raw) {
+    const value = typeof raw === 'string' ? raw.trim().toLowerCase() : ''
+    if (value.includes('coop')) return 'Coop'
+    return 'Normal'
   }
 
   connect() {
@@ -183,6 +196,7 @@ class MockTetrisSocket {
       case 'join_room': {
         this.roomName = payload.room || payload.roomName || this.roomName
         this.playerName = payload.playerName || payload.player || this.playerName
+        this.gamemode = this._normalizeGamemode(payload?.gamemode)
         if (!this.mockPlayers.includes(this.playerName)) this.mockPlayers.unshift(this.playerName)
         this._emit('player_list', [...this.mockPlayers])
         return Promise.resolve(this._wrapCommandResponse('join_room', { success: true, room: this.roomName, playerName: this.playerName, host: true, mock: true }))
@@ -221,7 +235,7 @@ class MockTetrisSocket {
           rooms: [
             {
               room_name: this.roomName,
-              room_gamemode: this.mockPlayers.length > 1 ? 'multi' : 'solo',
+              room_gamemode: this.gamemode,
               game_status: this.gameStartTime ? 'PLAYING' : 'WAITING_FOR_PLAYER',
               players_playing: this.gameStartTime ? Math.max(1, this.mockPlayers.length - 0) : 0,
               spectators: 0,
@@ -234,6 +248,12 @@ class MockTetrisSocket {
         this._emit('room_list_response', response)
         return Promise.resolve(this._wrapCommandResponse('room_list', response))
       }
+      case 'update_room_settings': {
+        this.gamemode = this._normalizeGamemode(payload?.gamemode)
+        const res = { success: true, room: this.roomName, gamemode: this.gamemode, room_gamemode: this.gamemode }
+        this._emit('room_settings', res)
+        return Promise.resolve(this._wrapCommandResponse('room_settings', res))
+      }
       case 'game_history': {
         const games = {
           success: true,
@@ -242,7 +262,7 @@ class MockTetrisSocket {
               game_date: Date.now() - 60_000,
               game_duration: 120,
               room_name: this.roomName,
-              room_gamemode: 'multi',
+              room_gamemode: this.gamemode,
               screenshots: [],
               resources: { wood: 24, stone: 12 },
             },
@@ -391,8 +411,8 @@ class TetrisSocketClient {
     })
   }
 
-  joinRoom(roomName, playerName) {
-    return this.sendCommand('join_room', { room: roomName, roomName, playerName, player: playerName })
+  joinRoom(roomName, playerName, gamemode) {
+    return this.sendCommand('join_room', { room: roomName, roomName, playerName, player: playerName, gamemode })
   }
 
   startGame(roomName, playerName) {
@@ -428,6 +448,14 @@ class TetrisSocketClient {
       'player_kick',
       { room: roomName, roomName, playerName, player: playerName, playerToKick, target: playerToKick },
       { expectEvent: 'player_kick' }
+    )
+  }
+
+  updateRoomSettings(roomName, playerName, settings = {}) {
+    return this.sendCommand(
+      'update_room_settings',
+      { room: roomName, roomName, playerName, player: playerName, ...settings },
+      { expectEvent: 'room_settings' }
     )
   }
 

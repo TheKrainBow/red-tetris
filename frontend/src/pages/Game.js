@@ -65,6 +65,14 @@ const MATERIAL_LABELS = {
   diamond: 'Diamond',
 }
 
+const GAMEMODES = ['PvP', 'Cooperation']
+const labelFromServerGamemode = (val) => {
+  const v = String(val || '').toLowerCase()
+  if (v.includes('coop')) return 'Cooperation'
+  return 'PvP'
+}
+const serverValueFromLabel = (label) => label === 'Cooperation' ? 'Coop' : 'Normal'
+
 const formatTime = (ms) => {
   if (!ms || ms < 0) return '00:00'
   const total = Math.floor(ms / 1000)
@@ -148,6 +156,8 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
   const [allBoards, setAllBoards] = useState({})
   const [kickNotice, setKickNotice] = useState(null)
   const kickNoticeTimerRef = useRef(null)
+  const [roomGamemode, setRoomGamemode] = useState('PvP')
+  const [savingSettings, setSavingSettings] = useState(false)
   const spectrumCellSize = useMemo(() => {
     const count = opponents.length || 1
     if (count <= 4) return 9
@@ -200,9 +210,9 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
   const [eliminated, setEliminated] = useState(false)
   const [winnerName, setWinnerName] = useState('')
   const [isHost, setIsHost] = useState(false)
+  const isSingleplayerRoom = useMemo(() => /_singleplayer$/i.test(room || ''), [room])
   const isWaitingPhase = !playerRoster?.game_running
   const hasOpponents = opponents && opponents.length > 0
-  const gameRunning = Boolean(playerRoster?.game_running)
   const rosterPlayers = useMemo(() => Array.isArray(playerRoster?.players) ? playerRoster.players : [], [playerRoster])
   const rosterBuckets = useMemo(() => {
     const players = rosterPlayers
@@ -216,6 +226,7 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
       }),
     }
   }, [rosterPlayers])
+  const showSettingsCard = isHost && !running && isWaitingPhase && !isSingleplayerRoom
 
   const currentCellValue = (rowIdx, colIdx) => {
     const [posX, posY] = currentPiece.pos || [0, 0]
@@ -272,6 +283,23 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
       console.error('Failed to kick player', err)
     })
   }, [isHost, isWaitingPhase, room, player])
+
+  const handleGamemodeChange = async (nextLabel) => {
+    const label = nextLabel || 'PvP'
+    if (label === roomGamemode) return
+    const prevLabel = roomGamemode
+    setRoomGamemode(label)
+    if (!room || !player || !isHost || !isWaitingPhase) return
+    setSavingSettings(true)
+    try {
+      await socketClient.updateRoomSettings(room, player, { gamemode: serverValueFromLabel(label) })
+    } catch (err) {
+      console.error('Failed to update gamemode', err)
+      setRoomGamemode(prevLabel)
+    } finally {
+      setSavingSettings(false)
+    }
+  }
 
   const renderRosterSections = (buckets) => {
     const renderSection = (label, list, tag) => {
@@ -463,9 +491,22 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
         setJoinError(payload?.error || null)
         const hostVal = payload?.data?.host ?? payload?.host
         if (typeof hostVal === 'boolean') setIsHost(hostVal)
+        const gm = payload?.data?.room_gamemode ?? payload?.room_gamemode
+        if (gm) setRoomGamemode(labelFromServerGamemode(gm))
       })
       .catch((err) => setJoinError(err?.message || 'Failed to join room'))
   }, [room, player, forceSpectator])
+
+  useEffect(() => {
+    const offSettings = socketClient.on('room_settings', (payload = {}) => {
+      const body = payload?.data ?? payload
+      const gm = body?.gamemode || body?.room_gamemode
+      if (gm) setRoomGamemode(labelFromServerGamemode(gm))
+    })
+    return () => {
+      offSettings && offSettings()
+    }
+  }, [])
 
   useEffect(() => {
     if (forceSpectator) {
@@ -1212,6 +1253,25 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
 
       <div className="game-footer">
         <div className="game-footer-left">
+          {showSettingsCard && (
+            <div className="game-card game-card-settings">
+              <div className="game-settings-title">Game Settings</div>
+              <label className="game-settings-row" htmlFor="game-gamemode">
+                <span className="game-settings-label">Gamemode</span>
+                <select
+                  id="game-gamemode"
+                  className={`game-settings-select ${roomGamemode === 'Cooperation' ? 'mode-coop' : 'mode-pvp'}`}
+                  value={roomGamemode}
+                  onChange={(e) => handleGamemodeChange(e.target.value)}
+                  disabled={savingSettings || running || !isWaitingPhase}
+                >
+                  {GAMEMODES.map((gm) => (
+                    <option key={gm} value={gm}>{gm}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          )}
           {isHost && (
             <Button onClick={onStartGame} className="ui-btn-wide" disabled={running}>Start Game</Button>
           )}

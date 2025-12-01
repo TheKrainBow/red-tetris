@@ -81,6 +81,10 @@ io.on('connection', (socket) => {
       callback && callback(response);
     });
 
+    socket.on('update_room_settings', async (data, callback) => {
+      const response = await gateway.update_room_settings(socket, data);
+      callback && callback(response);
+    });
 });
 
 

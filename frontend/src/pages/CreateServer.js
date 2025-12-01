@@ -23,12 +23,13 @@ export default function CreateServer() {
   const onCreate = async () => {
     const playerName = username || getLocalStorageItem(USERNAME_KEY, '')
     const roomName = (serverName || '').trim() || 'New Server'
+    const gamemode = mode === 'Cooperation' ? 'Coop' : 'Normal'
     if (!playerName) {
       alert('Please set a username first.')
       return
     }
     try {
-      await socketClient.joinRoom(roomName, playerName)
+      await socketClient.joinRoom(roomName, playerName, gamemode)
       navigate(`/${encodeURIComponent(roomName)}/${encodeURIComponent(playerName)}`)
     } catch (err) {
       console.error('Failed to create/join room', err)

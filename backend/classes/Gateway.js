@@ -7,10 +7,22 @@ export class Gateway {
         this.games = {};
         this.rooms = new Map();
         this.playerInfo = new Map();
+        this.roomMetadata = new Map();
     }
 
     #formatCommandResponse(event, data = {}) {
         return { event, data };
+    }
+
+    #normalizeGamemode(raw) {
+        const value = typeof raw === 'string' ? raw.trim().toLowerCase() : '';
+        if (value.includes('coop')) return 'Coop';
+        return 'Normal';
+    }
+
+    #getRoomGamemode(roomName) {
+        const meta = this.roomMetadata.get(roomName) || {};
+        return meta.gamemode || 'Normal';
     }
 
     #build_room_status(roomName) {
@@ -18,6 +30,7 @@ export class Gateway {
 
         const playersMap = this.rooms.get(roomName);
         const game = this.games[roomName];
+        const metadata = this.roomMetadata.get(roomName) || {};
 
         const TotalConnections = playersMap.size;
         let playingCount = 0;
@@ -46,6 +59,7 @@ export class Gateway {
             spectators: TotalConnections - playingCount,
             starting_time: startingTime,
             players: playerNames,
+            room_gamemode: metadata.gamemode || 'Normal',
         };
     }
 
@@ -198,10 +212,11 @@ export class Gateway {
     }
 
     #create_room(socket, data) {
-        const { room, playerName } = data;
+        const { room, playerName, gamemode } = data;
         this.rooms.set(room, new Map([[playerName, socket.id]]));
         let host = true;
         this.playerInfo.set(socket.id, { room, playerName, host });
+        this.roomMetadata.set(room, { gamemode: this.#normalizeGamemode(gamemode) });
         socket.join(room);
     }
 
@@ -250,13 +265,16 @@ export class Gateway {
         if (!this.rooms.has(room)) {
             this.#create_room(socket, data);
             const host = true;
-            const response = this.#formatCommandResponse('join_room', { success: true, room, playerName, host });
+            const response = this.#formatCommandResponse('join_room', { success: true, room, playerName, host, room_gamemode: this.#getRoomGamemode(room) });
             this.#broadcast_player_list(room);
             this.#broadcast_lobby_room(room);
             return response;
         }
 
         const playersMap = this.rooms.get(room);
+        if (!this.roomMetadata.has(room)) {
+            this.roomMetadata.set(room, { gamemode: this.#normalizeGamemode(data?.gamemode) });
+        }
 
         const nameExists = Array.from(playersMap.keys()).includes(playerName);
         if (nameExists) {
@@ -268,7 +286,7 @@ export class Gateway {
         this.playerInfo.set(socket.id, { room, playerName, host });
         socket.join(room);
 
-        const response = this.#formatCommandResponse('join_room', { success: true, room, playerName, host });
+        const response = this.#formatCommandResponse('join_room', { success: true, room, playerName, host, room_gamemode: this.#getRoomGamemode(room) });
         this.#broadcast_player_list(room);
         this.#broadcast_lobby_room(room);
         return response;
@@ -372,6 +390,7 @@ export class Gateway {
 
         if (playersMap.size === 0) {
             this.rooms.delete(room);
+            this.roomMetadata.delete(room);
             if (game) {
                 game.stop();
                 delete this.games[room];
@@ -445,5 +464,39 @@ export class Gateway {
     async unsubscribe_lobby(socket) {
         socket.leave('lobby');
         return this.#formatCommandResponse('unsubscribe_lobby', { success: true });
+    }
+
+    async update_room_settings(socket, data) {
+        const { roomName, room, gamemode } = data || {};
+        const targetRoom = roomName || room;
+        if (!targetRoom) {
+            return this.#formatCommandResponse('room_settings', { success: false, error: 'Missing room' });
+        }
+
+        const playerInfo = this.playerInfo.get(socket.id);
+        if (!playerInfo || playerInfo.room !== targetRoom || playerInfo.host !== true) {
+            return this.#formatCommandResponse('room_settings', { success: false, error: 'Only the host can update settings' });
+        }
+
+        const game = this.games[targetRoom];
+        if (game && game.isRunning) {
+            return this.#formatCommandResponse('room_settings', { success: false, error: 'Game already running' });
+        }
+
+        if (!this.rooms.has(targetRoom)) {
+            return this.#formatCommandResponse('room_settings', { success: false, error: 'Room not found' });
+        }
+
+        const normalized = this.#normalizeGamemode(gamemode);
+        const meta = this.roomMetadata.get(targetRoom) || {};
+        meta.gamemode = normalized;
+        this.roomMetadata.set(targetRoom, meta);
+
+        const payload = { success: true, room: targetRoom, gamemode: normalized, room_gamemode: normalized };
+        if (this.io) {
+            this.io.to(targetRoom).emit('room_settings', payload);
+            this.#broadcast_lobby_room(targetRoom);
+        }
+        return this.#formatCommandResponse('room_settings', payload);
     }
 }
