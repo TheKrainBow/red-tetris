@@ -72,6 +72,11 @@ const labelFromServerGamemode = (val) => {
   return 'PvP'
 }
 const serverValueFromLabel = (label) => label === 'Cooperation' ? 'Coop' : 'Normal'
+const clampPlayerLimit = (val) => {
+  const n = Number(val)
+  if (!Number.isFinite(n)) return 16
+  return Math.min(16, Math.max(1, Math.round(n)))
+}
 
 const formatTime = (ms) => {
   if (!ms || ms < 0) return '00:00'
@@ -158,6 +163,9 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
   const kickNoticeTimerRef = useRef(null)
   const [roomGamemode, setRoomGamemode] = useState('PvP')
   const [savingSettings, setSavingSettings] = useState(false)
+  const [playerLimit, setPlayerLimit] = useState(16)
+  const [playerLimitSaved, setPlayerLimitSaved] = useState(16)
+  const [settingsNotice, setSettingsNotice] = useState('')
   const spectrumCellSize = useMemo(() => {
     const count = opponents.length || 1
     if (count <= 4) return 9
@@ -214,6 +222,7 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
   const isWaitingPhase = !playerRoster?.game_running
   const hasOpponents = opponents && opponents.length > 0
   const rosterPlayers = useMemo(() => Array.isArray(playerRoster?.players) ? playerRoster.players : [], [playerRoster])
+  const connectedCount = rosterPlayers.length
   const rosterBuckets = useMemo(() => {
     const players = rosterPlayers
     return {
@@ -296,6 +305,39 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
     } catch (err) {
       console.error('Failed to update gamemode', err)
       setRoomGamemode(prevLabel)
+    } finally {
+      setSavingSettings(false)
+    }
+  }
+
+  const handlePlayerLimitChange = async (value) => {
+    const next = clampPlayerLimit(value)
+    if (next === playerLimitSaved) {
+      setPlayerLimit(next)
+      return
+    }
+    if (next < connectedCount) {
+      setSettingsNotice(`Too many players in the room to set Max Player to ${next}`)
+      setTimeout(() => setSettingsNotice(''), 3500)
+      return
+    }
+    const prevSaved = playerLimitSaved
+    setPlayerLimit(next)
+    if (!room || !player || !isHost || !isWaitingPhase) return
+    setSavingSettings(true)
+    try {
+      const res = await socketClient.updateRoomSettings(room, player, { player_limit: next })
+      const success = res?.data?.success ?? res?.success ?? true
+      if (success === false) {
+        const msg = res?.data?.error || res?.error
+        if (msg) setSettingsNotice(msg)
+        setPlayerLimit(prevSaved)
+      } else {
+        setPlayerLimitSaved(next)
+      }
+    } catch (err) {
+      console.error('Failed to update player limit', err)
+      setPlayerLimit(prevSaved)
     } finally {
       setSavingSettings(false)
     }
@@ -469,6 +511,23 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
 
   useEffect(() => {
     if (forceSpectator) return
+    if (!room || !player) return
+    socketClient.fetchRoomSettings(room, player)
+      .then((res) => {
+        const body = res?.data ?? res
+        const gm = body?.gamemode || body?.room_gamemode
+        if (gm) setRoomGamemode(labelFromServerGamemode(gm))
+        if (body?.player_limit != null) {
+          const clamped = clampPlayerLimit(body.player_limit)
+          setPlayerLimit(clamped)
+          setPlayerLimitSaved(clamped)
+        }
+      })
+      .catch(() => {})
+  }, [room, player, forceSpectator])
+
+  useEffect(() => {
+    if (forceSpectator) return
     const onKeyDown = (e) => {
       if (!room || !player || showConfirmLeave) return
       const key = e.code === 'Space' ? 'Space' : e.key
@@ -493,6 +552,12 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
         if (typeof hostVal === 'boolean') setIsHost(hostVal)
         const gm = payload?.data?.room_gamemode ?? payload?.room_gamemode
         if (gm) setRoomGamemode(labelFromServerGamemode(gm))
+        const limit = payload?.data?.player_limit ?? payload?.player_limit
+        if (limit != null) {
+          const clamped = clampPlayerLimit(limit)
+          setPlayerLimit(clamped)
+          setPlayerLimitSaved(clamped)
+        }
       })
       .catch((err) => setJoinError(err?.message || 'Failed to join room'))
   }, [room, player, forceSpectator])
@@ -502,6 +567,15 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
       const body = payload?.data ?? payload
       const gm = body?.gamemode || body?.room_gamemode
       if (gm) setRoomGamemode(labelFromServerGamemode(gm))
+      if (body?.player_limit != null) {
+        const clamped = clampPlayerLimit(body.player_limit)
+        setPlayerLimit(clamped)
+        setPlayerLimitSaved(clamped)
+      }
+      if (body?.success === false && body?.error) {
+        setSettingsNotice(body.error)
+        setTimeout(() => setSettingsNotice(''), 3500)
+      }
     })
     return () => {
       offSettings && offSettings()
@@ -1270,6 +1344,25 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
                   ))}
                 </select>
               </label>
+              <div className="game-settings-row game-settings-row-slider">
+                <span className="game-settings-label" aria-hidden="true"></span>
+                <div className={`opt-slider ${savingSettings || running || !isWaitingPhase ? 'is-disabled' : ''}`}>
+                  <input
+                    className="opt-range"
+                    type="range"
+                    min="1"
+                    max="16"
+                    step="1"
+                    value={playerLimit}
+                    disabled={savingSettings || running || !isWaitingPhase}
+                    onChange={(e) => setPlayerLimit(clampPlayerLimit(e.target.value))}
+                    onMouseUp={(e) => handlePlayerLimitChange(e.target.value)}
+                    onTouchEnd={(e) => handlePlayerLimitChange(e.target.value)}
+                  />
+                  <span className="opt-slider-label">Max Players: {playerLimit}</span>
+                </div>
+              </div>
+              {settingsNotice && <div className="game-settings-notice">{settingsNotice}</div>}
             </div>
           )}
           {isHost && (

@@ -1131,6 +1131,9 @@
 .game-settings-select option { color: #f0f4f8; }
 .game-settings-select option[value="PvP"] { color: #e45c5c; }
 .game-settings-select option[value="Cooperation"] { color: #7ca6ff; }
+.game-settings-row-slider { flex-direction: column; align-items: stretch; }
+.game-settings-row-slider .opt-slider.is-disabled { opacity: 0.65; }
+.game-settings-notice { font-size: 12px; color: #ffb4b4; margin-top: 4px; }
 .game-modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.65); display: flex; align-items: center; justify-content: center; z-index: 20; }
 .game-modal { background: #151b24; border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 16px; width: min(360px, 90vw); box-shadow: 0 14px 28px rgba(0,0,0,0.55); display: flex; flex-direction: column; gap: 10px; }
 .game-modal-title { font-size: 18px; font-weight: 700; color: #fff; }

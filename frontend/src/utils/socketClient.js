@@ -144,6 +144,7 @@ export function parseEventPayload(type, payload = {}) {
         ...(body || {}),
         gamemode: body?.gamemode || body?.room_gamemode,
         room_gamemode: body?.gamemode || body?.room_gamemode,
+        player_limit: body?.player_limit,
       }
     case 'game_history':
       return Array.isArray(body?.games) ? body.games : body
@@ -161,6 +162,7 @@ class MockTetrisSocket {
     this.playerName = 'You'
     this.mockPlayers = ['You', 'MockBot']
     this.gamemode = 'Normal'
+    this.playerLimit = 16
     this.gameStartTime = null
     this.tickTimer = null
   }
@@ -173,6 +175,12 @@ class MockTetrisSocket {
     const value = typeof raw === 'string' ? raw.trim().toLowerCase() : ''
     if (value.includes('coop')) return 'Coop'
     return 'Normal'
+  }
+
+  _normalizeLimit(raw) {
+    const n = Number(raw)
+    if (!Number.isFinite(n)) return 16
+    return Math.min(16, Math.max(1, Math.round(n)))
   }
 
   connect() {
@@ -197,9 +205,10 @@ class MockTetrisSocket {
         this.roomName = payload.room || payload.roomName || this.roomName
         this.playerName = payload.playerName || payload.player || this.playerName
         this.gamemode = this._normalizeGamemode(payload?.gamemode)
+        this.playerLimit = this._normalizeLimit(payload?.player_limit ?? this.playerLimit)
         if (!this.mockPlayers.includes(this.playerName)) this.mockPlayers.unshift(this.playerName)
         this._emit('player_list', [...this.mockPlayers])
-        return Promise.resolve(this._wrapCommandResponse('join_room', { success: true, room: this.roomName, playerName: this.playerName, host: true, mock: true }))
+        return Promise.resolve(this._wrapCommandResponse('join_room', { success: true, room: this.roomName, playerName: this.playerName, host: true, mock: true, room_gamemode: this.gamemode, player_limit: this.playerLimit }))
       }
       case 'start_game': {
         this.gameStartTime = Date.now()
@@ -241,6 +250,7 @@ class MockTetrisSocket {
               spectators: 0,
               game_duration: duration,
               players: [...this.mockPlayers],
+              player_limit: this.playerLimit,
             },
           ],
           mock: true,
@@ -250,7 +260,13 @@ class MockTetrisSocket {
       }
       case 'update_room_settings': {
         this.gamemode = this._normalizeGamemode(payload?.gamemode)
-        const res = { success: true, room: this.roomName, gamemode: this.gamemode, room_gamemode: this.gamemode }
+        this.playerLimit = this._normalizeLimit(payload?.player_limit ?? this.playerLimit)
+        const res = { success: true, room: this.roomName, gamemode: this.gamemode, room_gamemode: this.gamemode, player_limit: this.playerLimit }
+        this._emit('room_settings', res)
+        return Promise.resolve(this._wrapCommandResponse('room_settings', res))
+      }
+      case 'room_settings_get': {
+        const res = { success: true, room: this.roomName, gamemode: this.gamemode, room_gamemode: this.gamemode, player_limit: this.playerLimit }
         this._emit('room_settings', res)
         return Promise.resolve(this._wrapCommandResponse('room_settings', res))
       }
@@ -455,6 +471,14 @@ class TetrisSocketClient {
     return this.sendCommand(
       'update_room_settings',
       { room: roomName, roomName, playerName, player: playerName, ...settings },
+      { expectEvent: 'room_settings' }
+    )
+  }
+
+  fetchRoomSettings(roomName, playerName) {
+    return this.sendCommand(
+      'room_settings_get',
+      { room: roomName, roomName, playerName, player: playerName },
       { expectEvent: 'room_settings' }
     )
   }

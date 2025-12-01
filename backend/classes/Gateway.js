@@ -20,9 +20,20 @@ export class Gateway {
         return 'Normal';
     }
 
+    #normalizePlayerLimit(raw) {
+        const n = Number(raw);
+        if (!Number.isFinite(n)) return 16;
+        return Math.min(16, Math.max(1, Math.round(n)));
+    }
+
     #getRoomGamemode(roomName) {
         const meta = this.roomMetadata.get(roomName) || {};
         return meta.gamemode || 'Normal';
+    }
+
+    #getRoomPlayerLimit(roomName) {
+        const meta = this.roomMetadata.get(roomName) || {};
+        return Number.isFinite(meta.player_limit) ? meta.player_limit : 16;
     }
 
     #build_room_status(roomName) {
@@ -60,6 +71,7 @@ export class Gateway {
             starting_time: startingTime,
             players: playerNames,
             room_gamemode: metadata.gamemode || 'Normal',
+            player_limit: Number.isFinite(metadata.player_limit) ? metadata.player_limit : 16,
         };
     }
 
@@ -216,7 +228,7 @@ export class Gateway {
         this.rooms.set(room, new Map([[playerName, socket.id]]));
         let host = true;
         this.playerInfo.set(socket.id, { room, playerName, host });
-        this.roomMetadata.set(room, { gamemode: this.#normalizeGamemode(gamemode) });
+        this.roomMetadata.set(room, { gamemode: this.#normalizeGamemode(gamemode), player_limit: 16 });
         socket.join(room);
     }
 
@@ -265,7 +277,7 @@ export class Gateway {
         if (!this.rooms.has(room)) {
             this.#create_room(socket, data);
             const host = true;
-            const response = this.#formatCommandResponse('join_room', { success: true, room, playerName, host, room_gamemode: this.#getRoomGamemode(room) });
+            const response = this.#formatCommandResponse('join_room', { success: true, room, playerName, host, room_gamemode: this.#getRoomGamemode(room), player_limit: this.#getRoomPlayerLimit(room) });
             this.#broadcast_player_list(room);
             this.#broadcast_lobby_room(room);
             return response;
@@ -273,7 +285,7 @@ export class Gateway {
 
         const playersMap = this.rooms.get(room);
         if (!this.roomMetadata.has(room)) {
-            this.roomMetadata.set(room, { gamemode: this.#normalizeGamemode(data?.gamemode) });
+            this.roomMetadata.set(room, { gamemode: this.#normalizeGamemode(data?.gamemode), player_limit: 16 });
         }
 
         const nameExists = Array.from(playersMap.keys()).includes(playerName);
@@ -286,7 +298,7 @@ export class Gateway {
         this.playerInfo.set(socket.id, { room, playerName, host });
         socket.join(room);
 
-        const response = this.#formatCommandResponse('join_room', { success: true, room, playerName, host, room_gamemode: this.#getRoomGamemode(room) });
+        const response = this.#formatCommandResponse('join_room', { success: true, room, playerName, host, room_gamemode: this.#getRoomGamemode(room), player_limit: this.#getRoomPlayerLimit(room) });
         this.#broadcast_player_list(room);
         this.#broadcast_lobby_room(room);
         return response;
@@ -467,7 +479,7 @@ export class Gateway {
     }
 
     async update_room_settings(socket, data) {
-        const { roomName, room, gamemode } = data || {};
+        const { roomName, room, gamemode, player_limit } = data || {};
         const targetRoom = roomName || room;
         if (!targetRoom) {
             return this.#formatCommandResponse('room_settings', { success: false, error: 'Missing room' });
@@ -487,16 +499,54 @@ export class Gateway {
             return this.#formatCommandResponse('room_settings', { success: false, error: 'Room not found' });
         }
 
-        const normalized = this.#normalizeGamemode(gamemode);
         const meta = this.roomMetadata.get(targetRoom) || {};
-        meta.gamemode = normalized;
+
+        if (gamemode !== undefined) {
+            meta.gamemode = this.#normalizeGamemode(gamemode);
+        }
+
+        if (player_limit !== undefined) {
+            const limit = this.#normalizePlayerLimit(player_limit);
+            const currentCount = (this.rooms.get(targetRoom)?.size) || 0;
+            if (limit < currentCount) {
+                return this.#formatCommandResponse('room_settings', { success: false, error: `Too many players in the room to set Max Player to ${limit}`, attempted: limit });
+            }
+            meta.player_limit = limit;
+        }
+
         this.roomMetadata.set(targetRoom, meta);
 
-        const payload = { success: true, room: targetRoom, gamemode: normalized, room_gamemode: normalized };
+        const payload = {
+            success: true,
+            room: targetRoom,
+            gamemode: meta.gamemode,
+            room_gamemode: meta.gamemode,
+            player_limit: meta.player_limit ?? 16,
+        };
         if (this.io) {
             this.io.to(targetRoom).emit('room_settings', payload);
             this.#broadcast_lobby_room(targetRoom);
         }
+        return this.#formatCommandResponse('room_settings', payload);
+    }
+
+    async get_room_settings(socket, data) {
+        const playerInfo = this.playerInfo.get(socket.id);
+        const targetRoom = data?.roomName || data?.room || playerInfo?.room;
+        if (!targetRoom) {
+            return this.#formatCommandResponse('room_settings', { success: false, error: 'Missing room' });
+        }
+        if (!this.rooms.has(targetRoom)) {
+            return this.#formatCommandResponse('room_settings', { success: false, error: 'Room not found' });
+        }
+        const meta = this.roomMetadata.get(targetRoom) || {};
+        const payload = {
+            success: true,
+            room: targetRoom,
+            gamemode: meta.gamemode || 'Normal',
+            room_gamemode: meta.gamemode || 'Normal',
+            player_limit: Number.isFinite(meta.player_limit) ? meta.player_limit : 16,
+        };
         return this.#formatCommandResponse('room_settings', payload);
     }
 }

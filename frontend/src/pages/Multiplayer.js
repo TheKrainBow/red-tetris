@@ -43,7 +43,8 @@ const mapRoomsToUi = (rooms = []) => rooms.map((room, idx) => {
       ? 'mp-tag-mode mp-tag-coop'
       : 'mp-tag-mode mp-tag-pvp'
   const statusClass = status === 'PLAYING' ? 'mp-tag-status mp-tag-status-running' : 'mp-tag-status mp-tag-status-waiting'
-  const maxPlayers = isSinglePlayer ? 1 : 16
+  const limit = Number.isFinite(room?.player_limit) ? room.player_limit : 16
+  const maxPlayers = isSinglePlayer ? 1 : limit
   const baseCount = status === 'PLAYING' ? playersPlaying : players.length
   const playerCount = Math.min(Math.max(baseCount, players.length), maxPlayers)
   const isFull = playerCount >= maxPlayers
