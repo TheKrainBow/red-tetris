@@ -1082,7 +1082,7 @@
 }
 .game-modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.65); display: flex; align-items: center; justify-content: center; z-index: 20; }
 .game-modal { background: #151b24; border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 16px; width: min(360px, 90vw); box-shadow: 0 14px 28px rgba(0,0,0,0.55); display: flex; flex-direction: column; gap: 10px; }
-.game-modal-title { font-size: 18px; font-weight: 700; }
+.game-modal-title { font-size: 18px; font-weight: 700; color: #fff; }
 .game-modal-body { font-size: 14px; color: #cfd8e3; }
 .game-modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
 .game-modal-actions .ui-btn,
@@ -1094,10 +1094,15 @@
 .game-roster-heading { font-size: 13px; font-weight: 700; letter-spacing: 0.3px; color: #e0e6ef; margin: 8px 0 6px; text-transform: uppercase; }
 .game-roster-list { display: flex; flex-direction: column; gap: 6px; }
 .game-roster-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 8px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; }
+.game-roster-left { display: inline-flex; align-items: center; gap: 8px; }
 .game-roster-name { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: #f4f6fb; }
 .game-roster-name.is-eliminated .game-roster-text { text-decoration: line-through; opacity: 0.7; }
 .game-roster-host { color: #ffd166; font-size: 13px; }
 .game-roster-tag { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); text-transform: capitalize; }
+.game-roster-meta { display: inline-flex; align-items: center; gap: 8px; }
+.game-roster-kick { background: linear-gradient(135deg, #3b1d1d, #2a0f0f); color: #ffb4b4; border: 1px solid rgba(255,80,80,0.35); border-radius: 50%; width: 26px; height: 26px; padding: 0; font-size: 16px; font-weight: 900; line-height: 1; cursor: pointer; transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease, background 0.12s ease; display: inline-flex; align-items: center; justify-content: center; }
+.game-roster-kick:hover { transform: translateY(-1px) scale(1.05); box-shadow: 0 6px 14px rgba(0,0,0,0.35); border-color: rgba(255, 120, 120, 0.5); background: linear-gradient(135deg, #4a1c1c, #301010); }
+.game-roster-kick:active { transform: translateY(0); }
 .game-roster-tag.status-playing { color: #b6f7b1; background: rgba(45, 156, 90, 0.22); border-color: rgba(45, 156, 90, 0.4); }
 .game-roster-tag.status-eliminated { color: #f0b4b4; background: rgba(156, 45, 45, 0.18); border-color: rgba(156, 45, 45, 0.4); }
 .game-roster-tag.status-spectating { color: #c8e1ff; background: rgba(82, 129, 198, 0.2); border-color: rgba(82, 129, 198, 0.35); }
@@ -1109,6 +1114,10 @@
 .game-roster-title { font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; }
 .game-roster-sub { font-size: 12px; color: #9da9b5; }
 .game-roster-name.is-self { color: #7dd3fc; }
+.game-kick-banner { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, rgba(32, 39, 53, 0.95), rgba(24, 28, 38, 0.95)); color: #f6d7b0; padding: 10px 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.12); box-shadow: 0 10px 24px rgba(0,0,0,0.45); display: inline-flex; align-items: center; gap: 10px; z-index: 18; }
+.game-kick-icon { font-size: 16px; }
+.game-kick-text { font-size: 14px; }
+.game-kick-text strong { color: #fff; }
 .game-timer-float {
   position: fixed;
   top: 12px;

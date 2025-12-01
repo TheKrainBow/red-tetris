@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import Button from '../components/Button'
 import socketClient from '../utils/socketClient.js'
@@ -9,6 +9,7 @@ import { SHOP_ITEMS, CRAFT_ITEMS, formatResourceId } from '../utils/shopData'
 const BOARD_WIDTH = 10
 const BOARD_HEIGHT = 20
 const USERNAME_KEY = 'username'
+const KICK_NOTICE_KEY = 'kick.notice'
 
 const makeEmptyBoard = () => Array.from({ length: BOARD_HEIGHT }, () => Array.from({ length: BOARD_WIDTH }, () => 0))
 
@@ -145,6 +146,8 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
   const [playerRoster, setPlayerRoster] = useState({ room, players: [], counts: {}, game_running: false })
   const [isSpectator, setIsSpectator] = useState(Boolean(forceSpectator))
   const [allBoards, setAllBoards] = useState({})
+  const [kickNotice, setKickNotice] = useState(null)
+  const kickNoticeTimerRef = useRef(null)
   const spectrumCellSize = useMemo(() => {
     const count = opponents.length || 1
     if (count <= 4) return 9
@@ -197,6 +200,7 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
   const [eliminated, setEliminated] = useState(false)
   const [winnerName, setWinnerName] = useState('')
   const [isHost, setIsHost] = useState(false)
+  const isWaitingPhase = !playerRoster?.game_running
   const hasOpponents = opponents && opponents.length > 0
   const gameRunning = Boolean(playerRoster?.game_running)
   const rosterPlayers = useMemo(() => Array.isArray(playerRoster?.players) ? playerRoster.players : [], [playerRoster])
@@ -261,6 +265,14 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
     return cells
   }, [board, currentPiece])
 
+  const onKickPlayer = useCallback((targetName) => {
+    if (!targetName || !room) return
+    if (!isHost || !isWaitingPhase) return
+    socketClient.kickPlayer(room, player, targetName).catch((err) => {
+      console.error('Failed to kick player', err)
+    })
+  }, [isHost, isWaitingPhase, room, player])
+
   const renderRosterSections = (buckets) => {
     const renderSection = (label, list, tag) => {
       if (!list.length) return null
@@ -273,11 +285,25 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
               const isEliminated = status === 'eliminated'
               const key = `${p?.name || 'player'}-${status}-${idx}-${label}`
               const isSelf = (p?.name || '').toLowerCase() === (player || '').toLowerCase()
+              const canKick = isHost && isWaitingPhase && !isSelf && !p?.host && status !== 'playing'
               return (
                 <div className="game-roster-row" key={key}>
-                  <div className={`game-roster-name ${isEliminated ? 'is-eliminated' : ''} ${isSelf ? 'is-self' : ''}`}>
-                    {p?.host ? <span className="game-roster-host" title="Host">*</span> : null}
-                    <span className="game-roster-text">{p?.name || 'Unknown player'}</span>
+                  <div className="game-roster-left">
+                    {canKick && (
+                      <button
+                        type="button"
+                        className="game-roster-kick"
+                        onClick={() => onKickPlayer(p?.name)}
+                        title="Remove this player from the lobby"
+                        aria-label="Kick player"
+                      >
+                        ×
+                      </button>
+                    )}
+                    <div className={`game-roster-name ${isEliminated ? 'is-eliminated' : ''} ${isSelf ? 'is-self' : ''}`}>
+                      {p?.host ? <span className="game-roster-host" title="Host">*</span> : null}
+                      <span className="game-roster-text">{p?.name || 'Unknown player'}</span>
+                    </div>
                   </div>
                   <span className={`game-roster-tag status-${status || 'unknown'}`}>{tag}</span>
                 </div>
@@ -777,6 +803,44 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
     }
   }, [player, isSpectator, forceSpectator])
 
+  useEffect(() => {
+    const offKick = socketClient.on('player_kick', (payload = {}) => {
+      const body = payload?.data ?? payload
+      const success = body?.success !== false
+      if (!success) return
+      const kickedName = body.player_name || body.playerToKick || body.player || body.name
+      const byName = body.kicked_by || body.playerName || body.player
+      const roomName = body.room || body.roomName || room
+      if (kickedName) {
+        setKickNotice({ kicked: kickedName, by: byName, room: roomName, ts: Date.now() })
+        if (kickNoticeTimerRef.current) {
+          clearTimeout(kickNoticeTimerRef.current)
+        }
+        kickNoticeTimerRef.current = setTimeout(() => {
+          setKickNotice(null)
+        }, 5000)
+      }
+
+      const stored = (typeof window !== 'undefined' && window.localStorage) ? window.localStorage.getItem(USERNAME_KEY) : null
+      const selfName = stored || player
+      if (kickedName && selfName && kickedName === selfName) {
+        try {
+          const msg = `You got kicked from ${roomName || 'this server'}`
+          window.localStorage.setItem(KICK_NOTICE_KEY, msg)
+        } catch (_) {}
+        navigate('/')
+      }
+    })
+
+    return () => {
+      offKick && offKick()
+      if (kickNoticeTimerRef.current) {
+        clearTimeout(kickNoticeTimerRef.current)
+        kickNoticeTimerRef.current = null
+      }
+    }
+  }, [player, room])
+
   const onStartGame = async () => {
     if (!room || !player) return
     try {
@@ -1020,6 +1084,14 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
 
   return (
     <div className="game-root">
+      {kickNotice && (
+        <div className="game-kick-banner">
+          <span className="game-kick-icon" aria-hidden="true">⚠</span>
+          <div className="game-kick-text">
+            <strong>{kickNotice.kicked}</strong> was kicked{kickNotice.by ? ` by ${kickNotice.by}` : ''}.
+          </div>
+        </div>
+      )}
       <div className="game-layout">
         <div className="game-left">
           <div className="game-left-stack">

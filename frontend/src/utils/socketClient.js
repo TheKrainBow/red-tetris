@@ -2,7 +2,7 @@ import { io } from 'socket.io-client'
 
 const env = (typeof process !== 'undefined' && process.env) ? process.env : {}
 
-const EVENT_TYPES = ['player_list', 'room_boards', 'game_start', 'game_end', 'room_list_response', 'room_list', 'game_history', 'lobby_rooms', 'lobby_update']
+const EVENT_TYPES = ['player_list', 'room_boards', 'game_start', 'game_end', 'player_kick', 'room_list_response', 'room_list', 'game_history', 'lobby_rooms', 'lobby_update']
 const COMMAND_TIMEOUT = 5500
 const DEFAULT_SOCKET_PATH = '/socket.io'
 
@@ -199,6 +199,20 @@ class MockTetrisSocket {
       case 'leave_room': {
         this._emit('player_list', this.mockPlayers.filter((p) => p !== this.playerName))
         return Promise.resolve(this._wrapCommandResponse('leave_room', { success: true, left: this.roomName, mock: true }))
+      }
+      case 'player_kick': {
+        const target = payload.playerToKick || payload.target || payload.player
+        const success = Boolean(target && this.mockPlayers.includes(target))
+        if (success) {
+          this.mockPlayers = this.mockPlayers.filter((p) => p !== target)
+          const kickPayload = { success: true, room: this.roomName, player_name: target, kicked_by: this.playerName }
+          this._emit('player_kick', kickPayload)
+          this._emit('player_list', [...this.mockPlayers])
+          return Promise.resolve(this._wrapCommandResponse('player_kick', kickPayload))
+        }
+        const failure = { success: false }
+        this._emit('player_kick', failure)
+        return Promise.resolve(this._wrapCommandResponse('player_kick', failure))
       }
       case 'room_list': {
         const duration = this.gameStartTime ? Math.floor((Date.now() - this.gameStartTime) / 1000) : 0
@@ -407,6 +421,14 @@ class TetrisSocketClient {
 
   unsubscribeLobby() {
     return this.sendCommand('unsubscribe_lobby', {})
+  }
+
+  kickPlayer(roomName, playerName, playerToKick) {
+    return this.sendCommand(
+      'player_kick',
+      { room: roomName, roomName, playerName, player: playerName, playerToKick, target: playerToKick },
+      { expectEvent: 'player_kick' }
+    )
   }
 
   _startSocket() {

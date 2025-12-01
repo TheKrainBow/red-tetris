@@ -273,6 +273,61 @@ export class Gateway {
         return response;
     }
 
+    async player_kick(socket, data) {
+        const { roomName, room, playerName, player, playerToKick } = data || {};
+        const targetRoom = roomName || room;
+        const requesterName = playerName || player;
+        const targetName = playerToKick;
+
+        if (!targetRoom || !targetName) {
+            return this.#formatCommandResponse('player_kick', { success: false, error: 'Invalid payload' });
+        }
+
+        const requesterInfo = this.playerInfo.get(socket.id);
+        if (!requesterInfo || requesterInfo.room !== targetRoom || requesterInfo.host !== true) {
+            return this.#formatCommandResponse('player_kick', { success: false, error: 'Only the host can kick players' });
+        }
+
+        const game = this.games[targetRoom];
+        if (game && game.is_running()) {
+            return this.#formatCommandResponse('player_kick', { success: false, error: 'Game already started' });
+        }
+
+        const playersMap = this.rooms.get(targetRoom);
+        if (!playersMap || !playersMap.has(targetName)) {
+            return this.#formatCommandResponse('player_kick', { success: false, error: 'Player not found' });
+        }
+
+        const targetSocketId = playersMap.get(targetName);
+        const targetInfo = this.playerInfo.get(targetSocketId) || { room: targetRoom, playerName: targetName, host: false };
+
+        await this.remove_player(targetInfo);
+        this.playerInfo.delete(targetSocketId);
+
+        const targetSocket = this.io?.sockets?.sockets?.get(targetSocketId);
+        if (targetSocket && targetSocket.rooms.has(targetRoom)) {
+            targetSocket.leave(targetRoom);
+        }
+
+        const payload = {
+            success: true,
+            room: targetRoom,
+            player_name: targetName,
+            kicked_by: requesterName || requesterInfo.playerName,
+        };
+        const wrapped = this.#formatCommandResponse('player_kick', payload);
+
+        if (this.io) {
+            this.io.to(targetRoom).emit('player_kick', wrapped);
+            if (targetSocketId) {
+                this.io.to(targetSocketId).emit('player_kick', wrapped);
+            }
+        }
+        this.#broadcast_player_list(targetRoom);
+        this.#broadcast_lobby_room(targetRoom);
+        return wrapped;
+    }
+
     async remove_player(playerInfo){
         if (!playerInfo) return null;
 

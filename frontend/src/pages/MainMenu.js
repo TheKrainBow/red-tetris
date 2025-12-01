@@ -5,6 +5,7 @@ import { getLocalStorageItem } from '../utils/storage'
 import { navigate } from '../utils/navigation'
 
 const USERNAME_KEY = 'username'
+const KICK_NOTICE_KEY = 'kick.notice'
 
 // Testable helpers
 export function readUsername() {
@@ -27,7 +28,20 @@ export function attachReady(promise, setReady) {
 export default function MainMenu() {
   const username = useMemo(() => readUsername(), [])
   const [bgReady, setBgReady] = useState(false)
+  const [kickedMessage, setKickedMessage] = useState('')
   useEffect(() => attachReady(loadSkyboxCube(), setBgReady), [])
+
+  useEffect(() => {
+    try {
+      const msg = localStorage.getItem(KICK_NOTICE_KEY)
+      if (msg) setKickedMessage(msg)
+    } catch (_) {}
+  }, [])
+
+  const dismissKicked = () => {
+    setKickedMessage('')
+    try { localStorage.removeItem(KICK_NOTICE_KEY) } catch (_) {}
+  }
 
   return (
     <div className="mm-root">
@@ -57,6 +71,18 @@ export default function MainMenu() {
       {/* footer line similar to screenshot */}
       <div className="mm-bottom">
       </div>
+
+      {kickedMessage ? (
+        <div className="game-modal-backdrop">
+          <div className="game-modal">
+            <div className="game-modal-title">Kicked</div>
+            <div className="game-modal-body">{kickedMessage}</div>
+            <div className="game-modal-actions">
+              <Button onClick={dismissKicked}>Close</Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

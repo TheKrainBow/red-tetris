@@ -50,6 +50,11 @@ io.on('connection', (socket) => {
       const response = await gateway.start_game(socket, data, io);
       callback && callback(response);
     });
+
+    socket.on('player_kick', async (data, callback) => {
+      const response = await gateway.player_kick(socket, data, io);
+      callback && callback(response);
+    });
     
     socket.on('handle_key_press', async (data, callback) => {
       const response = await gateway.handle_key_press(socket, data, io);
