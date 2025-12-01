@@ -1327,44 +1327,6 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
 
       <div className="game-footer">
         <div className="game-footer-left">
-          {showSettingsCard && (
-            <div className="game-card game-card-settings">
-              <div className="game-settings-title">Game Settings</div>
-              <label className="game-settings-row" htmlFor="game-gamemode">
-                <span className="game-settings-label">Gamemode</span>
-                <select
-                  id="game-gamemode"
-                  className={`game-settings-select ${roomGamemode === 'Cooperation' ? 'mode-coop' : 'mode-pvp'}`}
-                  value={roomGamemode}
-                  onChange={(e) => handleGamemodeChange(e.target.value)}
-                  disabled={savingSettings || running || !isWaitingPhase}
-                >
-                  {GAMEMODES.map((gm) => (
-                    <option key={gm} value={gm}>{gm}</option>
-                  ))}
-                </select>
-              </label>
-              <div className="game-settings-row game-settings-row-slider">
-                <span className="game-settings-label" aria-hidden="true"></span>
-                <div className={`opt-slider ${savingSettings || running || !isWaitingPhase ? 'is-disabled' : ''}`}>
-                  <input
-                    className="opt-range"
-                    type="range"
-                    min="1"
-                    max="16"
-                    step="1"
-                    value={playerLimit}
-                    disabled={savingSettings || running || !isWaitingPhase}
-                    onChange={(e) => setPlayerLimit(clampPlayerLimit(e.target.value))}
-                    onMouseUp={(e) => handlePlayerLimitChange(e.target.value)}
-                    onTouchEnd={(e) => handlePlayerLimitChange(e.target.value)}
-                  />
-                  <span className="opt-slider-label">Max Players: {playerLimit}</span>
-                </div>
-              </div>
-              {settingsNotice && <div className="game-settings-notice">{settingsNotice}</div>}
-            </div>
-          )}
           {isHost && (
             <Button onClick={onStartGame} className="ui-btn-wide" disabled={running}>Start Game</Button>
           )}
@@ -1411,6 +1373,47 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
           })}
         </div>,
         shardLayerRef.current
+      )}
+
+      {showSettingsCard && (
+        <div className="game-settings-float">
+          <div className="game-card game-card-settings">
+            <div className="game-settings-title">Game Settings</div>
+            <label className="game-settings-row" htmlFor="game-gamemode">
+              <span className="game-settings-label">Gamemode</span>
+              <select
+                id="game-gamemode"
+                className={`game-settings-select ${roomGamemode === 'Cooperation' ? 'mode-coop' : 'mode-pvp'}`}
+                value={roomGamemode}
+                onChange={(e) => handleGamemodeChange(e.target.value)}
+                disabled={savingSettings || running || !isWaitingPhase}
+              >
+                {GAMEMODES.map((gm) => (
+                  <option key={gm} value={gm}>{gm}</option>
+                ))}
+              </select>
+            </label>
+            <div className="game-settings-row game-settings-row-slider">
+              <span className="game-settings-label" aria-hidden="true"></span>
+              <div className={`opt-slider ${savingSettings || running || !isWaitingPhase ? 'is-disabled' : ''}`}>
+                <input
+                  className="opt-range"
+                  type="range"
+                  min="1"
+                  max="16"
+                  step="1"
+                  value={playerLimit}
+                  disabled={savingSettings || running || !isWaitingPhase}
+                  onChange={(e) => setPlayerLimit(clampPlayerLimit(e.target.value))}
+                  onMouseUp={(e) => handlePlayerLimitChange(e.target.value)}
+                  onTouchEnd={(e) => handlePlayerLimitChange(e.target.value)}
+                />
+                <span className="opt-slider-label">Max Players: {playerLimit}</span>
+              </div>
+            </div>
+            {settingsNotice && <div className="game-settings-notice">{settingsNotice}</div>}
+          </div>
+        </div>
       )}
 
       {showConfirmLeave && (
