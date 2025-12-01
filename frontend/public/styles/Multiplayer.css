@@ -398,12 +398,18 @@
 }
 .shop-menu { position: absolute; inset: 16px; overflow-y: auto; overflow-x: hidden; }
 .shop-menu,
-.utility-panel-stats { scrollbar-width: thin; scrollbar-color: #6d6d6d transparent; }
+.utility-panel-stats,
+.game-card-roster,
+.game-float-panel { scrollbar-width: thin; scrollbar-color: #6d6d6d transparent; }
 /* Minecraft-like pixelated scrollbar (WebKit/Blink) */
 .shop-menu::-webkit-scrollbar,
-.utility-panel-stats::-webkit-scrollbar { width: 14px; height: 14px; }
+.utility-panel-stats::-webkit-scrollbar,
+.game-card-roster::-webkit-scrollbar,
+.game-float-panel::-webkit-scrollbar { width: 14px; height: 14px; }
 .shop-menu::-webkit-scrollbar-track,
-.utility-panel-stats::-webkit-scrollbar-track {
+.utility-panel-stats::-webkit-scrollbar-track,
+.game-card-roster::-webkit-scrollbar-track,
+.game-float-panel::-webkit-scrollbar-track {
   background:
     repeating-linear-gradient(
       0deg,
@@ -412,12 +418,16 @@
     );
   border-left: 2px solid #000;
 }
-.utility-panel-stats::-webkit-scrollbar-track {
+.utility-panel-stats::-webkit-scrollbar-track,
+.game-card-roster::-webkit-scrollbar-track,
+.game-float-panel::-webkit-scrollbar-track {
   background: transparent;
   border: none;
 }
 .shop-menu::-webkit-scrollbar-thumb,
-.utility-panel-stats::-webkit-scrollbar-thumb {
+.utility-panel-stats::-webkit-scrollbar-thumb,
+.game-card-roster::-webkit-scrollbar-thumb,
+.game-float-panel::-webkit-scrollbar-thumb {
   background:
     linear-gradient(180deg, rgba(255,255,255,0.18), rgba(0,0,0,0.18)),
     repeating-linear-gradient(
@@ -430,15 +440,21 @@
   border-left-width: 1px;
   box-shadow: inset 1px 1px 0 rgba(255,255,255,0.25), inset -1px -1px 0 rgba(0,0,0,0.5);
 }
-.utility-panel-stats::-webkit-scrollbar-thumb {
+.utility-panel-stats::-webkit-scrollbar-thumb,
+.game-card-roster::-webkit-scrollbar-thumb,
+.game-float-panel::-webkit-scrollbar-thumb {
   border: none;
   box-shadow: none;
 }
 /* Corners & buttons kept square for the blocky look */
 .shop-menu::-webkit-scrollbar-corner,
-.utility-panel-stats::-webkit-scrollbar-corner { background: #1d1d1d; }
+.utility-panel-stats::-webkit-scrollbar-corner,
+.game-card-roster::-webkit-scrollbar-corner,
+.game-float-panel::-webkit-scrollbar-corner { background: #1d1d1d; }
 .shop-menu::-webkit-scrollbar-button,
-.utility-panel-stats::-webkit-scrollbar-button { display: none; }
+.utility-panel-stats::-webkit-scrollbar-button,
+.game-card-roster::-webkit-scrollbar-button,
+.game-float-panel::-webkit-scrollbar-button { display: none; }
 
 .utility-panel-stats { scrollbar-width: auto; }
 .utility-panel-stats::-webkit-scrollbar { width: 18px; }
@@ -686,6 +702,7 @@
 /* In-game board + stats layout */
 .game-root {
   position: relative; width: 100%; height: 100%; overflow: hidden;
+  --game-pad: clamp(12px, 3vw, 24px);
   background:
     radial-gradient(circle at 35% 25%, rgba(255,255,255,0.08), transparent 40%),
     radial-gradient(circle at 70% 60%, rgba(0,0,0,0.35), transparent 45%),
@@ -696,7 +713,7 @@
   background-size: auto, auto;
   background-repeat: no-repeat, no-repeat;
   background-position: 0 0, 0 0;
-  color: #e8e8e8; padding: clamp(12px, 3vw, 24px); box-sizing: border-box; display: flex; flex-direction: column; gap: 16px;
+  color: #e8e8e8; padding: var(--game-pad); box-sizing: border-box; display: flex; flex-direction: column; gap: 16px;
   min-height: 100vh;
 }
 .game-root::before {
@@ -735,6 +752,8 @@
   margin: auto;
   width: 100%;
   padding-top: clamp(12px, 3vh, 28px);
+  height: calc(100vh - var(--game-pad) * 2);
+  max-height: calc(100vh - var(--game-pad) * 2);
 }
 .game-board-shell {
   position: relative;
@@ -878,6 +897,10 @@
   flex-direction: column;
   gap: 10px;
   align-items: flex-start;
+  max-height: 80vh;
+  overflow-y: auto;
+  padding-right: 6px;
+  background: transparent;
 }
 .game-grid {
   width: calc(var(--cell) * 10);
@@ -1109,7 +1132,7 @@
 .game-roster-tag.status-waiting,
 .game-roster-tag.status-unknown { color: #fce6b3; background: rgba(180, 136, 57, 0.2); border-color: rgba(180, 136, 57, 0.35); }
 .game-roster-empty { color: #9da9b5; font-size: 13px; padding: 6px 4px; }
-.game-card-roster { margin-top: 8px; display: flex; flex-direction: column; gap: 8px; }
+.game-card-roster { margin-top: 8px; display: flex; flex-direction: column; gap: 8px; flex: 1 1 auto; min-height: 0; max-height: calc(100% - 24px); overflow-y: auto; padding-right: 6px; }
 .game-roster-header { display: flex; justify-content: space-between; align-items: center; }
 .game-roster-title { font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; }
 .game-roster-sub { font-size: 12px; color: #9da9b5; }
