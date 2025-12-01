@@ -7,6 +7,15 @@ import { getLocalStorageItem } from '../utils/storage'
 
 const USERNAME_KEY = 'username'
 const DOT_FRAMES = ['Ooo', 'oOo', 'ooO', 'oOo']
+
+const formatDuration = (seconds) => {
+  const safe = Math.max(0, Math.floor(seconds || 0))
+  const h = Math.floor(safe / 3600)
+  const m = Math.floor((safe % 3600) / 60)
+  const s = safe % 60
+  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+  return `${m}:${String(s).padStart(2, '0')}`
+}
 const mapRoomsToUi = (rooms = []) => rooms.map((room, idx) => {
   const roomName = room?.room_name || 'Unknown room'
   const players = Array.isArray(room?.players) ? room.players : []
@@ -38,6 +47,8 @@ const mapRoomsToUi = (rooms = []) => rooms.map((room, idx) => {
   const baseCount = status === 'PLAYING' ? playersPlaying : players.length
   const playerCount = Math.min(Math.max(baseCount, players.length), maxPlayers)
   const isFull = playerCount >= maxPlayers
+  const startTime = Number(room?.starting_time || room?.start_time || room?.startTime || 0) || null
+  const initialDuration = startTime ? Math.max(0, Math.floor((Date.now() - startTime) / 1000)) : (room?.game_duration || 0)
   return {
     id: roomName || `room-${idx}`,
     roomName,
@@ -47,7 +58,8 @@ const mapRoomsToUi = (rooms = []) => rooms.map((room, idx) => {
     playersPlaying,
     spectators,
     status,
-    duration: room?.game_duration || 0,
+    duration: initialDuration,
+    startTime,
     isSinglePlayer,
     maxPlayers,
     playerCount,
@@ -265,24 +277,29 @@ export default function Multiplayer() {
               const ongoingRooms = servers.filter((s) => !s.isSinglePlayer && s.status === 'PLAYING')
               const singlePlayerRooms = servers.filter((s) => s.isSinglePlayer)
               const renderRoom = (s, { showMode = false } = {}) => {
-                const baseCount = s.status === 'PLAYING'
-                  ? (Number.isFinite(s.playersPlaying) ? s.playersPlaying : s.players.length)
-                  : s.players.length
-                const playerCount = Math.min(Math.max(baseCount, s.players.length), s.maxPlayers || 16)
-                const countText = `${playerCount}/${s.maxPlayers || 16}`
-                const spectatorText = s.status === 'PLAYING' && s.spectators && !s.isSinglePlayer
-                  ? ` · 👁 ${s.spectators}`
-                  : ''
-                const names = s.players.length ? s.players.join('  •  ') : 'Waiting for players'
+              const baseCount = s.status === 'PLAYING'
+                ? (Number.isFinite(s.playersPlaying) ? s.playersPlaying : s.players.length)
+                : s.players.length
+              const playerCount = Math.min(Math.max(baseCount, s.players.length), s.maxPlayers || 16)
+              const countText = `${playerCount}/${s.maxPlayers || 16}`
+              const spectatorText = s.status === 'PLAYING' && s.spectators && !s.isSinglePlayer
+                ? ` · 👁 ${s.spectators}`
+                : ''
+              const names = s.players.length ? s.players.join('  •  ') : 'Waiting for players'
+              const durationSeconds = s.startTime ? Math.max(0, Math.floor((Date.now() - s.startTime) / 1000)) : s.duration || 0
+              const durationLabel = formatDuration(durationSeconds)
 
-                const nameParts = [<span key="name" className="mp-name-primary">{s.name}</span>]
-                if (showMode) {
-                  nameParts.push(<span key="mode" className={s.modeClass}>{s.modeLabel}</span>)
-                  if (s.status !== 'PLAYING') {
-                    nameParts.push(<span key="status" className={s.statusClass}>{s.statusLabel}</span>)
-                  }
-                } else {
+              const nameParts = [<span key="name" className="mp-name-primary">{s.name}</span>]
+              if (showMode) {
+                nameParts.push(<span key="mode" className={s.modeClass}>{s.modeLabel}</span>)
+                if (s.status === 'PLAYING') {
+                  nameParts.push(<span key="duration" className="mp-duration">{durationLabel}</span>)
+                }
+                if (s.status !== 'PLAYING') {
                   nameParts.push(<span key="status" className={s.statusClass}>{s.statusLabel}</span>)
+                }
+              } else {
+                nameParts.push(<span key="status" className={s.statusClass}>{s.statusLabel}</span>)
                 }
                 const nameContent = []
                 nameParts.forEach((part, idx) => {

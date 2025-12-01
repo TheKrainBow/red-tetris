@@ -22,7 +22,7 @@ export class Gateway {
         const TotalConnections = playersMap.size;
         let playingCount = 0;
         let gameStatus = 'WAITING_FOR_PLAYER';
-        let gameDuration = 0;
+        let startingTime = null;
         let playerNames = Array.from(playersMap.keys());
 
         if (game) {
@@ -32,7 +32,7 @@ export class Gateway {
                 gameStatus = 'PLAYING';
                 playerNames = Array.from(game.players.keys());
                 if (game.startTime) {
-                    gameDuration = Math.floor((Date.now() - game.startTime) / 1000);
+                    startingTime = game.startTime;
                 }
             }
         } else {
@@ -44,7 +44,7 @@ export class Gateway {
             game_status: gameStatus,
             players_playing: playingCount,
             spectators: TotalConnections - playingCount,
-            game_duration: gameDuration,
+            starting_time: startingTime,
             players: playerNames,
         };
     }

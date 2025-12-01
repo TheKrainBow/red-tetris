@@ -135,6 +135,7 @@
 .mp-tag-status { font-weight: 600; }
 .mp-tag-status-waiting { color: #7ce070; }
 .mp-tag-status-running { color: #e45c5c; }
+.mp-duration { color: #cdd7ff; font-weight: 600; }
 .mp-count { margin-left: auto; color: #c0ffb4; text-shadow: 2px 2px 0 #000; }
 .mp-players { margin-left: 0; color: #ddd; font-size: 14px; text-shadow: 2px 2px 0 #000; }
 /* Generic secondary line used by Singleplayer history (no icon) */
