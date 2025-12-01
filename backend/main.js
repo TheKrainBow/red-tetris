@@ -66,6 +66,16 @@ io.on('connection', (socket) => {
       callback && callback(response);
     });
 
+    socket.on('subscribe_lobby', async (data, callback) => {
+      const response = await gateway.subscribe_lobby(socket, data);
+      callback && callback(response);
+    });
+
+    socket.on('unsubscribe_lobby', async (data, callback) => {
+      const response = await gateway.unsubscribe_lobby(socket, data);
+      callback && callback(response);
+    });
+
 });
 
 

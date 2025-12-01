@@ -13,6 +13,53 @@ export class Gateway {
         return { event, data };
     }
 
+    #build_room_status(roomName) {
+        if (!this.rooms.has(roomName)) return null;
+
+        const playersMap = this.rooms.get(roomName);
+        const game = this.games[roomName];
+
+        const TotalConnections = playersMap.size;
+        let playingCount = 0;
+        let gameStatus = 'WAITING_FOR_PLAYER';
+        let gameDuration = 0;
+        let playerNames = Array.from(playersMap.keys());
+
+        if (game) {
+            playingCount = game.players.size;
+
+            if (game.isRunning) {
+                gameStatus = 'PLAYING';
+                playerNames = Array.from(game.players.keys());
+                if (game.startTime) {
+                    gameDuration = Math.floor((Date.now() - game.startTime) / 1000);
+                }
+            }
+        } else {
+            gameStatus = 'WAITING_FOR_PLAYER';
+        }
+
+        return {
+            room_name: roomName,
+            game_status: gameStatus,
+            players_playing: playingCount,
+            spectators: TotalConnections - playingCount,
+            game_duration: gameDuration,
+            players: playerNames,
+        };
+    }
+
+    #build_rooms_status_list() {
+        const roomsStatus = [];
+
+        this.rooms.forEach((_, roomName) => {
+            const status = this.#build_room_status(roomName);
+            if (status) roomsStatus.push(status);
+        });
+
+        return roomsStatus;
+    }
+
     #build_player_list(roomName) {
         if (!this.rooms.has(roomName)) return null;
 
@@ -32,6 +79,8 @@ export class Gateway {
             hosts: 0,
         };
 
+        const seenPlayers = new Set();
+
         playersMap.forEach((socketId, playerName) => {
             const info = this.playerInfo.get(socketId) || {};
             let status = eliminatedNames.has(playerName) ? 'eliminated' : 'waiting';
@@ -46,11 +95,25 @@ export class Gateway {
                 host: Boolean(info.host),
                 status,
             });
+            seenPlayers.add(playerName);
 
             counts.total += 1;
             counts.hosts += info.host ? 1 : 0;
             counts[status] = (counts[status] || 0) + 1;
         });
+
+        if (game) {
+            game.eliminatedPlayers.forEach((playerName) => {
+                if (seenPlayers.has(playerName)) return;
+                players.push({
+                    name: playerName,
+                    host: false,
+                    status: 'eliminated',
+                });
+                counts.total += 1;
+                counts.eliminated = (counts.eliminated || 0) + 1;
+            });
+        }
 
         return this.#formatCommandResponse('player_list', {
             room: roomName,
@@ -87,6 +150,26 @@ export class Gateway {
         return payload;
     }
 
+    #broadcast_lobby_room(roomName) {
+        if (!this.io) return null;
+        const status = this.#build_room_status(roomName);
+        const payload = status
+            ? { room: status, rooms: [status] }
+            : { room: { room_name: roomName, deleted: true }, rooms: [] };
+        const wrapped = this.#formatCommandResponse('lobby_update', payload);
+        this.io.to('lobby').emit('lobby_update', wrapped);
+        return payload;
+    }
+
+    #broadcast_lobby_full() {
+        if (!this.io) return null;
+        const rooms = this.#build_rooms_status_list();
+        const payload = { rooms };
+        const wrapped = this.#formatCommandResponse('lobby_rooms', payload);
+        this.io.to('lobby').emit('lobby_rooms', wrapped);
+        return payload;
+    }
+
     #new_game(socket, roomName, io) {
         if (!this.rooms.has(roomName)) {
             return ;
@@ -107,7 +190,10 @@ export class Gateway {
 
         const spectatorProvider = () => this.#getSpectatorSocketIds(roomName);
         this.games[roomName] = new Game(players_info, roomName, mode, 500, spectatorProvider);
-        this.games[roomName].onStatusChange = () => this.#broadcast_player_list(roomName);
+        this.games[roomName].onStatusChange = () => {
+            this.#broadcast_player_list(roomName);
+            this.#broadcast_lobby_room(roomName);
+        };
         this.games[roomName].run(io);
     }
 
@@ -183,48 +269,68 @@ export class Gateway {
 
         const response = this.#formatCommandResponse('join_room', { success: true, room, playerName, host });
         this.#broadcast_player_list(room);
+        this.#broadcast_lobby_room(room);
         return response;
     }
 
     async remove_player(playerInfo){
-        if (playerInfo) {
-            const { room, playerName } = playerInfo;
+        if (!playerInfo) return null;
 
-            const game = this.games[room];
+        const { room, playerName } = playerInfo;
+        const game = this.games[room];
 
-            if (this.rooms.has(room)) {
-                const playersMap = this.rooms.get(room);
-                playersMap.delete(playerName);
-                if (playersMap.size === 0) {
-                    this.rooms.delete(room);
-                    if (game) {
-                        game.stop();
-                        delete this.games[room];
-                    }
-                }
-                else {
-                    const [nextHostName, nextHostSocketId] = playersMap.entries().next().value || [];
-                    if (playerInfo.host == true && nextHostSocketId){
-                        const nextInfo = this.playerInfo.get(nextHostSocketId);
-                        if (nextInfo) {
-                            nextInfo.host = true;
-                            this.playerInfo.set(nextHostSocketId, nextInfo);
-                        }
-                    }
-                    if (game) {
-                        game.eliminate_player(playerName);
-                    }
-                }
-            }
+        if (!this.rooms.has(room)) {
             return room;
         }
-        return null;
+
+        const playersMap = this.rooms.get(room);
+        const isRunning = game?.is_running() || false;
+        const isPlaying = Boolean(game && game.players.has(playerName));
+
+        if (isPlaying && isRunning && game) {
+            game.eliminate_player(playerName);
+            game.players.delete(playerName);
+            if (this.io) {
+                this.io.to(room).emit('player_eliminated', { player_name: playerName });
+                this.#broadcast_lobby_room(room);
+            }
+            if (typeof game.onStatusChange === 'function') {
+                game.onStatusChange();
+            }
+        }
+
+        playersMap.delete(playerName);
+
+        if (playerInfo.host === true) {
+            for (const [_, nextHostSocketId] of playersMap.entries()) {
+                if (nextHostSocketId && this.playerInfo.has(nextHostSocketId)) {
+                    const nextInfo = this.playerInfo.get(nextHostSocketId);
+                    if (nextInfo) {
+                        nextInfo.host = true;
+                        this.playerInfo.set(nextHostSocketId, nextInfo);
+                    }
+                    break;
+                }
+            }
+        }
+
+        if (playersMap.size === 0) {
+            this.rooms.delete(room);
+            if (game) {
+                game.stop();
+                delete this.games[room];
+            }
+            this.#broadcast_lobby_room(room);
+        } else {
+            this.#broadcast_lobby_room(room);
+        }
+        return room;
     }
 
     async disconnect(socket, reason) {
         console.log(`Socket disconnected ${socket.id}, reason: ${reason}`);
         const playerInfo = this.playerInfo.get(socket.id);
-        const room = this.remove_player(playerInfo);
+        const room = await this.remove_player(playerInfo);
         if (room) {
             this.#broadcast_player_list(room);
         }
@@ -250,7 +356,7 @@ export class Gateway {
             return this.#formatCommandResponse('leave_room', { success: true });
         }
 
-        const room = this.remove_player(playerInfo);
+        const room = await this.remove_player(playerInfo);
         this.playerInfo.delete(socket.id);
         if (this.rooms.has(playerInfo.room)){
             socket.leave(playerInfo.room);
@@ -262,41 +368,7 @@ export class Gateway {
     }
 
     async room_list(socket, data) {
-        const roomsStatus = [];
-        
-        this.rooms.forEach((playersMap, roomName) => {
-            const game = this.games[roomName];
-            const TotalConnections = playersMap.size;
-
-            let playingCount = 0;
-            let gameStatus = 'WAITING_FOR_PLAYER';
-            let gameDuration = 0;
-            let playerNames = Array.from(playersMap.keys());
-            
-            if (game) {
-                playingCount = game.players.size;
-                
-                if (game.isRunning) {
-                    gameStatus = 'PLAYING';
-                    playerNames = Array.from(game.players.keys());
-                    if (game.startTime) {
-                        gameDuration = Math.floor((Date.now() - game.startTime) / 1000);
-                    }
-                }
-            }
-            else {
-                gameStatus = 'WAITING_FOR_PLAYER';
-            }
-
-            roomsStatus.push({
-                room_name: roomName,
-                game_status: gameStatus,
-                players_playing: playingCount,
-                spectators: TotalConnections - playingCount,
-                game_duration: gameDuration,
-                players: playerNames,
-            });
-        });
+        const roomsStatus = this.#build_rooms_status_list();
 
         const response = this.#formatCommandResponse('room_list', {
             success: true,
@@ -305,5 +377,17 @@ export class Gateway {
 
         socket.emit('room_list_response', response);
         return response;
+    }
+
+    async subscribe_lobby(socket) {
+        socket.join('lobby');
+        const payload = { rooms: this.#build_rooms_status_list() };
+        socket.emit('lobby_rooms', payload);
+        return this.#formatCommandResponse('subscribe_lobby', { success: true });
+    }
+
+    async unsubscribe_lobby(socket) {
+        socket.leave('lobby');
+        return this.#formatCommandResponse('unsubscribe_lobby', { success: true });
     }
 }

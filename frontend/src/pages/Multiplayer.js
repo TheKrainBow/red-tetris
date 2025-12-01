@@ -67,6 +67,9 @@ export default function Multiplayer() {
   const wrapRef = useRef(null)
   const listRef = useRef(null)
   const rootRef = useRef(null)
+  const mountedRef = useRef(true)
+  const refreshTimerRef = useRef(null)
+  const lobbyUpdateHandlerRef = useRef(() => {})
 
   const selectedServer = servers.find(s => s.id === selected) || null
   const selectedSpectatorFull = selectedServer && selectedServer.status === 'PLAYING'
@@ -76,9 +79,11 @@ export default function Multiplayer() {
   const joinLabel = selectedServer?.status === 'PLAYING' ? 'Spectate' : 'Join Server'
 
   const fetchRooms = useCallback(async () => {
+    if (!mountedRef.current) return
     setLoading(true)
     try {
       const response = await socketClient.fetchRoomList()
+      if (!mountedRef.current) return
       const payload = response?.data || {}
       const list = mapRoomsToUi(payload?.rooms || [])
       setServers(list)
@@ -86,8 +91,13 @@ export default function Multiplayer() {
       // eslint-disable-next-line no-console
       console.error('Failed to fetch room list', err)
     } finally {
-      setLoading(false)
+      if (mountedRef.current) setLoading(false)
     }
+  }, [])
+
+  useEffect(() => () => {
+    mountedRef.current = false
+    if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current)
   }, [])
 
   useEffect(() => {
@@ -102,11 +112,73 @@ export default function Multiplayer() {
     fetchRooms()
     const offRoomList = socketClient.on('room_list', applyRooms)
     const offRoomListResponse = socketClient.on('room_list_response', applyRooms)
+    const offLobbyRooms = socketClient.on('lobby_rooms', applyRooms)
 
     return () => {
       mounted = false
       offRoomList?.()
       offRoomListResponse?.()
+      offLobbyRooms?.()
+    }
+  }, [fetchRooms])
+
+  useEffect(() => {
+    socketClient.subscribeLobby().catch(() => {})
+    return () => {
+      socketClient.unsubscribeLobby().catch(() => {})
+    }
+  }, [])
+
+  useEffect(() => {
+    lobbyUpdateHandlerRef.current = (roomPayload) => {
+      if (!roomPayload || !roomPayload.room_name) return
+      setServers((prev) => {
+        const mapped = mapRoomsToUi([roomPayload])[0]
+        if (!mapped) return prev
+
+        const existingIdx = prev.findIndex((r) => r.roomName === mapped.roomName)
+        if (roomPayload.deleted) {
+          const filtered = prev.filter((r) => r.roomName !== mapped.roomName)
+          return filtered
+        }
+
+        if (existingIdx === -1) return [...prev, mapped]
+        const next = [...prev]
+        next[existingIdx] = mapped
+        return next
+      })
+    }
+  }, [])
+
+  useEffect(() => {
+    const scheduleRefresh = () => {
+      if (refreshTimerRef.current) return
+      refreshTimerRef.current = setTimeout(() => {
+        refreshTimerRef.current = null
+        fetchRooms()
+      }, 200)
+    }
+
+    const offPlayerList = socketClient.on('player_list', scheduleRefresh)
+    const offGameStart = socketClient.on('game_start', scheduleRefresh)
+    const offGameEnd = socketClient.on('game_end', scheduleRefresh)
+    const offLobbyUpdate = socketClient.on('lobby_update', (payload) => {
+      const handler = lobbyUpdateHandlerRef.current
+      const room = payload?.room
+      if (room && typeof handler === 'function') {
+        handler(room)
+      }
+    })
+
+    return () => {
+      offPlayerList?.()
+      offGameStart?.()
+      offGameEnd?.()
+      offLobbyUpdate?.()
+      if (refreshTimerRef.current) {
+        clearTimeout(refreshTimerRef.current)
+        refreshTimerRef.current = null
+      }
     }
   }, [fetchRooms])
 

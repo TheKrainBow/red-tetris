@@ -260,6 +260,9 @@ export class Game {
     }
 
     eliminate_player(player_name){
+        if (this.eliminatedPlayers.includes(player_name)) {
+            return;
+        }
         this.eliminatedPlayers.push(player_name);
     }
 
