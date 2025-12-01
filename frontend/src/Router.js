@@ -10,6 +10,7 @@ import UtilityDock from './components/UtilityDock'
 import Leaderboard from './pages/Leaderboard'
 import CreateServer from './pages/CreateServer'
 import Game from './pages/Game'
+import SpectatePreview from './pages/SpectatePreview'
 import { replace } from './utils/navigation'
 
 const USERNAME_KEY = 'username'
@@ -61,7 +62,7 @@ export default function Router() {
   useEffect(() => {
     const username = localStorage.getItem(USERNAME_KEY)
     // Guard routes
-    if (!username && route !== '/login') {
+    if (!username && route !== '/login' && route !== '/spectate') {
       replace('/login')
       return
     }
@@ -95,6 +96,9 @@ export default function Router() {
         break
       case '/multiplayer/create':
         page = <CreateServer />
+        break
+      case '/spectate':
+        page = <SpectatePreview />
         break
       case '/':
       default:

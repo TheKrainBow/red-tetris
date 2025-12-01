@@ -129,7 +129,7 @@ const computeFortuneFromCrafts = (craftCounts = {}, inventory) => {
   return total
 }
 
-export default function Game({ room, player }) {
+export default function Game({ room, player, forceSpectator = false, mockSpectatorData = null }) {
   const [board, setBoard] = useState(makeEmptyBoard)
   const [nextPiece, setNextPiece] = useState([])
   const [currentPiece, setCurrentPiece] = useState(defaultPiece)
@@ -142,6 +142,9 @@ export default function Game({ room, player }) {
   const [joinError, setJoinError] = useState(null)
   const [now, setNow] = useState(Date.now())
   const [opponents, setOpponents] = useState([])
+  const [playerRoster, setPlayerRoster] = useState({ room, players: [], counts: {}, game_running: false })
+  const [isSpectator, setIsSpectator] = useState(Boolean(forceSpectator))
+  const [allBoards, setAllBoards] = useState({})
   const spectrumCellSize = useMemo(() => {
     const count = opponents.length || 1
     if (count <= 4) return 9
@@ -172,9 +175,6 @@ export default function Game({ room, player }) {
     }
     return rows
   }, [opponents])
-  const hasOpponents = opponents && opponents.length > 0
-  const gameRunning = Boolean(playerRoster?.game_running)
-  const rosterPlayers = useMemo(() => Array.isArray(playerRoster?.players) ? playerRoster.players : [], [playerRoster])
 
   const prevFullRowsRef = useRef(new Set())
   const totalClearedRef = useRef(0)
@@ -182,7 +182,9 @@ export default function Game({ room, player }) {
   const hasPrevBoardRef = useRef(false)
   const shardIdRef = useRef(0)
   const [shards, setShards] = useState([])
+  const [spectatorCellSize, setSpectatorCellSize] = useState(18)
   const boardRef = useRef(null)
+  const spectatorGridRef = useRef(null)
   const suppressShardsRef = useRef(false)
   const prevPieceRef = useRef(defaultPiece)
   const { setInventory, purchases, craftCounts, inventory } = useShopState()
@@ -195,7 +197,21 @@ export default function Game({ room, player }) {
   const [eliminated, setEliminated] = useState(false)
   const [winnerName, setWinnerName] = useState('')
   const [isHost, setIsHost] = useState(false)
-  const [playerRoster, setPlayerRoster] = useState({ room, players: [], counts: {}, game_running: false })
+  const hasOpponents = opponents && opponents.length > 0
+  const gameRunning = Boolean(playerRoster?.game_running)
+  const rosterPlayers = useMemo(() => Array.isArray(playerRoster?.players) ? playerRoster.players : [], [playerRoster])
+  const rosterBuckets = useMemo(() => {
+    const players = rosterPlayers
+    return {
+      playing: players.filter((p) => (p?.status || '').toLowerCase() === 'playing'),
+      eliminated: players.filter((p) => (p?.status || '').toLowerCase() === 'eliminated'),
+      spectating: players.filter((p) => (p?.status || '').toLowerCase() === 'spectating'),
+      waiting: players.filter((p) => {
+        const status = (p?.status || '').toLowerCase()
+        return !status || status === 'waiting'
+      }),
+    }
+  }, [rosterPlayers])
 
   const currentCellValue = (rowIdx, colIdx) => {
     const [posX, posY] = currentPiece.pos || [0, 0]
@@ -244,6 +260,56 @@ export default function Game({ room, player }) {
     }
     return cells
   }, [board, currentPiece])
+
+  const renderRosterSections = (buckets) => {
+    const renderSection = (label, list, tag) => {
+      if (!list.length) return null
+      return (
+        <React.Fragment key={`roster-${label}`}>
+          <div className="game-roster-heading">{label}</div>
+          <div className="game-roster-list">
+            {list.map((p, idx) => {
+              const status = (p?.status || tag || 'waiting').toLowerCase()
+              const isEliminated = status === 'eliminated'
+              const key = `${p?.name || 'player'}-${status}-${idx}-${label}`
+              const isSelf = (p?.name || '').toLowerCase() === (player || '').toLowerCase()
+              return (
+                <div className="game-roster-row" key={key}>
+                  <div className={`game-roster-name ${isEliminated ? 'is-eliminated' : ''} ${isSelf ? 'is-self' : ''}`}>
+                    {p?.host ? <span className="game-roster-host" title="Host">*</span> : null}
+                    <span className="game-roster-text">{p?.name || 'Unknown player'}</span>
+                  </div>
+                  <span className={`game-roster-tag status-${status || 'unknown'}`}>{tag}</span>
+                </div>
+              )
+            })}
+          </div>
+        </React.Fragment>
+      )
+    }
+
+    const sections = [
+      renderSection('Playing', buckets.playing, 'Playing'),
+      renderSection('Eliminated', buckets.eliminated, 'Eliminated'),
+      renderSection('Spectators', buckets.spectating, 'Spectating'),
+      renderSection('Waiting', buckets.waiting, 'Waiting'),
+    ].filter(Boolean)
+
+    if (!sections.length) {
+      return <div className="game-roster-list"><div className="game-roster-empty">No players yet.</div></div>
+    }
+    // Debug: trace what we are rendering to keep roster in sync with incoming events
+    console.debug('[roster] rendering sections', {
+      counts: {
+        playing: buckets.playing.length,
+        eliminated: buckets.eliminated.length,
+        spectating: buckets.spectating.length,
+        waiting: buckets.waiting.length,
+      },
+      players: rosterPlayers,
+    })
+    return sections
+  }
 
   const playMaterialSound = (material = 1, delayMs = 0) => {
     const clips = material === 1 ? DIRT_SOUNDS : STONE_SOUNDS
@@ -348,6 +414,7 @@ export default function Game({ room, player }) {
   }, [])
 
   useEffect(() => {
+    if (forceSpectator) return
     const onKeyDown = (e) => {
       if (!room || !player || showConfirmLeave) return
       const key = e.code === 'Space' ? 'Space' : e.key
@@ -358,9 +425,10 @@ export default function Game({ room, player }) {
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [room, player, running, showConfirmLeave])
+  }, [room, player, running, showConfirmLeave, forceSpectator])
 
   useEffect(() => {
+    if (forceSpectator) return
     if (!room || !player) return
     socketClient.joinRoom(room, player)
       .then((res) => {
@@ -371,9 +439,19 @@ export default function Game({ room, player }) {
         if (typeof hostVal === 'boolean') setIsHost(hostVal)
       })
       .catch((err) => setJoinError(err?.message || 'Failed to join room'))
-  }, [room, player])
+  }, [room, player, forceSpectator])
 
   useEffect(() => {
+    if (forceSpectator) {
+      setIsSpectator(true)
+      setRunning(true)
+      setStartTime((prev) => prev || (mockSpectatorData?.startTime || Date.now()))
+      const mockPlayers = Array.isArray(mockSpectatorData?.players) ? mockSpectatorData.players : []
+      setPlayerRoster((prev) => ({ ...prev, players: mockPlayers, game_running: true }))
+      const mockBoards = mockSpectatorData?.boards || {}
+      setAllBoards(mockBoards)
+      return
+    }
     const offRoster = socketClient.on('player_list', (payload = {}) => {
       const normalized = payload?.players
         ? payload
@@ -391,19 +469,52 @@ export default function Game({ room, player }) {
         if (me && typeof me.host === 'boolean') {
           setIsHost(Boolean(me.host))
         }
+        if (me && typeof me.status === 'string') {
+          const status = (me.status || '').toLowerCase()
+          setIsSpectator(status === 'spectating')
+        } else {
+          setIsSpectator(false)
+        }
       }
     })
     return () => {
       offRoster && offRoster()
     }
-  }, [])
+  }, [forceSpectator, mockSpectatorData, player])
 
   useEffect(() => {
+    if (forceSpectator) return
     const offBoards = socketClient.on('room_boards', (payload = {}) => {
       const b = Array.isArray(payload.Board) ? payload.Board : payload.board || []
       const cleanBoard = Array.isArray(b) && b.length ? b : makeEmptyBoard()
       const clearedRowsFromServer = Array.isArray(payload.ClearedRows) ? payload.ClearedRows : Array.isArray(payload.clearedRows) ? payload.clearedRows : []
       const linesClearedHint = Number(payload.LinesCleared ?? payload.linesCleared ?? 0) || 0
+      const playerNameFromServer = payload.player_name || payload.playerName || payload.player || ''
+      const next = payload.NextPiece?.Shape || payload.nextPiece?.shape || payload.nextPiece?.Shape || payload.nextPiece || []
+      const curPiece = payload.CurrentPiece || payload.currentPiece || {}
+      const curShape = Array.isArray(curPiece.shape) ? curPiece.shape : Array.isArray(curPiece.Shape) ? curPiece.Shape : []
+      const curPos = Array.isArray(curPiece.pos) ? curPiece.pos : Array.isArray(curPiece.Pos) ? curPiece.Pos : [0, 0]
+      const curMaterial = curPiece.material || curPiece.Material || 1
+      const resolvedName = playerNameFromServer || player
+
+      if (resolvedName) {
+        setAllBoards((prev) => ({
+          ...prev,
+          [resolvedName]: {
+            board: cleanBoard,
+            currentPiece: { shape: curShape, pos: curPos, material: curMaterial },
+            nextPiece: Array.isArray(next) ? next : [],
+            updatedAt: Date.now(),
+          },
+        }))
+      }
+
+      // Spectators keep a lightweight flow: store snapshots and skip the player-only UI work.
+      if (isSpectator) {
+        setRunning(true)
+        setStartTime((prev) => prev || Date.now())
+        return
+      }
 
       const prevBoard = prevBoardRef.current || []
       const addedCells = []
@@ -416,11 +527,11 @@ export default function Game({ room, player }) {
         for (let r = 0; r < height; r++) {
           for (let c = 0; c < width; c++) {
             const prevVal = Number(prevBoard?.[r]?.[c] || 0)
-          const curVal = Number(cleanBoard?.[r]?.[c] || 0)
-          if (prevVal === 0 && curVal !== 0) {
-            addedCells.push(curVal)
+            const curVal = Number(cleanBoard?.[r]?.[c] || 0)
+            if (prevVal === 0 && curVal !== 0) {
+              addedCells.push(curVal)
+            }
           }
-        }
         }
 
         // Predict cleared lines using previous board plus previous falling piece
@@ -496,13 +607,8 @@ export default function Game({ room, player }) {
       setRunning(true)
       setStartTime((prev) => prev || Date.now())
 
-      const next = payload.NextPiece?.Shape || payload.nextPiece?.shape || payload.nextPiece?.Shape || payload.nextPiece || []
       setNextPiece(Array.isArray(next) ? next : [])
 
-      const curPiece = payload.CurrentPiece || payload.currentPiece || {}
-      const curShape = Array.isArray(curPiece.shape) ? curPiece.shape : Array.isArray(curPiece.Shape) ? curPiece.Shape : []
-      const curPos = Array.isArray(curPiece.pos) ? curPiece.pos : Array.isArray(curPiece.Pos) ? curPiece.Pos : [0, 0]
-      const curMaterial = curPiece.material || curPiece.Material || 1
       setCurrentPiece({ shape: curShape, pos: curPos, material: curMaterial })
       prevPieceRef.current = { shape: curShape, pos: curPos, material: curMaterial }
 
@@ -642,6 +748,7 @@ export default function Game({ room, player }) {
       suppressShardsRef.current = false
       prevBoardRef.current = makeEmptyBoard()
       hasPrevBoardRef.current = false
+      setAllBoards({})
     })
     const offEnd = socketClient.on('game_end', (payload = {}) => {
       const winner = payload?.data?.winner ?? payload?.winner
@@ -668,7 +775,7 @@ export default function Game({ room, player }) {
       offEnd && offEnd()
       offEliminated && offEliminated()
     }
-  }, [player])
+  }, [player, isSpectator, forceSpectator])
 
   const onStartGame = async () => {
     if (!room || !player) return
@@ -700,7 +807,216 @@ export default function Game({ room, player }) {
 
   const cancelLeave = () => setShowConfirmLeave(false)
 
+  const rosterInfoMap = useMemo(() => {
+    const map = new Map()
+    rosterPlayers.forEach((p) => {
+      if (!p?.name) return
+      map.set(p.name, { status: (p?.status || '').toLowerCase(), host: !!p?.host })
+    })
+    return map
+  }, [rosterPlayers])
+
+  const spectatorBoards = useMemo(() => {
+    const entries = []
+    const seen = new Set()
+    const pushEntry = (name, snapshot = {}, fallbackStatus = '') => {
+      if (!name || seen.has(name)) return
+      seen.add(name)
+      const statusInfo = rosterInfoMap.get(name)
+      const status = (statusInfo?.status || fallbackStatus || '').toLowerCase()
+      // Only render boards for players who are currently playing or have been eliminated
+      if (status && status !== 'playing' && status !== 'eliminated') return
+      const boardState = Array.isArray(snapshot.board) && snapshot.board.length ? snapshot.board : makeEmptyBoard()
+      const currentPieceState = snapshot.currentPiece || defaultPiece
+      entries.push({
+        name,
+        status,
+        host: statusInfo?.host || false,
+        board: boardState,
+        currentPiece: currentPieceState,
+        nextPiece: snapshot.nextPiece || [],
+      })
+    }
+
+    rosterPlayers.forEach((p, idx) => {
+      const name = p?.name || `Player ${idx + 1}`
+      pushEntry(name, allBoards[name], p?.status || '')
+    })
+
+    Object.entries(allBoards || {}).forEach(([name, snapshot]) => {
+      pushEntry(name, snapshot, '')
+    })
+
+    return entries
+  }, [rosterPlayers, allBoards, rosterInfoMap])
+
+  useEffect(() => {
+    if (!isSpectator) return
+    const updateSpectatorSizing = () => {
+      const gridEl = spectatorGridRef.current
+      if (!gridEl) return
+      const rect = gridEl.getBoundingClientRect()
+      const total = spectatorBoards.length || 1
+      const gapX = 20
+      const gapY = 16
+      const colGuess = Math.max(1, Math.min(total, Math.floor((rect.width + gapX) / 260) || 1))
+      const rowCount = Math.max(1, Math.ceil(total / colGuess))
+      const availW = rect.width - gapX * Math.max(0, colGuess - 1)
+      const availH = rect.height - gapY * Math.max(0, rowCount - 1)
+      const cardW = availW / colGuess
+      const cardH = availH / rowCount
+      const pad = Math.max(12, Math.round(spectatorCellSize * 0.6))
+      const nameHeight = 42
+      const nameGap = 10
+      const borderAllowance = 8
+      const extraW = pad * 2 + borderAllowance // board padding + border allowance
+      const extraH = pad * 2 + borderAllowance + nameHeight + nameGap // padding + name card + gap allowance
+      const sizeFromW = (cardW - extraW) / BOARD_WIDTH
+      const sizeFromH = (cardH - extraH) / BOARD_HEIGHT
+      const calc = Math.min(sizeFromW, sizeFromH)
+      const clamped = Math.max(10, Math.min(calc || 18, 36))
+      setSpectatorCellSize(clamped)
+    }
+    updateSpectatorSizing()
+    window.addEventListener('resize', updateSpectatorSizing)
+    return () => window.removeEventListener('resize', updateSpectatorSizing)
+  }, [isSpectator, spectatorBoards])
+
+  const mergeBoardAndPiece = (boardState, pieceState = {}) => {
+    const sourceBoard = Array.isArray(boardState) && boardState.length ? boardState : makeEmptyBoard()
+    const merged = sourceBoard.map((row) => row.slice())
+    const shape = Array.isArray(pieceState.shape) ? pieceState.shape : []
+    const [posX, posY] = Array.isArray(pieceState.pos) ? pieceState.pos : [0, 0]
+    const material = pieceState.material || 1
+    if (shape.length) {
+      for (let y = 0; y < shape.length; y++) {
+        for (let x = 0; x < shape[y].length; x++) {
+          if (!shape[y][x]) continue
+          const gx = posX + x
+          const gy = posY + y
+          if (gy >= 0 && gy < merged.length && gx >= 0 && gx < (merged[0]?.length || BOARD_WIDTH)) {
+            merged[gy][gx] = material
+          }
+        }
+      }
+    }
+    return merged
+  }
+
   const elapsed = startTime ? now - Number(startTime) : 0
+
+  if (isSpectator) {
+    return (
+      <div className="game-root spectator-view">
+        <div className="spectator-banner game-card" style={{ textAlign: 'center' }}>
+          <div className="spectator-title" style={{ fontSize: '1.6rem', fontWeight: 700, marginBottom: 2 }}>Game is still running</div>
+          <div className="spectator-subtitle" style={{ fontSize: '1rem', opacity: 0.85 }}>You will be playing in the next game</div>
+        </div>
+        <div className="spectator-main" style={{ display: 'grid', gridTemplateColumns: '3fr 1fr', gap: '16px', alignItems: 'start' }}>
+          <div
+            className="spectator-grid"
+            ref={spectatorGridRef}
+            style={{
+              display: 'grid',
+              gridTemplateColumns: `repeat(auto-fit, minmax(${Math.round(BOARD_WIDTH * spectatorCellSize + Math.max(12, Math.round(spectatorCellSize * 0.6)) * 2 + 12)}px, 1fr))`,
+              columnGap: '24px',
+              rowGap: '18px',
+              alignItems: 'start',
+              justifyItems: 'center',
+              justifyContent: 'center',
+              height: 'calc(100vh - 240px)',
+              maxHeight: 'calc(100vh - 200px)',
+              alignContent: 'start',
+            }}
+          >
+            {spectatorBoards.length ? spectatorBoards.map((entry, idx) => {
+              const mergedBoard = mergeBoardAndPiece(entry.board, entry.currentPiece)
+              const status = entry.status || 'waiting'
+              const cardPad = Math.max(12, Math.round(spectatorCellSize * 0.6))
+              const borderAllowance = 8
+              const nameHeight = 42
+              const nameGap = 10
+              const boardW = BOARD_WIDTH * spectatorCellSize
+              const boardH = BOARD_HEIGHT * spectatorCellSize
+              const cardWidth = boardW + cardPad * 2 + borderAllowance
+              const cardHeight = boardH + cardPad * 2 + borderAllowance + nameHeight + nameGap
+              return (
+                <div
+                  className="spectator-card game-card"
+                  key={`${entry.name}-${status}-${idx}`}
+                  style={{
+                    padding: `${Math.round(cardPad * 0.8)}px`,
+                    width: `${Math.round(cardWidth)}px`,
+                    height: `${Math.round(cardHeight)}px`,
+                    maxWidth: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: `${Math.max(8, Math.round(cardPad * 0.5))}px`,
+                    background: 'rgba(0,0,0,0.25)',
+                    border: '2px solid rgba(0,0,0,0.4)',
+                    boxShadow: '0 10px 20px rgba(0,0,0,0.35)',
+                  }}
+                >
+                  <div
+                    className="game-board"
+                    style={{
+                      width: `${Math.round(boardW + cardPad * 0.6)}px`,
+                      height: `${Math.round(boardH + cardPad * 0.6)}px`,
+                      maxWidth: '100%',
+                      margin: '0 auto',
+                      overflow: 'hidden',
+                      '--cell': `${spectatorCellSize}px`,
+                      padding: `${cardPad}px`,
+                    }}
+                  >
+                    <div className="game-board-grid">
+                      {mergedBoard.map((row, rIdx) => (
+                        <div key={`spec-row-${entry.name}-${rIdx}`} className="game-row">
+                          {row.map((val, cIdx) => (
+                            <div
+                              key={`spec-cell-${entry.name}-${rIdx}-${cIdx}`}
+                              className={`game-cell ${val ? 'filled' : ''}`}
+                              style={val ? { backgroundImage: `url(${CELL_TEXTURES[val] || '/ui/Dirt.png'})` } : undefined}
+                            />
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                    {status === 'eliminated' && (
+                      <div className="game-board-overlay">
+                        <div className="game-over-text">Game Over</div>
+                      </div>
+                    )}
+                  </div>
+                  <div className="spectator-name-card">
+                    <div className="spectator-player-name">
+                      {entry.host ? <span className="game-roster-host" title="Host">*</span> : null}
+                      <span className="game-roster-text">{entry.name || 'Unknown player'}</span>
+                    </div>
+                  </div>
+                </div>
+              )
+            }) : (
+              <div className="game-roster-empty spectator-empty">Waiting for boards...</div>
+            )}
+          </div>
+
+          <div className="spectator-side" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div className="game-card game-card-two">
+              <div className="game-stat-inline">
+                <div className="game-stat-label">Time Elapsed</div>
+                <div className="game-stat-value">{formatTime(elapsed)}</div>
+              </div>
+            </div>
+            <div className="game-card game-card-roster">
+              {renderRosterSections(rosterBuckets)}
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="game-root">
@@ -809,56 +1125,7 @@ export default function Game({ room, player }) {
             </div>
 
             <div className="game-card game-card-roster">
-              {(() => {
-                const players = Array.isArray(playerRoster?.players) ? playerRoster.players : []
-                const buckets = {
-                  playing: players.filter((p) => (p?.status || '').toLowerCase() === 'playing'),
-                  eliminated: players.filter((p) => (p?.status || '').toLowerCase() === 'eliminated'),
-                  spectating: players.filter((p) => (p?.status || '').toLowerCase() === 'spectating'),
-                  waiting: players.filter((p) => {
-                    const status = (p?.status || '').toLowerCase()
-                    return !status || status === 'waiting'
-                  }),
-                }
-
-              const renderSection = (label, list, tag) => {
-                if (!list.length) return null
-                return (
-                  <>
-                    <div className="game-roster-heading">{label}</div>
-                    <div className="game-roster-list">
-                      {list.map((p, idx) => {
-                        const status = (p?.status || tag || 'waiting').toLowerCase()
-                        const isEliminated = status === 'eliminated'
-                        const key = `${p?.name || 'player'}-${status}-${idx}-${label}`
-                        const isSelf = (p?.name || '').toLowerCase() === (player || '').toLowerCase()
-                        return (
-                          <div className="game-roster-row" key={key}>
-                            <div className={`game-roster-name ${isEliminated ? 'is-eliminated' : ''} ${isSelf ? 'is-self' : ''}`}>
-                              {p?.host ? <span className="game-roster-host" title="Host">*</span> : null}
-                              <span className="game-roster-text">{p?.name || 'Unknown player'}</span>
-                            </div>
-                            <span className={`game-roster-tag status-${status || 'unknown'}`}>{tag}</span>
-                          </div>
-                        )
-                        })}
-                      </div>
-                    </>
-                  )
-                }
-
-                const sections = [
-                  renderSection('Playing', buckets.playing, 'Playing'),
-                  renderSection('Eliminated', buckets.eliminated, 'Eliminated'),
-                  renderSection('Spectators', buckets.spectating, 'Spectating'),
-                  renderSection('Waiting', buckets.waiting, 'Waiting'),
-                ].filter(Boolean)
-
-                if (!sections.length) {
-                  return <div className="game-roster-list"><div className="game-roster-empty">No players yet.</div></div>
-                }
-                return sections
-              })()}
+              {renderRosterSections(rosterBuckets)}
             </div>
           </div>
         </div>

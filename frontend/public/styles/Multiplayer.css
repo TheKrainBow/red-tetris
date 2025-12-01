@@ -641,6 +641,17 @@
   pointer-events: none;
 }
 .game-root > * { position: relative; z-index: 1; }
+.game-root.spectator-view {
+  padding-top: calc(clamp(12px, 3vw, 24px) + 96px);
+}
+@media (max-width: 640px) {
+  .game-root.spectator-view {
+    padding-top: calc(clamp(12px, 3vw, 24px) + 72px);
+  }
+}
+.spectator-banner {
+  margin-top: -8px;
+}
 .game-layout {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
@@ -721,6 +732,30 @@
   font-size: 13px;
   color: #9da9b5;
   padding: 4px 6px;
+}
+
+.spectator-name-card {
+  width: 100%;
+  margin-top: 2px;
+  padding: 6px 10px;
+  background: transparent;
+  /* border: 1px solid rgba(255,255,255,0.05); */
+  /* border-radius: 10px; */
+  /* box-shadow: 0 6px 14px rgba(0,0,0,0.25); */
+  text-align: center;
+}
+.spectator-player-name {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: #e6ecf5;
+  font-weight: 600;
+}
+.spectator-view .spectator-card {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 
 @media (max-width: 1100px) {

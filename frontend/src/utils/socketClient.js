@@ -69,10 +69,26 @@ export function parseEventPayload(type, payload = {}) {
   const body = normalizeEventPayload(payload)
   switch (type) {
     case 'player_list':
-      if (body && typeof body === 'object' && (Array.isArray(body.players) || body.room || body.counts)) {
-        return body
+      if (body && typeof body === 'object') {
+        // Normalize common shapes:
+        // { players: [...] }
+        // { player_list: [...] }
+        // { data: [...], room: 'abc' }
+        const players = Array.isArray(body.players)
+          ? body.players
+          : Array.isArray(body.player_list)
+            ? body.player_list
+            : Array.isArray(body.data)
+              ? body.data
+              : Array.isArray(body)
+                ? body
+                : []
+        return {
+          ...body,
+          players,
+        }
       }
-      return Array.isArray(body) ? { players: body } : Array.isArray(body?.data) ? { players: body.data } : { players: [] }
+      return Array.isArray(body) ? { players: body } : { players: [] }
     case 'room_boards': {
       const board = Array.isArray(body.Board) ? body.Board : Array.isArray(body.board) ? body.board : []
       const opponents = body.Opponents ?? body.opponents ?? body.opponent
@@ -82,6 +98,7 @@ export function parseEventPayload(type, payload = {}) {
       const nextPiece = body.NextPiece || body.nextPiece || {}
       return {
         board,
+        player_name: body.player_name || body.playerName || body.player || '',
         // pass opponents through in both cases to preserve shape; consumer can normalize
         ...(opponents !== undefined ? { Opponents: opponents, opponents } : {}),
         clearedRows,

@@ -6,7 +6,7 @@ function sleep(ms) {
 }
 
 export class Game {
-    constructor(players, room, mode, gravity=500) {
+    constructor(players, room, mode, gravity=500, getSpectatorSockets = () => []) {
         this.room = room;
         this.players = new Map(players.map(player_info => [player_info.playerName, new Player(player_info)]));
         this.minimum_players = mode
@@ -24,6 +24,7 @@ export class Game {
         this.shapes = [this.I, this.J, this.L, this.O, this.S, this.T, this.Z];
         this.isRunning = false;
         this.gravity = gravity;
+        this.getSpectatorSockets = typeof getSpectatorSockets === 'function' ? getSpectatorSockets : () => [];
     }
 
     static SINGLE_PLAYER = 1;
@@ -64,6 +65,7 @@ export class Game {
     }
 
     #send_game_state(io) {
+        const spectatorSockets = this.getSpectatorSockets() || [];
     
         this.players.forEach((currentPlayer, currentPlayerName) => {
             let opponents = []
@@ -78,6 +80,7 @@ export class Game {
                     NextPiece: {Shape: currentPlayer.piece_queue.peek().state},
                     ClearedRows: clearedRows,
                     LinesCleared: Array.isArray(clearedRows) ? clearedRows.length : 0,
+                    player_name: currentPlayerName,
             };
             this.players.forEach((otherPlayer, otherPlayerId) => {
                 if (otherPlayerId !== currentPlayerName) {
@@ -86,6 +89,12 @@ export class Game {
             });
             playerGameState["Opponents"] = opponents;
             io.to(currentPlayer.id).emit('room_boards', playerGameState);
+
+            if (spectatorSockets.length > 0) {
+                spectatorSockets.forEach((socketId) => {
+                    io.to(socketId).emit('room_boards', { ...playerGameState, spectator: true });
+                });
+            }
         });
     } 
 

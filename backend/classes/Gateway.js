@@ -60,6 +60,24 @@ export class Gateway {
         });
     }
 
+    #getSpectatorSocketIds(roomName) {
+        const playersMap = this.rooms.get(roomName);
+        const game = this.games[roomName];
+        if (!playersMap || !game) return [];
+
+        const playingNames = new Set(game.players.keys());
+        const eliminatedNames = new Set(game.eliminatedPlayers || []);
+        const spectatorSockets = [];
+
+        playersMap.forEach((socketId, playerName) => {
+            if (playingNames.has(playerName)) return;
+            if (eliminatedNames.has(playerName)) return;
+            spectatorSockets.push(socketId);
+        });
+
+        return spectatorSockets;
+    }
+
     #broadcast_player_list(roomName) {
         if (!this.io || !roomName) return null;
         const payload = this.#build_player_list(roomName);
@@ -87,7 +105,8 @@ export class Gateway {
             mode = Game.MULTI_PLAYER;
         }
 
-        this.games[roomName] = new Game(players_info, roomName, mode, 500);
+        const spectatorProvider = () => this.#getSpectatorSocketIds(roomName);
+        this.games[roomName] = new Game(players_info, roomName, mode, 500, spectatorProvider);
         this.games[roomName].onStatusChange = () => this.#broadcast_player_list(roomName);
         this.games[roomName].run(io);
     }
