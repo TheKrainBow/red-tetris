@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import http from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 import { Gateway } from './classes/Gateway';
+import { Database } from './classes/Database';
 
 // --- Constants ---
 const serverPort = Number(process.env.SERVER_PORT || 3004);
@@ -14,6 +15,10 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Create a new instance of the Database class
+const db = new Database();
+await db.init();
 
 // Create HTTP server for Express + Socket.IO
 const server = http.createServer(app);

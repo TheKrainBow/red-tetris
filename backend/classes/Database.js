@@ -1,0 +1,169 @@
+import dotenv from 'dotenv';
+import { Pool } from 'pg';
+
+dotenv.config();
+
+export class Database {
+    constructor() {
+        this.pool = new Pool({
+            user: process.env.POSTGRES_USER,
+            host: process.env.POSTGRES_HOST,
+            database: process.env.POSTGRES_DB,
+            password: process.env.POSTGRES_PASSWORD,
+            port: process.env.POSTGRES_PORT,
+        });
+    }
+
+    async #connect() {
+        try {
+            this.client = await this.pool.connect(); 
+            console.log('Connected to the database');
+        } catch (err) {
+            console.error('Error connecting to the database:', err);
+            throw err;
+        }
+    }
+
+    async #createUsersTable() {
+        const createTableQuery = `
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                player_name VARCHAR(100) NOT NULL UNIQUE,
+                dirt_collected INT NOT NULL DEFAULT 0,
+                dirt_owned INT NOT NULL DEFAULT 0,
+                stone_collected INT NOT NULL DEFAULT 0,
+                stone_owned INT NOT NULL DEFAULT 0,
+                iron_collected INT NOT NULL DEFAULT 0,
+                iron_owned INT NOT NULL DEFAULT 0,
+                diamond_collected INT NOT NULL DEFAULT 0,
+                diamond_owned INT NOT NULL DEFAULT 0,
+                emeralds INT NOT NULL DEFAULT 0,
+                game_played INT NOT NULL DEFAULT 0,
+                game_won INT NOT NULL DEFAULT 0,
+                time_played INT NOT NULL DEFAULT 0
+            );
+        `;
+        try {
+            await this.client.query(createTableQuery);  
+            console.log('Table "users" created or already exists');
+        } catch (err) {
+            console.error('Error creating table:', err);
+        }
+    }
+
+    async #createInventoryTable() {
+        const createTableQuery = `
+            CREATE TABLE IF NOT EXISTS inventory (
+            id SERIAL PRIMARY KEY,
+            user_id INT REFERENCES users(id) ON DELETE CASCADE,
+            item_name VARCHAR(100) NOT NULL,
+            current_count INT NOT NULL DEFAULT 0,
+            max_count INT NOT NULL,
+            UNIQUE(user_id, item_name)
+        );
+        `;
+        try {
+            await this.client.query(createTableQuery);  
+            console.log('Table "inventory" created or already exists');
+        } catch (err) {
+            console.error('Error creating table:', err);
+        }
+    }
+
+    release() {
+        this.client.release();
+        console.log('Client released');
+    }
+
+    async init(){
+        await this.#connect();
+        await this.#createUsersTable();
+        await this.#createInventoryTable();
+    }
+
+    async insertUser(name) {
+        const insertQuery = `
+            INSERT INTO users (player_name)
+            VALUES ($1)
+            RETURNING id, player_name, dirt_collected, dirt_owned, stone_collected, stone_owned, iron_collected, iron_owned, diamond_collected, diamond_owned, emeralds, game_played, game_won, time_played;
+        `;
+        try {
+            const res = await this.client.query(insertQuery, [name]);
+            console.log('User inserted:', res.rows[0]);
+        } catch (err) {
+            console.error('Error inserting user:', err);
+        }
+        await this.insertInventoryItemByPlayerName(name, "rock_detector", 100);
+        await this.insertInventoryItemByPlayerName(name, "iron_detector", 100);
+        await this.insertInventoryItemByPlayerName(name, "diamond_detector", 100);
+        
+        await this.insertInventoryItemByPlayerName(name, "dirt_expert", 50);
+        await this.insertInventoryItemByPlayerName(name, "stone_expert", 50);
+        await this.insertInventoryItemByPlayerName(name, "iron_expert", 50);
+        await this.insertInventoryItemByPlayerName(name, "diamond_expert", 50);
+
+        await this.insertInventoryItemByPlayerName(name, "fortune_enchantment", 1);
+        await this.insertInventoryItemByPlayerName(name, "dirt_battle_pass", 1);
+        await this.insertInventoryItemByPlayerName(name, "stone_battle_pass", 1);
+        await this.insertInventoryItemByPlayerName(name, "iron_battle_pass", 1);
+        await this.insertInventoryItemByPlayerName(name, "diamond_battle_pass", 1);
+        await this.insertInventoryItemByPlayerName(name, "delux_battle_pass", 1);
+        await this.insertInventoryItemByPlayerName(name, "stone_battle_pass", 1);
+
+        
+    }
+
+    async getInventoryByPlayerName(playerName) {
+        const selectQuery = `
+            SELECT i.item_name, i.current_count, i.max_count
+            FROM inventory i
+            JOIN users u ON u.id = i.user_id
+            WHERE u.player_name = $1;
+        `;
+        try {
+            const res = await this.client.query(selectQuery, [playerName]);
+            return res.rows;
+        } catch (err) {
+            console.error('Error fetching inventory by player_name:', err);
+        }
+    }
+
+    async insertInventoryItemByPlayerName(playerName, itemName, maxCount) {
+        const getUserIdQuery = 'SELECT id FROM users WHERE player_name = $1 LIMIT 1;';
+        try {
+            const userResult = await this.client.query(getUserIdQuery, [playerName]);
+            if (userResult.rows.length === 0) {
+                console.log(`Player ${playerName} not found.`);
+                return;
+            }
+            const userId = userResult.rows[0].id;
+
+            const insertQuery = `
+                INSERT INTO inventory (user_id, item_name, max_count, current_count)
+                VALUES ($1, $2, $3, 0)
+                ON CONFLICT (user_id, item_name) DO NOTHING;
+            `;
+            await this.client.query(insertQuery, [userId, itemName, maxCount]);
+            console.log(`Item '${itemName}' added to ${playerName}'s inventory.`);
+        } catch (err) {
+            console.error('Error inserting inventory item by player_name:', err);
+        }
+    }
+
+
+
+    async getUsers() {
+        const selectQuery = 'SELECT * FROM users;';
+        try {
+            const res = await this.client.query(selectQuery);
+            return res.rows;
+        } catch (err) {
+            console.error('Error fetching users:', err);
+        }
+    }
+
+    async close() {
+        await this.pool.end();
+        console.log('Pool closed');
+    }
+}
