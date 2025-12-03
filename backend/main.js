@@ -18,7 +18,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Create a new instance of the Database class
 const db = new Database();
-await db.init();
+db.init();
 
 // Create HTTP server for Express + Socket.IO
 const server = http.createServer(app);
@@ -33,7 +33,7 @@ const io = new SocketIOServer(server, {
   },
 });
 
-const gateway = new Gateway(io);
+const gateway = new Gateway(io, db);
 
 // --- Socket.IO connection handling ---
 io.on('connection', (socket) => {
@@ -52,17 +52,17 @@ io.on('connection', (socket) => {
     });
 
     socket.on('start_game', async (data, callback) => {
-      const response = await gateway.start_game(socket, data, io);
+      const response = await gateway.start_game(socket, data);
       callback && callback(response);
     });
 
     socket.on('player_kick', async (data, callback) => {
-      const response = await gateway.player_kick(socket, data, io);
+      const response = await gateway.player_kick(socket, data);
       callback && callback(response);
     });
     
     socket.on('handle_key_press', async (data, callback) => {
-      const response = await gateway.handle_key_press(socket, data, io);
+      const response = await gateway.handle_key_press(socket, data);
       callback && callback(response);
     });
 

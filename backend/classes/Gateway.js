@@ -2,8 +2,9 @@ import { Game } from "./Game.js";
 import { Piece } from "./Piece.js";
 
 export class Gateway {
-    constructor(io) {
+    constructor(io, db) {
         this.io = io;
+        this.db = db;
         this.games = {};
         this.rooms = new Map();
         this.playerInfo = new Map();
@@ -196,7 +197,7 @@ export class Gateway {
         return payload;
     }
 
-    #new_game(socket, roomName, io) {
+    #new_game(socket, roomName) {
         if (!this.rooms.has(roomName)) {
             return ;
         }
@@ -220,7 +221,7 @@ export class Gateway {
             this.#broadcast_player_list(roomName);
             this.#broadcast_lobby_room(roomName);
         };
-        this.games[roomName].run(io);
+        this.games[roomName].run(this.io);
     }
 
     #create_room(socket, data) {
@@ -232,7 +233,7 @@ export class Gateway {
         socket.join(room);
     }
 
-    async handle_key_press(socket, data, io) {
+    async handle_key_press(socket, data) {
         if (!data || !data.key) {
             return this.#formatCommandResponse('handle_key_press', { error: 'Missing key input' });
         }
@@ -262,8 +263,8 @@ export class Gateway {
         }
 
         const handled = game.handle_player_input(playerInfo.playerName, action);
-        if (handled && io) {
-            game.broadcast_state(io);
+        if (handled && this.io) {
+            game.broadcast_state(this.io);
         }
         return this.#formatCommandResponse('handle_key_press', { success: Boolean(handled) });
     }
@@ -424,7 +425,7 @@ export class Gateway {
         this.playerInfo.delete(socket.id);
     }
 
-    async start_game(socket, data, io) {
+    async start_game(socket, data) {
         const playerInfo = this.playerInfo.get(socket.id);
         if (!playerInfo) return this.#formatCommandResponse('start_game', { error: 'Player not in a room' });
 
@@ -432,7 +433,7 @@ export class Gateway {
         if (host === false){
             return this.#formatCommandResponse('start_game', { success: false, room, error: 'Only the host can start the game' });
         }
-        this.#new_game(socket, room , io);
+        this.#new_game(socket, room);
         this.#broadcast_player_list(room);
         return this.#formatCommandResponse('start_game', { success: true, room });
     }
