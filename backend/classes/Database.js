@@ -24,7 +24,7 @@ export class Database {
         }
     }
 
-    async #createUsersTable() {
+    async #create_users_table() {
         const createTableQuery = `
             CREATE TABLE IF NOT EXISTS users (
                 id SERIAL PRIMARY KEY,
@@ -51,7 +51,7 @@ export class Database {
         }
     }
 
-    async #createInventoryTable() {
+    async #create_inventory_table() {
         const createTableQuery = `
             CREATE TABLE IF NOT EXISTS inventory (
             id SERIAL PRIMARY KEY,
@@ -77,43 +77,44 @@ export class Database {
 
     async init(){
         await this.#connect();
-        await this.#createUsersTable();
-        await this.#createInventoryTable();
+        await this.#create_users_table();
+        await this.#create_inventory_table();
     }
 
-    async insertUser(name) {
+    async insert_user(player_name) {
         const insertQuery = `
             INSERT INTO users (player_name)
             VALUES ($1)
             RETURNING id, player_name, dirt_collected, dirt_owned, stone_collected, stone_owned, iron_collected, iron_owned, diamond_collected, diamond_owned, emeralds, game_played, game_won, time_played;
         `;
         try {
-            const res = await this.client.query(insertQuery, [name]);
+            const res = await this.client.query(insertQuery, [player_name]);
             console.log('User inserted:', res.rows[0]);
         } catch (err) {
             console.error('Error inserting user:', err);
+            return false;
         }
-        await this.insertInventoryItemByPlayerName(name, "rock_detector", 100);
-        await this.insertInventoryItemByPlayerName(name, "iron_detector", 100);
-        await this.insertInventoryItemByPlayerName(name, "diamond_detector", 100);
+        await this.insert_inventory_item_by_player_name(player_name, "rock_detector", 100);
+        await this.insert_inventory_item_by_player_name(player_name, "iron_detector", 100);
+        await this.insert_inventory_item_by_player_name(player_name, "diamond_detector", 100);
         
-        await this.insertInventoryItemByPlayerName(name, "dirt_expert", 50);
-        await this.insertInventoryItemByPlayerName(name, "stone_expert", 50);
-        await this.insertInventoryItemByPlayerName(name, "iron_expert", 50);
-        await this.insertInventoryItemByPlayerName(name, "diamond_expert", 50);
+        await this.insert_inventory_item_by_player_name(player_name, "dirt_expert", 50);
+        await this.insert_inventory_item_by_player_name(player_name, "stone_expert", 50);
+        await this.insert_inventory_item_by_player_name(player_name, "iron_expert", 50);
+        await this.insert_inventory_item_by_player_name(player_name, "diamond_expert", 50);
 
-        await this.insertInventoryItemByPlayerName(name, "fortune_enchantment", 1);
-        await this.insertInventoryItemByPlayerName(name, "dirt_battle_pass", 1);
-        await this.insertInventoryItemByPlayerName(name, "stone_battle_pass", 1);
-        await this.insertInventoryItemByPlayerName(name, "iron_battle_pass", 1);
-        await this.insertInventoryItemByPlayerName(name, "diamond_battle_pass", 1);
-        await this.insertInventoryItemByPlayerName(name, "delux_battle_pass", 1);
-        await this.insertInventoryItemByPlayerName(name, "stone_battle_pass", 1);
+        await this.insert_inventory_item_by_player_name(player_name, "fortune_enchantment", 1);
+        await this.insert_inventory_item_by_player_name(player_name, "dirt_battle_pass", 1);
+        await this.insert_inventory_item_by_player_name(player_name, "stone_battle_pass", 1);
+        await this.insert_inventory_item_by_player_name(player_name, "iron_battle_pass", 1);
+        await this.insert_inventory_item_by_player_name(player_name, "diamond_battle_pass", 1);
+        await this.insert_inventory_item_by_player_name(player_name, "delux_battle_pass", 1);
+        await this.insert_inventory_item_by_player_name(player_name, "stone_battle_pass", 1);
 
-        
+        return true;
     }
 
-    async getInventoryByPlayerName(playerName) {
+    async get_inventory_by_player_name(playerName) {
         const selectQuery = `
             SELECT i.item_name, i.current_count, i.max_count
             FROM inventory i
@@ -125,10 +126,11 @@ export class Database {
             return res.rows;
         } catch (err) {
             console.error('Error fetching inventory by player_name:', err);
+            return null;
         }
     }
 
-    async insertInventoryItemByPlayerName(playerName, itemName, maxCount) {
+    async insert_inventory_item_by_player_name(playerName, itemName, maxCount) {
         const getUserIdQuery = 'SELECT id FROM users WHERE player_name = $1 LIMIT 1;';
         try {
             const userResult = await this.client.query(getUserIdQuery, [playerName]);
@@ -150,15 +152,26 @@ export class Database {
         }
     }
 
+    async get_user_by_player_name(player_name) {
+        const selectQuery = 'SELECT * FROM users WHERE player_name = $1;';
+        try {
+            const res = await this.client.query(selectQuery, [player_name]);
+            return res.rows;
+        } catch (err) {
+            console.error('Error fetching user by name:', err);
+            return null;
+        }
+    }
 
 
-    async getUsers() {
+    async get_all_users() {
         const selectQuery = 'SELECT * FROM users;';
         try {
             const res = await this.client.query(selectQuery);
             return res.rows;
         } catch (err) {
             console.error('Error fetching users:', err);
+            return null;
         }
     }
 

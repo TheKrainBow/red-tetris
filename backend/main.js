@@ -95,6 +95,21 @@ io.on('connection', (socket) => {
       const response = await gateway.get_room_settings(socket, data);
       callback && callback(response);
     });
+
+    socket.on('insert_user', async (data, callback) => {
+      const response = await gateway.insert_user(socket, data);
+      callback && callback(response);
+    });
+
+    socket.on('get_user_by_player_name', async (data, callback) => {
+      const response = await gateway.get_user_by_player_name(socket, data);
+      callback && callback(response);
+    });
+
+    socket.on('get_all_users', async (data, callback) => {
+      const response = await gateway.get_all_users(socket, data);
+      callback && callback(response);
+    });
 });
 
 

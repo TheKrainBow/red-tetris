@@ -550,4 +550,28 @@ export class Gateway {
         };
         return this.#formatCommandResponse('room_settings', payload);
     }
+
+    async insert_user(socket, data){
+        const {playerName} = data;
+        const success = this.db.insert_user(playerName);
+        const payload = {success};
+        return this.#formatCommandResponse('insert_user', payload);
+    }
+
+    async get_user_by_player_name(socket, data){
+        const {playerName} = data;
+        let inventory = null;
+        const user = this.db.get_user_by_player_name(playerName);
+        if (user){
+            inventory = this.db.get_inventory_by_player_name(playerName);
+        }
+        const payload = {success: user != null, user, inventory};
+        return this.#formatCommandResponse('get_user_by_player_name', payload);
+    }
+
+    async get_all_users(socket, data){
+        const users = this.db.get_all_users();
+        const payload = {success: users != null, users_list: users};
+        return this.#formatCommandResponse('get_all_users', payload);
+    }
 }
