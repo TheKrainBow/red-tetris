@@ -565,7 +565,7 @@ export class Gateway {
         if (user){
             inventory = await this.db.get_inventory_by_player_name(playerName);
         }
-        const payload = {success: user != null, user, inventory};
+        const payload = {success: user != null && user.length > 0, user, inventory};
         return this.#formatCommandResponse('get_user_by_player_name', payload);
     }
 
