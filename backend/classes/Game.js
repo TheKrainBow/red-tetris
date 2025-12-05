@@ -36,13 +36,22 @@ export class Game {
         }
     }
 
-    #add_to_players_piece_queue() {
+    async #add_to_players_piece_queue() {
         const randomShapeIndex = Math.floor(Math.random() * this.shapes.length);
         const shape = this.shapes[randomShapeIndex];
-        const material = Math.floor(Math.random() * 4) + 1;
         const randomRotationIndex = Math.floor(Math.random() * 4);
         
         this.players.forEach((player, player_name) => {
+            const rand = Math.floor(Math.random() * 100);
+            let material = 1;
+            let rates = 0;
+            for (let i = 0; i < player.spawn_rates.length; i++) {
+                rates += player.spawn_rates[i]
+                if (rand < rates){
+                    material = i + 1;
+                    break;
+                }
+            }
             const piece = new Piece(shape, material);
             piece.state_index = randomRotationIndex;
             piece.state = piece.rotations[piece.state_index];
@@ -103,9 +112,6 @@ export class Game {
             const lines_cleared = player.board.remove_lines();
             
             if (lines_cleared > 0) {
-                // const points = [0, 100, 300, 500, 800];
-                // player.points += points[Math.min(lines_cleared, 4)];
-                
                 this.#set_blocked_rows(player, lines_cleared);
             }
             

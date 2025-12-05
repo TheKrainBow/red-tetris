@@ -208,7 +208,7 @@ export class Gateway {
 
         let players_info = []
         this.rooms.get(roomName).forEach((socketId, playerName) => {
-            players_info.push({socketId, playerName})
+            players_info.push({socketId, playerName, playerRates: [40,25,20,15]})
         });
 
         if (players_info.length > 1){
