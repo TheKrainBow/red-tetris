@@ -237,6 +237,32 @@ export class Database {
         }
     }
 
+    async update_rates_by_player_name(data) {
+        const {playerName, dirt_probability, stone_probability, iron_probability, diamond_probability} = data;
+        const getUserIdQuery = 'SELECT id FROM users WHERE player_name = $1 LIMIT 1;';
+        try {
+            const userResult = await this.client.query(getUserIdQuery, [playerName]);
+            if (userResult.rows.length === 0) {
+                console.log(`Player ${playerName} not found.`);
+                return;
+            }
+            const userId = userResult.rows[0].id;
+
+            const insertQuery = `
+                UPDATE rates
+                SET (dirt_probability, stone_probability, iron_probability, diamond_probability) =
+                    ($1, $2, $3, $4)
+                WHERE user_id = $5;
+            `;
+            await this.client.query(insertQuery, [dirt_probability, stone_probability, iron_probability, diamond_probability, userId]);
+            console.log(` updated ${playerName}'s rates.`);
+            return true;
+        } catch (err) {
+            console.error('Error updating rates by player_name:', err);
+            return false;
+        }
+    }
+
     async close() {
         await this.pool.end();
         console.log('Pool closed');

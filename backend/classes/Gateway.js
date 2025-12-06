@@ -595,4 +595,14 @@ export class Gateway {
         const payload = {success: rates != null, playerName, rates};
         return this.#formatCommandResponse('get_rates_by_player_name', payload);
     }
+
+    async update_rates_by_player_name(socket, data){
+        const {dirt_probability, stone_probability, iron_probability, diamond_probability} = data;
+        if (dirt_probability + stone_probability + iron_probability + diamond_probability != 100){
+            return this.#formatCommandResponse('update_rates_by_player_name', {success: false, reason: "probabilities does not sum to 100%"});
+        }
+        const success = await this.db.update_rates_by_player_name(data);
+        const payload = {success};
+        return this.#formatCommandResponse('update_rates_by_player_name', payload);
+    }
 }

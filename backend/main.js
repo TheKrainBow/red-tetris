@@ -115,6 +115,12 @@ io.on('connection', (socket) => {
       const response = await gateway.get_rates_by_player_name(socket, data);
       callback && callback(response);
     });
+
+    socket.on('update_rates_by_player_name', async (data, callback) => {
+      
+      const response = await gateway.update_rates_by_player_name(socket, data);
+      callback && callback(response);
+    });
 });
 
 
