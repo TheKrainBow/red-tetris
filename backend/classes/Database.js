@@ -239,6 +239,9 @@ export class Database {
 
     async update_rates_by_player_name(data) {
         const {playerName, dirt_probability, stone_probability, iron_probability, diamond_probability} = data;
+        if (dirt_probability + stone_probability + iron_probability + diamond_probability != 100){
+            return {success: false, reason: "probabilities does not sum to 100%"};
+        }
         const getUserIdQuery = 'SELECT id FROM users WHERE player_name = $1 LIMIT 1;';
         try {
             const userResult = await this.client.query(getUserIdQuery, [playerName]);
@@ -256,10 +259,10 @@ export class Database {
             `;
             await this.client.query(insertQuery, [dirt_probability, stone_probability, iron_probability, diamond_probability, userId]);
             console.log(` updated ${playerName}'s rates.`);
-            return true;
+            return {success: true};
         } catch (err) {
             console.error('Error updating rates by player_name:', err);
-            return false;
+            return  {success: false};
         }
     }
 
