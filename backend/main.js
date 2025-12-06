@@ -110,6 +110,11 @@ io.on('connection', (socket) => {
       const response = await gateway.get_all_users(socket, data);
       callback && callback(response);
     });
+
+    socket.on('get_rates_by_player_name', async (data, callback) => {
+      const response = await gateway.get_rates_by_player_name(socket, data);
+      callback && callback(response);
+    });
 });
 
 

@@ -70,6 +70,26 @@ export class Database {
         }
     }
 
+    async #create_rates_table() {
+        const createTableQuery = `
+            CREATE TABLE IF NOT EXISTS rates (
+            id SERIAL PRIMARY KEY,
+            user_id INT REFERENCES users(id) ON DELETE CASCADE,
+            dirt_probability INT NOT NULL DEFAULT 100,
+            stone_probability INT NOT NULL DEFAULT 0,
+            iron_probability INT NOT NULL DEFAULT 0,
+            diamond_probability INT NOT NULL DEFAULT 0,
+            UNIQUE(user_id)
+        );
+        `;
+        try {
+            await this.client.query(createTableQuery);  
+            console.log('Table "rates" created or already exists');
+        } catch (err) {
+            console.error('Error creating table:', err);
+        }
+    }
+
     release() {
         this.client.release();
         console.log('Client released');
@@ -79,12 +99,14 @@ export class Database {
         await this.#connect();
         await this.#create_users_table();
         await this.#create_inventory_table();
+        await this.#create_rates_table();
     }
 
     async insert_user(player_name) {
         const insertQuery = `
             INSERT INTO users (player_name)
             VALUES ($1)
+            ON CONFLICT (player_name) DO NOTHING
             RETURNING id, player_name, dirt_collected, dirt_owned, stone_collected, stone_owned, iron_collected, iron_owned, diamond_collected, diamond_owned, emeralds, game_played, game_won, time_played;
         `;
         try {
@@ -110,6 +132,8 @@ export class Database {
         await this.insert_inventory_item_by_player_name(player_name, "diamond_battle_pass", 1);
         await this.insert_inventory_item_by_player_name(player_name, "delux_battle_pass", 1);
         await this.insert_inventory_item_by_player_name(player_name, "stone_battle_pass", 1);
+
+        await this.insert_rates_by_player_name(player_name);
 
         return true;
     }
@@ -172,6 +196,44 @@ export class Database {
         } catch (err) {
             console.error('Error fetching users:', err);
             return null;
+        }
+    }
+
+    async get_rates_by_player_name(playerName) {
+        const selectQuery = `
+            SELECT r.dirt_probability, r.stone_probability, r.iron_probability, r.diamond_probability
+            FROM rates r
+            JOIN users u ON u.id = r.user_id
+            WHERE u.player_name = $1;
+        `;
+        try {
+            const res = await this.client.query(selectQuery, [playerName]);
+            return res.rows;
+        } catch (err) {
+            console.error('Error fetching rates by player_name:', err);
+            return null;
+        }
+    }
+
+    async insert_rates_by_player_name(playerName) {
+        const getUserIdQuery = 'SELECT id FROM users WHERE player_name = $1 LIMIT 1;';
+        try {
+            const userResult = await this.client.query(getUserIdQuery, [playerName]);
+            if (userResult.rows.length === 0) {
+                console.log(`Player ${playerName} not found.`);
+                return;
+            }
+            const userId = userResult.rows[0].id;
+
+            const insertQuery = `
+                INSERT INTO rates (user_id)
+                VALUES ($1)
+                ON CONFLICT (user_id) DO NOTHING;
+            `;
+            await this.client.query(insertQuery, [userId]);
+            console.log(` added ${playerName}'s rates.`);
+        } catch (err) {
+            console.error('Error inserting rates by player_name:', err);
         }
     }
 

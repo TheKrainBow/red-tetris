@@ -197,7 +197,7 @@ export class Gateway {
         return payload;
     }
 
-    #new_game(socket, roomName) {
+    async #new_game(socket, roomName) {
         if (!this.rooms.has(roomName)) {
             return ;
         }
@@ -206,11 +206,23 @@ export class Gateway {
         }
         let mode = Game.SINGLE_PLAYER;
 
-        let players_info = []
-        this.rooms.get(roomName).forEach((socketId, playerName) => {
-            players_info.push({socketId, playerName, playerRates: [40,25,20,15]})
-        });
+        const playersMap = this.rooms.get(roomName);
 
+        const players_info = await Promise.all(
+            [...playersMap.entries()].map(async ([playerName, socketId]) => {
+                const playerRates = await this.db.get_rates_by_player_name(playerName);
+                return {
+                    socketId,
+                    playerName,
+                    playerRates: [
+                        playerRates[0].dirt_probability,
+                        playerRates[0].stone_probability,
+                        playerRates[0].iron_probability,
+                        playerRates[0].diamond_probability
+                    ]
+                };
+            })
+        );
         if (players_info.length > 1){
             mode = Game.MULTI_PLAYER;
         }
@@ -274,6 +286,8 @@ export class Gateway {
         if (!room || typeof playerName !== 'string') {
             return this.#formatCommandResponse('join_room', { error: 'Invalid room or name' });
         }
+
+        await this.db.insert_user(playerName);
 
         if (!this.rooms.has(room)) {
             this.#create_room(socket, data);
@@ -433,7 +447,7 @@ export class Gateway {
         if (host === false){
             return this.#formatCommandResponse('start_game', { success: false, room, error: 'Only the host can start the game' });
         }
-        this.#new_game(socket, room);
+        await this.#new_game(socket, room);
         this.#broadcast_player_list(room);
         return this.#formatCommandResponse('start_game', { success: true, room });
     }
@@ -573,5 +587,12 @@ export class Gateway {
         const users = await this.db.get_all_users();
         const payload = {success: users != null, users_list: users};
         return this.#formatCommandResponse('get_all_users', payload);
+    }
+
+    async get_rates_by_player_name(socket, data){
+        const {playerName} = data;
+        const rates = await this.db.get_rates_by_player_name(playerName);
+        const payload = {success: rates != null, playerName, rates};
+        return this.#formatCommandResponse('get_rates_by_player_name', payload);
     }
 }

@@ -40,23 +40,30 @@ export class Game {
         const randomShapeIndex = Math.floor(Math.random() * this.shapes.length);
         const shape = this.shapes[randomShapeIndex];
         const randomRotationIndex = Math.floor(Math.random() * 4);
-        
-        this.players.forEach((player, player_name) => {
-            const rand = Math.floor(Math.random() * 100);
-            let material = 1;
-            let rates = 0;
-            for (let i = 0; i < player.spawn_rates.length; i++) {
-                rates += player.spawn_rates[i]
-                if (rand < rates){
-                    material = i + 1;
-                    break;
+
+        await Promise.all(
+            [...this.players.entries()].map(async ([player_name, player]) => {
+            
+                const rand = Math.floor(Math.random() * 100);
+                let material = 1;
+                let rates = 0;
+            
+                for (let i = 0; i < player.spawn_rates.length; i++) {
+                    rates += player.spawn_rates[i];
+                
+                    if (rand < rates) {
+                        material = i + 1;
+                        break;
+                    }
                 }
-            }
-            const piece = new Piece(shape, material);
-            piece.state_index = randomRotationIndex;
-            piece.state = piece.rotations[piece.state_index];
-            player.queue_piece(piece);
-        });
+            
+                const piece = new Piece(shape, material);
+                piece.state_index = randomRotationIndex;
+                piece.state = piece.rotations[piece.state_index];
+            
+                player.queue_piece(piece);
+            })
+        );
     }
 
     #set_players_piece() {
