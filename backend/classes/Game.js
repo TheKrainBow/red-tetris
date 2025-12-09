@@ -172,7 +172,7 @@ export class Game {
         this.isRunning = false;
     }
 
-    async run(io) {
+    async run(io, db) {
         if (this.isRunning) return;
         
         this.start(io);
@@ -182,6 +182,7 @@ export class Game {
             this.players.forEach((player, player_name) => {
 
                 if (this.eliminatedPlayers.includes(player_name)){
+                    db.update_player_points(player);
                     this.players.delete(player_name);
                     io.to(this.room).emit('player_eliminated', { player_name: player_name });
                     this.#notifyStatusChange();

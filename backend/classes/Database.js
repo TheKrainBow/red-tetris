@@ -266,6 +266,45 @@ export class Database {
         }
     }
 
+    async update_player_points(player) {
+        const playerName = player.name;
+        const points = player.board.points;
+        try {
+            const userResult = await this.get_user_by_player_name(playerName);
+            if (userResult === null) {
+                console.log(`Player ${playerName} not found.`);
+                return ;
+            }
+            const userId = userResult[0].id;
+            let {dirt_collected, dirt_owned} = userResult[0];
+            let {stone_collected, stone_owned} = userResult[0];
+            let {iron_collected, iron_owned} = userResult[0];
+            let {diamond_collected, diamond_owned} = userResult[0];
+
+            dirt_collected += points[0];
+            dirt_owned += points[0];
+            stone_collected += points[1];
+            stone_owned += points[1];
+            iron_collected += points[2];
+            iron_owned += points[2];
+            diamond_collected += points[3];
+            diamond_owned += points[3];
+
+            const insertQuery = `
+                UPDATE users
+                SET (dirt_collected, dirt_owned, stone_collected, stone_owned, iron_collected, iron_owned, diamond_collected, diamond_owned) =
+                    ($1, $2, $3, $4, $5, $6, $7, $8)
+                WHERE id = $9;
+            `;
+            await this.client.query(insertQuery, [dirt_collected, dirt_owned, stone_collected, stone_owned, iron_collected, iron_owned, diamond_collected, diamond_owned, userId]);
+            console.log(` updated ${playerName}'s points.`);
+            return {success: true};
+        } catch (err) {
+            console.error('Error updating player points:', err);
+            return  {success: false};
+        }
+    }
+
     async close() {
         await this.pool.end();
         console.log('Pool closed');

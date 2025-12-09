@@ -233,7 +233,7 @@ export class Gateway {
             this.#broadcast_player_list(roomName);
             this.#broadcast_lobby_room(roomName);
         };
-        this.games[roomName].run(this.io);
+        this.games[roomName].run(this.io, this.db);
     }
 
     #create_room(socket, data) {
