@@ -182,7 +182,7 @@ export class Game {
             this.players.forEach((player, player_name) => {
 
                 if (this.eliminatedPlayers.includes(player_name)){
-                    db.update_player_points(player);
+                    db.update_player_stats(player);
                     this.players.delete(player_name);
                     io.to(this.room).emit('player_eliminated', { player_name: player_name });
                     this.#notifyStatusChange();
@@ -190,6 +190,7 @@ export class Game {
                 
                 if (this.#end_game(player)) {
                     this.eliminatedPlayers.push(player_name);
+                    player.set_time_played(this.startTime);
                     this.#notifyStatusChange();
                     
                 }
@@ -207,7 +208,12 @@ export class Game {
         }
         this.stop();
         const room_name = this.room;
-        const winner = this.players.size === 1 ? this.players.keys().value : "";
+        const winner = this.players.size === 1 ? this.players.keys().next().value : "";
+        if (winner !== ""){
+            const player = this.players.get(winner);
+            player.set_time_played(this.startTime);
+            db.update_player_stats(player, true);
+        }
         const game_end = {
             type: "game_end",
             data: { room_name, winner }

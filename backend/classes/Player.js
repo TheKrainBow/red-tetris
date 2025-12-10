@@ -95,4 +95,8 @@ export class Player {
         }
         return true;
     }
+
+    set_time_played(start_time){
+        this.time_played = Date.now() - start_time;
+    }
 }

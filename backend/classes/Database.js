@@ -266,7 +266,7 @@ export class Database {
         }
     }
 
-    async update_player_points(player) {
+    async update_player_stats(player, winner=false) {
         const playerName = player.name;
         const points = player.board.points;
         try {
@@ -280,6 +280,7 @@ export class Database {
             let {stone_collected, stone_owned} = userResult[0];
             let {iron_collected, iron_owned} = userResult[0];
             let {diamond_collected, diamond_owned} = userResult[0];
+            let {time_played, game_played, game_won} = userResult[0];
 
             dirt_collected += points[0];
             dirt_owned += points[0];
@@ -290,17 +291,24 @@ export class Database {
             diamond_collected += points[3];
             diamond_owned += points[3];
 
+            time_played += player.time_played;
+            game_played += 1;
+            if(winner){
+                game_won += 1;
+            }
+
+
             const insertQuery = `
                 UPDATE users
-                SET (dirt_collected, dirt_owned, stone_collected, stone_owned, iron_collected, iron_owned, diamond_collected, diamond_owned) =
-                    ($1, $2, $3, $4, $5, $6, $7, $8)
-                WHERE id = $9;
+                SET (dirt_collected, dirt_owned, stone_collected, stone_owned, iron_collected, iron_owned, diamond_collected, diamond_owned, time_played, game_played, game_won) =
+                    ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                WHERE id = $12;
             `;
-            await this.client.query(insertQuery, [dirt_collected, dirt_owned, stone_collected, stone_owned, iron_collected, iron_owned, diamond_collected, diamond_owned, userId]);
-            console.log(` updated ${playerName}'s points.`);
+            await this.client.query(insertQuery, [dirt_collected, dirt_owned, stone_collected, stone_owned, iron_collected, iron_owned, diamond_collected, diamond_owned, time_played, game_played, game_won, userId]);
+            console.log(` updated ${playerName}'s stats.`);
             return {success: true};
         } catch (err) {
-            console.error('Error updating player points:', err);
+            console.error(`Error updating ${playerName}'s stats:`, err);
             return  {success: false};
         }
     }
