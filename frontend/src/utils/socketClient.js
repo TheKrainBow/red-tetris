@@ -92,8 +92,6 @@ export function parseEventPayload(type, payload = {}) {
     case 'room_boards': {
       const board = Array.isArray(body.Board) ? body.Board : Array.isArray(body.board) ? body.board : []
       const opponents = body.Opponents ?? body.opponents ?? body.opponent
-      const clearedRows = Array.isArray(body.ClearedRows) ? body.ClearedRows : Array.isArray(body.clearedRows) ? body.clearedRows : []
-      const linesCleared = body.LinesCleared ?? body.linesCleared ?? clearedRows.length ?? 0
       const currentPiece = body.CurrentPiece || body.currentPiece || {}
       const nextPiece = body.NextPiece || body.nextPiece || {}
       return {
@@ -101,8 +99,6 @@ export function parseEventPayload(type, payload = {}) {
         player_name: body.player_name || body.playerName || body.player || '',
         // pass opponents through in both cases to preserve shape; consumer can normalize
         ...(opponents !== undefined ? { Opponents: opponents, opponents } : {}),
-        clearedRows,
-        linesCleared,
         currentPiece: {
           pos: currentPiece.Pos || currentPiece.pos || [0, 0],
           shape: currentPiece.Shape || currentPiece.shape || [],

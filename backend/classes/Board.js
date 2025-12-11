@@ -2,7 +2,7 @@ export class Board {
     constructor() {
         this.state = this.#createBoard(20, 10);
         this.blocked_rows = 0;
-        this.last_cleared_rows = [];
+        this.last_cleared_blocks = [];
         this.points = [0,0,0,0];
     }
 
@@ -84,7 +84,7 @@ export class Board {
         const cols = this.state[0].length;
         let new_board = [];
         let lines_cleared = 0;
-        const cleared_rows = [];
+        const cleared_blocks = [];
         let points = [0,0,0,0];
 
         for (let i = 0; i < rows; i++) {
@@ -101,9 +101,15 @@ export class Board {
                 points = [0,0,0,0];
             }
             else {
+                // capture cleared blocks positions before row is removed
+                for (let j = 0; j < cols; j++) {
+                    const material = this.state[i][j];
+                    if (material) {
+                        cleared_blocks.push({ Material: material, position: { x: j, y: i } });
+                    }
+                }
                 this.#add_points(points);
                 lines_cleared++;
-                cleared_rows.push(i);
             }
         }
 
@@ -112,14 +118,14 @@ export class Board {
         }
 
         this.state = new_board;
-        this.last_cleared_rows = cleared_rows;
+        this.last_cleared_blocks = cleared_blocks;
         return lines_cleared;
     }
 
-    consume_cleared_rows() {
-        const rows = this.last_cleared_rows || [];
-        this.last_cleared_rows = [];
-        return rows;
+    consume_cleared_blocks() {
+        const blocks = this.last_cleared_blocks || [];
+        this.last_cleared_blocks = [];
+        return blocks;
     }
 
     block_row(nrows_to_block) {

@@ -112,8 +112,8 @@ export class Game {
     
         for (const [currentPlayerName, currentPlayer] of this.players.entries()) {
             let opponents = []
-            const clearedRows = currentPlayer.board.consume_cleared_rows();
-            const linesCleared = Array.isArray(clearedRows) ? clearedRows.length : 0;
+            const clearedBlocks = currentPlayer.board.consume_cleared_blocks ? currentPlayer.board.consume_cleared_blocks() : [];
+            const linesCleared = Array.isArray(clearedBlocks) ? new Set(clearedBlocks.map((b) => b?.position?.y)).size : 0;
             const playerGameState = {
                     Board: currentPlayer.board.get_state(),
                     CurrentPiece: {
@@ -122,8 +122,6 @@ export class Game {
                         material: currentPlayer.current_piece.material,
                     },
                     NextPiece: {Shape: currentPlayer.piece_queue.peek().state},
-                    ClearedRows: clearedRows,
-                    LinesCleared: linesCleared,
                     player_name: currentPlayerName,
             };
             this.players.forEach((otherPlayer, otherPlayerId) => {
@@ -133,6 +131,12 @@ export class Game {
             });
             playerGameState["Opponents"] = opponents;
             io.to(currentPlayer.id).emit('room_boards', playerGameState);
+            if (clearedBlocks.length) {
+                io.to(currentPlayer.id).emit('cleared_blocks', {
+                    player_name: currentPlayerName,
+                    blocks: clearedBlocks,
+                });
+            }
 
             // Sync collected resources to DB on each tick based on delta since last sync
             const bonusDelta = this.#computeLineBonus(currentPlayer, linesCleared);

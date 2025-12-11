@@ -20,6 +20,7 @@ const CELL_TEXTURES = {
   2: '/blocks/Stone.jpeg',
   3: '/blocks/Iron.jpeg',
   4: '/blocks/Diamond.jpg',
+  5: '/ui/Dark_Dirt.webp',
 }
 
 const DIRT_SOUNDS = [
@@ -447,12 +448,17 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
   const spawnShard = (cell) => {
     const boardEl = boardRef.current
     if (!boardEl) return
-    const rect = boardEl.getBoundingClientRect()
-    const cellSize = rect.width / BOARD_WIDTH
-    const start = cell.start || {
-      x: rect.left + cell.col * cellSize + cellSize / 2,
-      y: rect.top + cell.row * cellSize + cellSize / 2,
-    }
+    const boardRect = boardEl.getBoundingClientRect()
+    const cellEl = boardEl.querySelector(`[data-row="${cell.row}"][data-col="${cell.col}"]`)
+    const cellRect = cellEl ? cellEl.getBoundingClientRect() : null
+    const cellWidth = boardRect.width / BOARD_WIDTH
+    const cellHeight = boardRect.height / BOARD_HEIGHT
+    const start = cell.start || (cellRect
+      ? { x: cellRect.left + cellRect.width / 2, y: cellRect.top + cellRect.height / 2 }
+      : {
+          x: boardRect.left + (cell.col + 0.5) * cellWidth,
+          y: boardRect.top + (cell.row + 0.5) * cellHeight,
+        })
     const material = cell.val || 1
     const matKey = cell.matKey || materialKeyFromVal(material)
     const invTarget = getInventoryDest(material, matKey)
@@ -467,8 +473,11 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
     const delay = cell.delay || 0
     const awardAmount = cell.awardAmount || 1
     setShards((prev) => [...prev, { id, start, dest, phase: 'start', delay, material, matKey, awardAmount }])
+    // Wait two rAFs to ensure the "start" position is committed before animating
     requestAnimationFrame(() => {
-      setShards((prev) => prev.map((s) => (s.id === id ? { ...s, phase: 'accelerate' } : s)))
+      requestAnimationFrame(() => {
+        setShards((prev) => prev.map((s) => (s.id === id ? { ...s, phase: 'accelerate' } : s)))
+      })
     })
     setTimeout(() => {
       setShards((prev) => prev.map((s) => (s.id === id ? { ...s, phase: 'done' } : s)))
@@ -624,8 +633,7 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
     const offBoards = socketClient.on('room_boards', (payload = {}) => {
       const b = Array.isArray(payload.Board) ? payload.Board : payload.board || []
       const cleanBoard = Array.isArray(b) && b.length ? b : makeEmptyBoard()
-      const clearedRowsFromServer = Array.isArray(payload.ClearedRows) ? payload.ClearedRows : Array.isArray(payload.clearedRows) ? payload.clearedRows : []
-      const linesClearedHint = Number(payload.LinesCleared ?? payload.linesCleared ?? 0) || 0
+      const linesClearedHint = 0
       const playerNameFromServer = payload.player_name || payload.playerName || payload.player || ''
       const next = payload.NextPiece?.Shape || payload.nextPiece?.shape || payload.nextPiece?.Shape || payload.nextPiece || []
       const curPiece = payload.CurrentPiece || payload.currentPiece || {}
@@ -655,10 +663,8 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
 
       const prevBoard = prevBoardRef.current || []
       const addedCells = []
-      const clearedLineCells = []
       const height = cleanBoard.length
       const width = cleanBoard[0]?.length || 0
-      let prevWithPiece = null
       if (height && width) {
         // track added cells (for sounds)
         for (let r = 0; r < height; r++) {
@@ -669,46 +675,6 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
               addedCells.push(curVal)
             }
           }
-        }
-
-        // Predict cleared lines using previous board plus previous falling piece
-        prevWithPiece = prevBoard.map((row) => [...row])
-        const lastPiece = prevPieceRef.current || defaultPiece
-        const [px, py] = lastPiece.pos || [0, 0]
-        if (Array.isArray(lastPiece.shape) && lastPiece.shape.length) {
-          for (let y = 0; y < lastPiece.shape.length; y++) {
-            for (let x = 0; x < lastPiece.shape[y].length; x++) {
-              if (!lastPiece.shape[y][x]) continue
-              const gx = px + x
-              const gy = py + y
-              if (gy >= 0 && gy < height && gx >= 0 && gx < width) {
-                prevWithPiece[gy][gx] = lastPiece.material || 1
-              }
-            }
-          }
-        }
-        for (let r = 0; r < height; r++) {
-          const row = prevWithPiece[r] || []
-          const wasFull = row.length === width && row.every((v) => Number(v) !== 0)
-          if (wasFull) {
-            for (let c = 0; c < width; c++) {
-              clearedLineCells.push({ val: Number(row[c] || 0), row: r, col: c })
-            }
-          }
-        }
-
-        if (clearedRowsFromServer.length) {
-          const seenRows = new Set(clearedLineCells.map((c) => c.row))
-          const sourceBoard = prevWithPiece || prevBoard
-          clearedRowsFromServer.forEach((rowIdx) => {
-            if (typeof rowIdx !== 'number') return
-            if (rowIdx < 0 || rowIdx >= height) return
-            if (seenRows.has(rowIdx)) return
-            for (let c = 0; c < width; c++) {
-              const val = Number(sourceBoard?.[rowIdx]?.[c] || 1) || 1
-              clearedLineCells.push({ val, row: rowIdx, col: c })
-            }
-          })
         }
       }
 
@@ -749,125 +715,8 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
       setCurrentPiece({ shape: curShape, pos: curPos, material: curMaterial })
       prevPieceRef.current = { shape: curShape, pos: curPos, material: curMaterial }
 
-      const fullRows = new Set()
-      cleanBoard.forEach((row, idx) => {
-        if (Array.isArray(row) && row.length && row.every((v) => Number(v) !== 0)) {
-          fullRows.add(idx)
-        }
-      })
-      const previouslyFull = prevFullRowsRef.current
-      let cleared = 0
-      previouslyFull.forEach((idx) => {
-        if (!fullRows.has(idx)) cleared += 1
-      })
-      const clearedFromServer = linesClearedHint && linesClearedHint > cleared ? linesClearedHint : 0
-      const totalClears = Math.max(cleared, clearedFromServer)
-      if (totalClears > 0) {
-        totalClearedRef.current += totalClears
-      }
-      prevFullRowsRef.current = fullRows
-
-      const inferredLinesCleared = width ? Math.round(clearedLineCells.length / width) : 0
-      const linesCleared = linesClearedHint ? Math.max(linesClearedHint, inferredLinesCleared) : inferredLinesCleared
       const baseFortune = fortuneBaseRef.current || 1
-      const targetFortune = baseFortune + (totalClearedRef.current || 0) * 0.03
-      let computedFortune = Math.max(fortuneMultiplier || targetFortune, targetFortune)
-      if (!Number.isFinite(computedFortune)) computedFortune = targetFortune
-
-      // Play sounds after counts are updated to reflect the move
-      if (!suppressShardsRef.current) {
-        addedCells.forEach((mat) => playMaterialSound(mat))
-        let delay = 0
-        if (!clearedLineCells.length) {
-          console.debug('No cleared lines detected; maybe full rows unchanged', {
-            hasPrev: hasPrevBoardRef.current,
-            width,
-            height,
-            lastPiece: prevPieceRef.current,
-          })
-        } else {
-          console.debug('Cleared line cells', clearedLineCells)
-        }
-        clearedLineCells.forEach((cell) => {
-          delay += 2 + Math.random() * 3 // tiny stagger between destroyed blocks
-          playMaterialSound(cell.val, delay)
-          spawnShard({ ...cell, delay, awardAmount: 1, matKey: materialKeyFromVal(cell.val) })
-        })
-
-        if (clearedLineCells.length) {
-          const delta = { dirt: 0, stone: 0, iron: 0, diamond: 0 }
-          clearedLineCells.forEach((cell) => {
-            switch (cell.val) {
-              case 1: delta.dirt += 1; break
-              case 2: delta.stone += 1; break
-              case 3: delta.iron += 1; break
-              case 4: delta.diamond += 1; break
-              default: break
-            }
-          })
-          const cellsByMaterial = clearedLineCells.reduce((acc, cell) => {
-            const key = cell.val === 1 ? 'dirt' : cell.val === 2 ? 'stone' : cell.val === 3 ? 'iron' : cell.val === 4 ? 'diamond' : null
-            if (!key) return acc
-            acc[key] = acc[key] || []
-            acc[key].push(cell)
-            return acc
-          }, {})
-          const remainder = fortuneRemainderRef.current
-          const bonus = {}
-          const fortune = Math.max(computedFortune || 1, 1)
-          Object.entries(delta).forEach(([key, count]) => {
-            if (!count) {
-              bonus[key] = 0
-              return
-            }
-            const targetTotal = count * fortune
-            const bonusNeeded = Math.max(0, targetTotal - count)
-            const carry = Number(remainder[key] || 0)
-            const accrued = bonusNeeded + carry
-            const extras = Math.floor(accrued + 1e-9)
-            remainder[key] = accrued - extras
-            bonus[key] = extras
-          })
-
-          // spawn bonus shards + badges for fortune multiplier (using cleared cells)
-          Object.entries(bonus).forEach(([matKey, extraCount]) => {
-            if (!extraCount) return
-            const materialVal = matKey === 'dirt' ? 1 : matKey === 'stone' ? 2 : matKey === 'iron' ? 3 : matKey === 'diamond' ? 4 : 1
-            const cells = cellsByMaterial[matKey] || []
-            const lineRows = Array.from(new Set(cells.map((c) => c.row))).sort((a, b) => a - b)
-            const labelRow = lineRows.length
-              ? lineRows[Math.floor((lineRows.length - 1) / 2)]
-              : (cells[0]?.row ?? 0)
-
-            const shardCount = Math.max(1, Math.min(extraCount, cells.length || 1))
-            for (let i = 0; i < shardCount; i++) {
-              const baseCell = cells[i % (cells.length || 1)] || { row: 0, col: 0 }
-              const perShard = Math.ceil(extraCount / shardCount)
-              spawnShard({ val: materialVal, row: baseCell.row, col: baseCell.col, delay: 200 + 4 + Math.random() * 4, awardAmount: perShard, matKey })
-            }
-
-            // single aggregated badge
-            const id = `${Date.now()}-${matKey}-${extraCount}`
-            const iconUrl = CELL_TEXTURES[materialVal]
-            const boardRect = boardRef.current?.getBoundingClientRect()
-            const cellSize = boardRect ? boardRect.width / BOARD_WIDTH : 26
-            const badgePos = boardRect
-              ? {
-                  left: boardRect.left - cellSize * 1.1,
-                  top: boardRect.top + (labelRow + 0.5) * cellSize,
-                }
-              : { left: window.innerWidth * 0.3, top: 80 }
-            setBonusBadges((prev) => [...prev, { id, mat: matKey, icon: iconUrl, amount: extraCount, ...badgePos }])
-            setTimeout(() => {
-              setBonusBadges((prev) => prev.filter((b) => b.id !== id))
-            }, 1200)
-            setBonusFlash((prev) => ({ ...prev, [matKey]: true }))
-            setTimeout(() => setBonusFlash((prev) => ({ ...prev, [matKey]: false })), 520)
-          })
-        }
-      }
-
-      setFortuneMultiplier(computedFortune)
+      setFortuneMultiplier((prev) => Math.max(prev, baseFortune))
       prevBoardRef.current = cleanBoard
       hasPrevBoardRef.current = true
     })
@@ -913,6 +762,45 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
       offEliminated && offEliminated()
     }
   }, [player, isSpectator, forceSpectator])
+
+  useEffect(() => {
+    if (forceSpectator || !room || !player) return
+    const onBlocks = (payload = {}) => {
+      const playerName = payload.player_name || payload.playerName || payload.player || ''
+      if (playerName && playerName !== player) return
+      const clearedBlocks = Array.isArray(payload.blocks) ? payload.blocks : []
+      if (!clearedBlocks.length) return
+
+      const uniqueRows = new Set()
+      const shards = []
+      clearedBlocks.forEach((blk, idx) => {
+        const mat = Number(blk?.Material || blk?.material || 0)
+        const pos = blk?.position || blk?.pos || {}
+        const col = Number(pos.x ?? pos.col ?? pos.c ?? 0)
+        const row = Number(pos.y ?? pos.row ?? pos.r ?? 0)
+        if (!Number.isFinite(mat) || mat <= 0) return
+        if (!Number.isFinite(row) || !Number.isFinite(col)) return
+        uniqueRows.add(row)
+        shards.push({ val: mat, row, col, delay: idx * 3 })
+      })
+      if (!shards.length) return
+
+      const linesCleared = uniqueRows.size
+      if (linesCleared > 0) {
+        totalClearedRef.current += linesCleared
+        const baseFortune = fortuneBaseRef.current || 1
+        const targetFortune = baseFortune + (totalClearedRef.current || 0) * 0.03
+        setFortuneMultiplier((prev) => Math.max(prev, targetFortune))
+      }
+
+      shards.forEach((cell) => {
+        playMaterialSound(cell.val, cell.delay)
+        spawnShard({ ...cell, awardAmount: 1, matKey: materialKeyFromVal(cell.val) })
+      })
+    }
+    const offBlocks = socketClient.on('cleared_blocks', onBlocks)
+    return () => { offBlocks && offBlocks() }
+  }, [forceSpectator, room, player])
 
   useEffect(() => {
     const offKick = socketClient.on('player_kick', (payload = {}) => {
@@ -1256,6 +1144,8 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
                       <div
                         key={cIdx}
                         className={`game-cell ${val ? 'filled' : ''} ${isGhost ? 'ghost' : ''}`}
+                        data-row={rIdx}
+                        data-col={cIdx}
                         style={val ? { backgroundImage: `url(${CELL_TEXTURES[val] || '/ui/Dirt.png'})` } : undefined}
                       />
                     )
