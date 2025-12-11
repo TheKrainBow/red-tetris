@@ -5,8 +5,6 @@ import { getLocalStorageItem } from '../utils/storage'
 import { navigate } from '../utils/navigation'
 import {
   SPAWN_MATERIALS,
-  getStoredSpawnRates,
-  saveSpawnRates,
   adjustSpawnRates,
   balanceSpawnRates,
   sumSpawnRates,
@@ -21,8 +19,8 @@ const MATERIALS = SPAWN_MATERIALS
 export default function CreateGame() {
   const username = useMemo(() => getLocalStorageItem(USERNAME_KEY, '') || '', [])
   const rootRef = useRef(null)
-  const { spawnCaps } = useShopState()
-  const [probs, setProbs] = useState(() => getStoredSpawnRates(spawnCaps))
+  const { spawnCaps, spawnRates, persistSpawnRates } = useShopState()
+  const [probs, setProbs] = useState(() => sanitizeSpawnRates(spawnRates, spawnCaps))
   const [autoDistrib, setAutoDistrib] = useState(true)
   const [editingKey, setEditingKey] = useState(null)
   const [draftVal, setDraftVal] = useState('')
@@ -38,12 +36,12 @@ export default function CreateGame() {
   const total = sumSpawnRates(probs)
 
   useEffect(() => {
-    saveSpawnRates(probs)
+    persistSpawnRates(probs)
   }, [probs])
 
   useEffect(() => {
     setProbs((prev) => sanitizeSpawnRates(prev, spawnCaps))
-  }, [spawnCaps])
+  }, [spawnCaps, spawnRates])
 
   return (
     <div className="mp-root" ref={rootRef}>

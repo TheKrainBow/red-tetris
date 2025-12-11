@@ -23,11 +23,7 @@ export default function Options() {
     navigate('/login')
   }
   const onResetAccount = () => {
-    const zero = { Dirt: 0, Stone: 0, Iron: 0, Diamond: 0, Emerald: 0 }
-    try {
-      localStorage.setItem('shop.inv', JSON.stringify(zero))
-      localStorage.removeItem('shop.purchases')
-    } catch (_) {}
+    navigate('/')
   }
 
   return (

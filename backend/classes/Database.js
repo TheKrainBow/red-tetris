@@ -40,8 +40,11 @@ export class Database {
                 emeralds INT NOT NULL DEFAULT 0,
                 game_played INT NOT NULL DEFAULT 0,
                 game_won INT NOT NULL DEFAULT 0,
+                singleplayer_game_played INT NOT NULL DEFAULT 0,
                 time_played INT NOT NULL DEFAULT 0
             );
+            ALTER TABLE users
+                ADD COLUMN IF NOT EXISTS singleplayer_game_played INT NOT NULL DEFAULT 0;
         `;
         try {
             await this.client.query(createTableQuery);  
@@ -125,7 +128,7 @@ export class Database {
             INSERT INTO users (player_name)
             VALUES ($1)
             ON CONFLICT (player_name) DO NOTHING
-            RETURNING id, player_name, dirt_collected, dirt_owned, stone_collected, stone_owned, iron_collected, iron_owned, diamond_collected, diamond_owned, emeralds, game_played, game_won, time_played;
+            RETURNING id, player_name, dirt_collected, dirt_owned, stone_collected, stone_owned, iron_collected, iron_owned, diamond_collected, diamond_owned, emeralds, game_played, game_won, singleplayer_game_played, time_played;
         `;
         try {
             const res = await this.client.query(insertQuery, [player_name]);
@@ -235,7 +238,12 @@ export class Database {
     async get_user_by_player_name(player_name) {
         const selectQuery = 'SELECT * FROM users WHERE player_name = $1;';
         try {
-            const res = await this.client.query(selectQuery, [player_name]);
+            let res = await this.client.query(selectQuery, [player_name]);
+            if (res.rows.length === 0) {
+                const created = await this.insert_user(player_name);
+                if (!created) return null;
+                res = await this.client.query(selectQuery, [player_name]);
+            }
             return res.rows;
         } catch (err) {
             console.error('Error fetching user by name:', err);
@@ -322,9 +330,104 @@ export class Database {
         }
     }
 
-    async update_player_stats(player, winner=false) {
+    async update_player_resources(playerName, deltaPoints = []) {
+        return this.update_inventory(playerName, { resources: { dirt: deltaPoints[0], stone: deltaPoints[1], iron: deltaPoints[2], diamond: deltaPoints[3] } });
+    }
+
+    async update_inventory(playerName, changes = {}) {
+        const resources = changes.resources || {};
+        const items = changes.items || {};
+
+        const sanitizeNum = (v) => Number.isFinite(Number(v)) ? Number(v) : 0;
+        const resourceDelta = {
+            dirt: sanitizeNum(resources.dirt),
+            stone: sanitizeNum(resources.stone),
+            iron: sanitizeNum(resources.iron),
+            diamond: sanitizeNum(resources.diamond),
+            emeralds: sanitizeNum(resources.emeralds ?? resources.emerald),
+        };
+
+        try {
+            const userResult = await this.get_user_by_player_name(playerName);
+            if (!userResult || userResult.length === 0) {
+                console.log(`Player ${playerName} not found.`);
+                return { success: false, reason: 'player_not_found' };
+            }
+            const user = userResult[0];
+            const userId = user.id;
+
+            const nextOwned = {
+                dirt: Math.max(0, (user.dirt_owned || 0) + resourceDelta.dirt),
+                stone: Math.max(0, (user.stone_owned || 0) + resourceDelta.stone),
+                iron: Math.max(0, (user.iron_owned || 0) + resourceDelta.iron),
+                diamond: Math.max(0, (user.diamond_owned || 0) + resourceDelta.diamond),
+                emeralds: Math.max(0, (user.emeralds || 0) + resourceDelta.emeralds),
+            };
+
+            const collectedDelta = {
+                dirt: Math.max(0, resourceDelta.dirt),
+                stone: Math.max(0, resourceDelta.stone),
+                iron: Math.max(0, resourceDelta.iron),
+                diamond: Math.max(0, resourceDelta.diamond),
+            };
+
+            const updateUserQuery = `
+                UPDATE users
+                SET dirt_collected = dirt_collected + $2,
+                    dirt_owned = $3,
+                    stone_collected = stone_collected + $4,
+                    stone_owned = $5,
+                    iron_collected = iron_collected + $6,
+                    iron_owned = $7,
+                    diamond_collected = diamond_collected + $8,
+                    diamond_owned = $9,
+                    emeralds = $10
+                WHERE id = $1;
+            `;
+            await this.client.query(updateUserQuery, [
+                userId,
+                collectedDelta.dirt,
+                nextOwned.dirt,
+                collectedDelta.stone,
+                nextOwned.stone,
+                collectedDelta.iron,
+                nextOwned.iron,
+                collectedDelta.diamond,
+                nextOwned.diamond,
+                nextOwned.emeralds,
+            ]);
+
+            const itemEntries = Object.entries(items);
+            for (const [itemName, delta] of itemEntries) {
+                const safeName = String(itemName || '').trim();
+                if (!safeName) continue;
+                const change = sanitizeNum(delta);
+                const fetchQuery = 'SELECT current_count, max_count FROM inventory WHERE user_id = $1 AND item_name = $2 LIMIT 1;';
+                const existing = await this.client.query(fetchQuery, [userId, safeName]);
+                const current = existing.rows[0]?.current_count || 0;
+                const maxCount = existing.rows[0]?.max_count || 999999;
+                const nextCount = Math.min(maxCount, Math.max(0, current + change));
+                const upsertQuery = `
+                    INSERT INTO inventory (user_id, item_name, current_count, max_count)
+                    VALUES ($1, $2, $3, $4)
+                    ON CONFLICT (user_id, item_name)
+                    DO UPDATE SET current_count = EXCLUDED.current_count
+                `;
+                await this.client.query(upsertQuery, [userId, safeName, nextCount, maxCount]);
+            }
+
+            const updatedUser = await this.get_user_by_player_name(playerName);
+            const inventory = await this.get_inventory_by_player_name(playerName);
+            return { success: true, user: updatedUser?.[0] || null, inventory };
+        } catch (err) {
+            console.error(`Error updating ${playerName}'s resources:`, err);
+            return { success: false };
+        }
+    }
+
+    async update_player_stats(player, winner=false, isSinglePlayer=false, resourceDelta=null) {
         const playerName = player.name;
-        const points = player.board.points;
+        const points = Array.isArray(resourceDelta) ? resourceDelta : player.board.points;
         try {
             const userResult = await this.get_user_by_player_name(playerName);
             if (userResult === null) {
@@ -337,6 +440,8 @@ export class Database {
             let {iron_collected, iron_owned} = userResult[0];
             let {diamond_collected, diamond_owned} = userResult[0];
             let {time_played, game_played, game_won} = userResult[0];
+            let {singleplayer_game_played} = userResult[0];
+            singleplayer_game_played = Number.isFinite(singleplayer_game_played) ? singleplayer_game_played : 0;
 
             dirt_collected += points[0];
             dirt_owned += points[0];
@@ -348,19 +453,23 @@ export class Database {
             diamond_owned += points[3];
 
             time_played += player.time_played;
-            game_played += 1;
-            if(winner){
-                game_won += 1;
+            if (isSinglePlayer) {
+                singleplayer_game_played += 1;
+            } else {
+                game_played += 1;
+                if(winner){
+                    game_won += 1;
+                }
             }
 
 
             const insertQuery = `
                 UPDATE users
-                SET (dirt_collected, dirt_owned, stone_collected, stone_owned, iron_collected, iron_owned, diamond_collected, diamond_owned, time_played, game_played, game_won) =
-                    ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-                WHERE id = $12;
+                SET (dirt_collected, dirt_owned, stone_collected, stone_owned, iron_collected, iron_owned, diamond_collected, diamond_owned, time_played, game_played, game_won, singleplayer_game_played) =
+                    ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+                WHERE id = $13;
             `;
-            await this.client.query(insertQuery, [dirt_collected, dirt_owned, stone_collected, stone_owned, iron_collected, iron_owned, diamond_collected, diamond_owned, time_played, game_played, game_won, userId]);
+            await this.client.query(insertQuery, [dirt_collected, dirt_owned, stone_collected, stone_owned, iron_collected, iron_owned, diamond_collected, diamond_owned, time_played, game_played, game_won, singleplayer_game_played, userId]);
             console.log(` updated ${playerName}'s stats.`);
             return {success: true};
         } catch (err) {

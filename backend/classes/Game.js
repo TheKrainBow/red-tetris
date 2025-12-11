@@ -9,9 +9,14 @@ export class Game {
     constructor(players, room, mode, gravity=500, getSpectatorSockets = () => []) {
         this.room = room;
         this.players = new Map(players.map(player_info => [player_info.playerName, new Player(player_info)]));
-        this.minimum_players = mode
+        this.mode = mode;
+        this.minimum_players = mode;
         this.eliminatedPlayers = [];
         this.onStatusChange = null;
+        this.resourceSnapshots = new Map();
+        this.players.forEach((_, playerName) => {
+            this.resourceSnapshots.set(playerName, [0, 0, 0, 0]);
+        });
         
         this.I = [[0,0,0,0],[1,1,1,1],[0,0,0,0],[0,0,0,0]];
         this.J = [[1,0,0],[1,1,1],[0,0,0]];
@@ -72,6 +77,28 @@ export class Game {
         });
     }
 
+    async #syncPlayerInventory(playerName, player, db, io, bonusDelta = null) {
+        const currentPoints = player.board.points || [];
+        const lastPoints = this.resourceSnapshots.get(playerName) || [0, 0, 0, 0];
+        const delta = currentPoints.map((p, idx) => Math.max(0, (p || 0) - (lastPoints[idx] || 0)));
+        const bonus = Array.isArray(bonusDelta) ? bonusDelta : [0, 0, 0, 0];
+        const deltaWithBonus = delta.map((v, i) => v + (bonus[i] || 0));
+        const deltaSum = deltaWithBonus.reduce((sum, v) => sum + v, 0);
+        if (deltaSum <= 0) return;
+
+        if (db?.update_player_resources) {
+            const res = await db.update_player_resources(playerName, deltaWithBonus);
+            this.resourceSnapshots.set(playerName, [...currentPoints]);
+            if (res?.success && io) {
+                io.to(player.id).emit('player_inventory', {
+                    player_name: playerName,
+                    user: res.user,
+                    inventory: res.inventory,
+                });
+            }
+        }
+    }
+
     #set_blocked_rows(thisPlayer, nrows_to_block) {
         this.players.forEach((player, player_name) => {
             if (player.name !== thisPlayer.name) {
@@ -80,12 +107,13 @@ export class Game {
         });
     }
 
-    #send_game_state(io) {
+    async #send_game_state(io, db) {
         const spectatorSockets = this.getSpectatorSockets() || [];
     
-        this.players.forEach((currentPlayer, currentPlayerName) => {
+        for (const [currentPlayerName, currentPlayer] of this.players.entries()) {
             let opponents = []
             const clearedRows = currentPlayer.board.consume_cleared_rows();
+            const linesCleared = Array.isArray(clearedRows) ? clearedRows.length : 0;
             const playerGameState = {
                     Board: currentPlayer.board.get_state(),
                     CurrentPiece: {
@@ -95,7 +123,7 @@ export class Game {
                     },
                     NextPiece: {Shape: currentPlayer.piece_queue.peek().state},
                     ClearedRows: clearedRows,
-                    LinesCleared: Array.isArray(clearedRows) ? clearedRows.length : 0,
+                    LinesCleared: linesCleared,
                     player_name: currentPlayerName,
             };
             this.players.forEach((otherPlayer, otherPlayerId) => {
@@ -106,13 +134,39 @@ export class Game {
             playerGameState["Opponents"] = opponents;
             io.to(currentPlayer.id).emit('room_boards', playerGameState);
 
+            // Sync collected resources to DB on each tick based on delta since last sync
+            const bonusDelta = this.#computeLineBonus(currentPlayer, linesCleared);
+            await this.#syncPlayerInventory(currentPlayerName, currentPlayer, db, io, bonusDelta);
+
             if (spectatorSockets.length > 0) {
                 spectatorSockets.forEach((socketId) => {
                     io.to(socketId).emit('room_boards', { ...playerGameState, spectator: true });
                 });
             }
-        });
+        }
     } 
+
+    #computeLineBonus(player, linesCleared) {
+        if (!linesCleared || linesCleared <= 0) return [0, 0, 0, 0];
+        const effects = player.effects || {};
+        const lineBonus = effects.lineBonus || {};
+        const multiplier = Math.max(0, effects.lineBonusMultiplier || 1);
+        const fortune = 1 + Math.max(0, effects.fortuneMultiplierPercent || 0) / 100;
+        const resOrder = ['dirt', 'stone', 'iron', 'diamond'];
+        return resOrder.map((key) => {
+            const perLine = lineBonus[key] || 0;
+            const raw = perLine * linesCleared * multiplier * fortune;
+            return Math.floor(raw);
+        });
+    }
+
+    updatePlayerRates(playerName, rates = [], effects = {}) {
+        const player = this.players.get(playerName);
+        if (!player) return false;
+        player.spawn_rates = Array.isArray(rates) && rates.length ? rates : player.spawn_rates;
+        player.effects = effects || player.effects || {};
+        return true;
+    }
 
     #end_turn(player){
         player.board.lock_piece(player.current_piece);
@@ -176,13 +230,14 @@ export class Game {
         if (this.isRunning) return;
         
         this.start(io);
+        const isSinglePlayer = this.mode === Game.SINGLE_PLAYER;
         
         while (this.isRunning && this.players.size >= this.minimum_players) {
-            
-            this.players.forEach((player, player_name) => {
+            for (const [player_name, player] of this.players.entries()) {
 
                 if (this.eliminatedPlayers.includes(player_name)){
-                    db.update_player_stats(player);
+                    await this.#syncPlayerInventory(player_name, player, db, io);
+                    await db.update_player_stats(player, false, isSinglePlayer, [0, 0, 0, 0]);
                     this.players.delete(player_name);
                     io.to(this.room).emit('player_eliminated', { player_name: player_name });
                     this.#notifyStatusChange();
@@ -195,14 +250,14 @@ export class Game {
                     
                 }
                 
-            });
+            }
             
             if (this.players.size < this.minimum_players) {
                 this.stop()
                 break;
             }
 
-            this.#send_game_state(io);
+            await this.#send_game_state(io, db);
                  
             await sleep(this.gravity);
         }
@@ -212,7 +267,8 @@ export class Game {
         if (winner !== ""){
             const player = this.players.get(winner);
             player.set_time_played(this.startTime);
-            db.update_player_stats(player, true);
+            await this.#syncPlayerInventory(winner, player, db, io);
+            await db.update_player_stats(player, true, isSinglePlayer, [0, 0, 0, 0]);
         }
         const game_end = {
             type: "game_end",

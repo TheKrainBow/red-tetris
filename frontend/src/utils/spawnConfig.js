@@ -1,8 +1,5 @@
 import { SPAWN_START, RESOURCES, SHOP_ITEMS, formatResourceId, startCase } from './shopData'
 
-const SPAWN_RATES_KEY = 'shop.spawnRates'
-const SPAWN_CAPS_KEY = 'shop.spawnCaps'
-
 const TEXTURES = {
   dirt: '/blocks/Dirt.jpg',
   stone: '/blocks/Stone.jpeg',
@@ -60,23 +57,14 @@ export function sanitizeSpawnCaps(src = SPAWN_CAP_DEFAULTS) {
   return out
 }
 
+let memoryCaps = sanitizeSpawnCaps(SPAWN_CAP_DEFAULTS)
+
 export function getStoredSpawnCaps() {
-  if (typeof window === 'undefined') return { ...SPAWN_CAP_DEFAULTS }
-  try {
-    const raw = window.localStorage.getItem(SPAWN_CAPS_KEY)
-    const caps = sanitizeSpawnCaps(raw ? JSON.parse(raw) : SPAWN_CAP_DEFAULTS)
-    window.localStorage.setItem(SPAWN_CAPS_KEY, JSON.stringify(caps))
-    return caps
-  } catch (_) {
-    return { ...SPAWN_CAP_DEFAULTS }
-  }
+  return { ...memoryCaps }
 }
 
 export function saveSpawnCaps(caps) {
-  if (typeof window === 'undefined') return
-  try {
-    window.localStorage.setItem(SPAWN_CAPS_KEY, JSON.stringify(sanitizeSpawnCaps(caps)))
-  } catch (_) {}
+  memoryCaps = sanitizeSpawnCaps(caps)
 }
 
 export function sanitizeSpawnRates(src = SPAWN_RATE_DEFAULTS, caps = null) {
@@ -90,24 +78,17 @@ export function sanitizeSpawnRates(src = SPAWN_RATE_DEFAULTS, caps = null) {
   return balanceSpawnRates(out, safeCaps)
 }
 
+let memoryRates = sanitizeSpawnRates(SPAWN_RATE_DEFAULTS, memoryCaps)
+
 export function getStoredSpawnRates(caps = null) {
-  if (typeof window === 'undefined') return sanitizeSpawnRates(SPAWN_RATE_DEFAULTS, caps)
-  try {
-    const raw = window.localStorage.getItem(SPAWN_RATES_KEY)
-    const parsed = raw ? JSON.parse(raw) : SPAWN_RATE_DEFAULTS
-    const sanitized = sanitizeSpawnRates(parsed, caps)
-    window.localStorage.setItem(SPAWN_RATES_KEY, JSON.stringify(sanitized))
-    return sanitized
-  } catch (_) {
-    return sanitizeSpawnRates(SPAWN_RATE_DEFAULTS, caps)
-  }
+  memoryCaps = caps ? sanitizeSpawnCaps(caps) : memoryCaps
+  memoryRates = sanitizeSpawnRates(memoryRates, memoryCaps)
+  return { ...memoryRates }
 }
 
 export function saveSpawnRates(rates) {
-  if (typeof window === 'undefined') return
-  try {
-    window.localStorage.setItem(SPAWN_RATES_KEY, JSON.stringify(rates))
-  } catch (_) {}
+  memoryRates = sanitizeSpawnRates(rates, memoryCaps)
+  return memoryRates
 }
 
 export function balanceSpawnRates(src, caps, skipKey = null) {
@@ -185,11 +166,6 @@ export function adjustSpawnRates(rates, caps, key, value, autoDistrib) {
     }
   }
   return balanced
-}
-
-export {
-  SPAWN_RATES_KEY,
-  SPAWN_CAPS_KEY,
 }
 
 export function computeCapsFromPurchases(purchases = {}) {

@@ -258,13 +258,13 @@ export default function Shop() {
   const [villagePos] = useState([2.9, 0, -19.7])
   const {
     inventory: inv,
-    setInventory: setInv,
     purchases,
-    setPurchases,
     craftUnlocks,
-    setCraftUnlocks,
     craftCounts,
-    setCraftCounts,
+    setCraftUnlocks,
+    buyItem,
+    trade,
+    craft,
     resetShopState,
   } = useShopState()
 
@@ -391,47 +391,26 @@ export default function Shop() {
     }
     const costId = formatResourceId(item.resource_cost)
     const price = computeShopPrice(item, level)
-    let didBuy = false
-    setInv((cur) => {
-      const have = cur[costId] || 0
-      if (have < price) return cur
-      didBuy = true
-      const next = { ...cur, [costId]: have - price }
-      playSpendSound(costId)
-      return next
-    })
-    if (didBuy) {
-      setPurchases((prev) => ({ ...prev, [item.id]: (prev[item.id] || 0) + 1 }))
-    } else {
+    const have = inv[costId] || 0
+    if (have < price) {
       playFrom(sounds.current.deny)
+      return
     }
+    playSpendSound(costId)
+    buyItem(item.id)
   }
 
   function handleTrade(trade, requestedTimes = 1) {
     if (!trade || !requestedTimes) return
-    setInv((cur) => {
-      const maxTimes = computeMaxTimes(cur, trade.cost)
-      const times = Math.min(requestedTimes, maxTimes)
-      if (!times || times <= 0 || !Number.isFinite(times)) {
-        playFrom(sounds.current.deny)
-        return cur
-      }
-      const next = { ...cur }
-      const costEntries = Object.entries(trade.cost || {})
-      const rewardEntries = Object.entries(trade.give || {})
-      for (const [resId, amount] of costEntries) {
-        const key = formatResourceId(resId)
-        const spend = (Number(amount) || 0) * times
-        next[key] = Math.max(0, (next[key] || 0) - spend)
-      }
-      for (const [resId, amount] of rewardEntries) {
-        const key = formatResourceId(resId)
-        const gain = (Number(amount) || 0) * times
-        next[key] = (next[key] || 0) + gain
-      }
-      if (costEntries.length) playSpendSound(formatResourceId(costEntries[0][0]))
-      return next
-    })
+    const maxTimes = computeMaxTimes(inv, trade.cost)
+    const times = Math.min(requestedTimes, maxTimes)
+    if (!times || times <= 0 || !Number.isFinite(times)) {
+      playFrom(sounds.current.deny)
+      return
+    }
+    const costEntries = Object.entries(trade.cost || {})
+    if (costEntries.length) playSpendSound(formatResourceId(costEntries[0][0]))
+    trade(trade.id, times)
   }
 
   function handleCraft(craft) {
@@ -443,35 +422,14 @@ export default function Shop() {
       playFrom(sounds.current.deny)
       return
     }
-    let crafted = false
-    setInv((cur) => {
-      if (!canCraft(cur, craft)) {
-        playFrom(sounds.current.deny)
-        return cur
-      }
-      crafted = true
-      const next = { ...cur }
-      const costEntries = Object.entries(craft.cost || {})
-      for (const [resId, amount] of costEntries) {
-        const key = formatResourceId(resId)
-        const spend = Number(amount) || 0
-        next[key] = Math.max(0, (next[key] || 0) - spend)
-      }
-      for (const [resId, amount] of Object.entries(craft.outputs || {})) {
-        const key = formatResourceId(resId)
-        const gain = Number(amount) || 0
-        next[key] = (next[key] || 0) + gain
-      }
-      if (costEntries.length) playSpendSound(formatResourceId(costEntries[0][0]))
-      return next
-    })
-    if (crafted) {
-      setCraftUnlocks((prev) => (prev[craft.id] ? prev : { ...prev, [craft.id]: true }))
-      setCraftCounts((prev) => ({
-        ...prev,
-        [craft.id]: (prev?.[craft.id] || 0) + 1,
-      }))
+    if (!canCraft(inv, craft)) {
+      playFrom(sounds.current.deny)
+      return
     }
+    const costEntries = Object.entries(craft.cost || {})
+    if (costEntries.length) playSpendSound(formatResourceId(costEntries[0][0]))
+    craft(craft.id, 1)
+    setCraftUnlocks((prev) => (prev[craft.id] ? prev : { ...prev, [craft.id]: true }))
   }
 
   return (

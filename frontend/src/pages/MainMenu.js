@@ -3,6 +3,7 @@ import Button from '../components/Button'
 import { loadSkyboxCube } from '../three/Skybox.jsx'
 import { getLocalStorageItem } from '../utils/storage'
 import { navigate } from '../utils/navigation'
+import socketClient from '../utils/socketClient'
 
 const USERNAME_KEY = 'username'
 const KICK_NOTICE_KEY = 'kick.notice'
@@ -33,14 +34,25 @@ export default function MainMenu() {
 
   useEffect(() => {
     try {
-      const msg = localStorage.getItem(KICK_NOTICE_KEY)
+      const msg = sessionStorage.getItem(KICK_NOTICE_KEY)
       if (msg) setKickedMessage(msg)
     } catch (_) {}
   }, [])
 
+  useEffect(() => {
+    if (!username) return
+    socketClient.sendCommand('get_user_by_player_name', { playerName: username })
+      .then((res) => {
+        console.log('get_user_by_player_name response', res)
+      })
+      .catch((err) => {
+        console.error('get_user_by_player_name error', err)
+      })
+  }, [username])
+
   const dismissKicked = () => {
     setKickedMessage('')
-    try { localStorage.removeItem(KICK_NOTICE_KEY) } catch (_) {}
+    try { sessionStorage.removeItem(KICK_NOTICE_KEY) } catch (_) {}
   }
 
   return (

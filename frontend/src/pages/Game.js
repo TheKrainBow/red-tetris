@@ -208,7 +208,7 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
   const spectatorGridRef = useRef(null)
   const suppressShardsRef = useRef(false)
   const prevPieceRef = useRef(defaultPiece)
-  const { setInventory, purchases, craftCounts, inventory } = useShopState()
+  const { purchases, craftCounts, inventory } = useShopState()
   const fortuneBaseRef = useRef(1)
   const fortuneRemainderRef = useRef({ dirt: 0, stone: 0, iron: 0, diamond: 0 })
   const [bonusBadges, setBonusBadges] = useState([])
@@ -421,10 +421,6 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
   const queueAward = (matKey, amount = 0, delayMs = 0) => {
     if (!matKey || !amount) return
     setTimeout(() => {
-      setInventory((prev) => ({
-        ...prev,
-        [matKey]: (prev[matKey] || 0) + amount,
-      }))
       setCollected((prev) => ({
         ...prev,
         [matKey]: prev[matKey] + amount,
@@ -941,7 +937,7 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
       if (kickedName && selfName && kickedName === selfName) {
         try {
           const msg = `You got kicked from ${roomName || 'this server'}`
-          window.localStorage.setItem(KICK_NOTICE_KEY, msg)
+          try { window.sessionStorage.setItem(KICK_NOTICE_KEY, msg) } catch (_) {}
         } catch (_) {}
         navigate('/')
       }

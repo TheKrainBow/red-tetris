@@ -1,9 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import {
-  getStoredSpawnRates,
   adjustSpawnRates,
   balanceSpawnRates,
-  saveSpawnRates,
   sumSpawnRates,
   SPAWN_MATERIALS,
   sanitizeSpawnRates,
@@ -33,26 +31,20 @@ const UTILITY_BUTTONS = [
 ]
 
 export default function UtilityDock({ hidden }) {
-  const { inventory, spawnCaps, purchases, craftCounts } = useShopState()
+  const { inventory, spawnCaps, purchases, craftCounts, spawnRates, persistSpawnRates } = useShopState()
   const [activeTab, setActiveTab] = useState(() => {
     if (typeof window === 'undefined') return null
     return window.localStorage.getItem(DOCK_TAB_KEY)
   })
-  const [spawnRates, setSpawnRates] = useState(() => getStoredSpawnRates(spawnCaps))
-  const [draftRates, setDraftRates] = useState(() => getStoredSpawnRates(spawnCaps))
+  const [draftRates, setDraftRates] = useState(() => sanitizeSpawnRates(spawnRates, spawnCaps))
   const [spawnAutoDistrib, setSpawnAutoDistrib] = useState(true)
   const [editingKey, setEditingKey] = useState(null)
   const [draftInput, setDraftInput] = useState('')
 
   useEffect(() => {
-    saveSpawnRates(spawnRates)
-  }, [spawnRates])
-
-  useEffect(() => {
     const sanitized = sanitizeSpawnRates(spawnRates, spawnCaps)
-    setSpawnRates(sanitized)
     setDraftRates(sanitized)
-  }, [spawnCaps])
+  }, [spawnCaps, spawnRates])
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -77,7 +69,7 @@ export default function UtilityDock({ hidden }) {
   }
 
   const handleCancelDraft = () => {
-    const stored = getStoredSpawnRates(spawnCaps)
+    const stored = sanitizeSpawnRates(spawnRates, spawnCaps)
     setDraftRates(stored)
     setEditingKey(null)
     setDraftInput('')
@@ -87,13 +79,12 @@ export default function UtilityDock({ hidden }) {
   const handleSaveDraft = () => {
     const total = sumSpawnRates(draftRates)
     if (Math.abs(total - 1) > 0.0001) return
-    setSpawnRates(draftRates)
-    saveSpawnRates(draftRates)
+    persistSpawnRates(draftRates)
     setEditingKey(null)
     setDraftInput('')
   }
 
-  const storedRates = spawnRates
+  const storedRates = sanitizeSpawnRates(spawnRates, spawnCaps)
   const draftMatchesStored = JSON.stringify(storedRates) === JSON.stringify(draftRates)
   const draftSumValid = Math.abs(sumSpawnRates(draftRates) - 1) <= 0.0001
 
@@ -220,7 +211,8 @@ function getCraftCount(craft, inventory, craftCounts) {
 
 function InventoryPanel({ inv }) {
   const resourceIds = RESOURCES.map((res) => res.id)
-  const items = Object.entries(inv || {}).filter(([key]) => !resourceIds.includes(key))
+  const items = Object.entries(inv || {})
+    .filter(([key, value]) => CRAFT_BY_OUTPUT[key] && Number(value) > 0)
   return (
     <div className="shop-panel shop-inventory-panel">
       <div className="shop-panel-header">
@@ -272,101 +264,103 @@ function InventoryPanel({ inv }) {
 function SpawnRatePanel({ rates, caps, autoDistrib, onChange, onAutoDistribChange, editingKey, draftInput, onStartEdit, onInputChange, onCommitEdit, onCancel, onSave, disableCancel, disableSave }) {
   const total = sumSpawnRates(rates)
   return (
-    <div className="shop-panel">
-      <div className="shop-panel-header">
-        <h4 className="shop-panel-title">Spawn Rates</h4>
-        <span className="shop-panel-total">{total.toFixed(2)}</span>
-      </div>
-      <p className="shop-panel-caption">Tune how frequently each resource appears.</p>
-      <div className="shop-rate-stack">
-        {SPAWN_MATERIALS.map((mat) => {
-          const absolute = Math.max(0, Math.min(1, Number(rates[mat.key] || 0)))
-          const cap = Math.max(0, Math.min(1, caps?.[mat.key] || 0))
-          const clampedValue = Math.min(cap, absolute)
-          return (
-            <div key={mat.key} className="shop-rate-card">
-              <div className="shop-rate-head">
-                <span className="shop-rate-name">
-                  <img src={getResourceIcon(mat.key)} alt={mat.label} className="shop-inventory-icon" />
-                  {mat.label}
-                </span>
-                <span className="shop-rate-max">Max {cap.toFixed(2)}</span>
-              </div>
-              <div className="gc-prob-row shop-prob-row">
-                <div className="gc-slider">
-                  <div className="gc-cap" style={{ left: `${cap * 100}%` }} />
-                  <input
-                    type="range"
-                    min={0}
-                    max={1}
-                    step={0.01}
-                    value={clampedValue}
-                    style={{ '--gc-marker': `${cap * 100}%`, '--gc-value': `${clampedValue * 100}%` }}
-                    onChange={(e) => {
-                      const next = Math.min(Number(e.target.value), cap)
-                      onChange(mat.key, next)
-                    }}
+    <div className="shop-panel" style={{ position: 'relative' }}>
+      <div>
+        <div className="shop-panel-header">
+          <h4 className="shop-panel-title">Spawn Rates</h4>
+          <span className="shop-panel-total">{total.toFixed(2)}</span>
+        </div>
+        <p className="shop-panel-caption">Tune how frequently each resource appears.</p>
+        <div className="shop-rate-stack">
+          {SPAWN_MATERIALS.map((mat) => {
+            const absolute = Math.max(0, Math.min(1, Number(rates[mat.key] || 0)))
+            const cap = Math.max(0, Math.min(1, caps?.[mat.key] || 0))
+            const clampedValue = Math.min(cap, absolute)
+            return (
+              <div key={mat.key} className="shop-rate-card">
+                <div className="shop-rate-head">
+                  <span className="shop-rate-name">
+                    <img src={getResourceIcon(mat.key)} alt={mat.label} className="shop-inventory-icon" />
+                    {mat.label}
+                  </span>
+                  <span className="shop-rate-max">Max {cap.toFixed(2)}</span>
+                </div>
+                <div className="gc-prob-row shop-prob-row">
+                  <div className="gc-slider">
+                    <div className="gc-cap" style={{ left: `${cap * 100}%` }} />
+                    <input
+                      type="range"
+                      min={0}
+                      max={1}
+                      step={0.01}
+                      value={clampedValue}
+                      style={{ '--gc-marker': `${cap * 100}%`, '--gc-value': `${clampedValue * 100}%` }}
+                      onChange={(e) => {
+                        const next = Math.min(Number(e.target.value), cap)
+                        onChange(mat.key, next)
+                      }}
                   />
                 </div>
                 <div className="gc-prob-val" onClick={() => onStartEdit(mat.key, clampedValue)}>
                   {editingKey === mat.key ? (
-                    <input
-                      type="number"
-                      min={0}
-                      max={cap}
-                      step="0.01"
-                      value={draftInput}
-                      autoFocus
-                      onChange={(e) => onInputChange(e.target.value)}
-                      onBlur={() => onCommitEdit(mat.key)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') onCommitEdit(mat.key)
-                        if (e.key === 'Escape') { onInputChange(clampedValue.toFixed(2)); onCommitEdit(mat.key) }
-                      }}
-                      style={{ width: 60, textAlign: 'right' }}
-                    />
-                  ) : (
-                    clampedValue.toFixed(2)
-                  )}
+                      <input
+                        type="number"
+                        min={0}
+                        max={cap}
+                        step="0.01"
+                        value={draftInput}
+                        autoFocus
+                        onChange={(e) => onInputChange(e.target.value)}
+                        onBlur={() => onCommitEdit(mat.key)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') onCommitEdit(mat.key)
+                          if (e.key === 'Escape') { onInputChange(clampedValue.toFixed(2)); onCommitEdit(mat.key) }
+                        }}
+                        style={{ width: 60, textAlign: 'right' }}
+                      />
+                    ) : (
+                      clampedValue.toFixed(2)
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          )
-        })}
-      </div>
-      <div className="gc-dist-wrap shop-dist-wrap">
-        <div className="gc-dist-row">
-          <div className="gc-dist">
-            {(() => {
-              let rem = 100
-              const parts = []
-              for (const mat of SPAWN_MATERIALS) {
-                const width = Math.min(rem, Math.max(0, (rates[mat.key] || 0) * 100))
-                rem -= width
-                if (width > 0) {
-                  parts.push(
-                    <div key={mat.key} className="gc-seg" style={{ width: `${width}%`, backgroundImage: `url(${mat.texture})` }} />
-                  )
-                }
-              }
-              if (rem > 0) parts.push(<div key="empty" className="gc-seg gc-empty" style={{ width: `${rem}%` }} />)
-              return parts
-            })()}
-          </div>
-          <label className="gc-auto">
-            <input
-              type="checkbox"
-              checked={autoDistrib}
-              onChange={(e) => onAutoDistribChange(e.target.checked)}
-            />
-            Auto-distrib
-          </label>
+            )
+          })}
         </div>
-        <div className="gc-dist-legend">Distribution (sum: {total.toFixed(2)})</div>
-      </div>
-      <div className="shop-panel-buttons">
-        <button className="ui-btn" onClick={onCancel} disabled={disableCancel}>Cancel</button>
-        <button className="ui-btn" onClick={onSave} disabled={disableSave}>Save</button>
+        <div className="gc-dist-wrap shop-dist-wrap">
+          <div className="gc-dist-row">
+            <div className="gc-dist">
+              {(() => {
+                let rem = 100
+                const parts = []
+                for (const mat of SPAWN_MATERIALS) {
+                  const width = Math.min(rem, Math.max(0, (rates[mat.key] || 0) * 100))
+                  rem -= width
+                  if (width > 0) {
+                    parts.push(
+                      <div key={mat.key} className="gc-seg" style={{ width: `${width}%`, backgroundImage: `url(${mat.texture})` }} />
+                    )
+                  }
+                }
+                if (rem > 0) parts.push(<div key="empty" className="gc-seg gc-empty" style={{ width: `${rem}%` }} />)
+                return parts
+              })()}
+            </div>
+            <label className="gc-auto">
+              <input
+                type="checkbox"
+                checked={autoDistrib}
+                onChange={(e) => onAutoDistribChange(e.target.checked)}
+              />
+              Auto-distrib
+            </label>
+          </div>
+          <div className="gc-dist-legend">Distribution (sum: {total.toFixed(2)})</div>
+        </div>
+        <div className="shop-panel-buttons">
+          <button className="ui-btn" onClick={onCancel} disabled={disableCancel}>Cancel</button>
+          <button className="ui-btn" onClick={onSave} disabled={disableSave}>Save</button>
+        </div>
       </div>
     </div>
   )

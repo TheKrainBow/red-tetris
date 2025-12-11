@@ -1,0 +1,221 @@
+version: 1.1
+game:
+  resources:
+    - id: dirt
+      display_name: Dirt
+      type: collectible
+    - id: stone
+      display_name: Stone
+      type: collectible
+    - id: iron
+      display_name: Iron
+      type: collectible
+    - id: diamond
+      display_name: Diamond
+      type: collectible
+    - id: emerald
+      display_name: Emerald
+      type: trade_only
+
+  spawn_probabilities_start:
+    dirt: 1.0
+    stone: 0.0
+    iron: 0.0
+    diamond: 0.0
+
+shops:
+  - id: stone_spawn_rate
+    name: "Rock detector"
+    effect_type: spawn_rate_increase
+    affects: stone
+    resource_cost: dirt
+    starting_price: 25
+    price_growth_multiplier: 1.15
+    effect_per_level: 0.01
+    effect_growth_multiplier: 1.0
+    max_level: 100
+
+  - id: dirt_line_break_bonus
+    name: "Dirt Expert"
+    effect_type: line_break_bonus
+    affects: dirt
+    resource_cost: stone
+    starting_price: 5
+    price_growth_multiplier: 1.40
+    effect_base: 1
+    effect_growth_multiplier: 1.30
+    max_level: 50
+
+  - id: iron_spawn_rate
+    name: "Iron detector"
+    effect_type: spawn_rate_increase
+    affects: iron
+    resource_cost: stone
+    starting_price: 25
+    price_growth_multiplier: 1.17
+    effect_per_level: 0.01
+    effect_growth_multiplier: 1.0
+    max_level: 100
+
+  - id: stone_line_break_bonus
+    name: "Stone Expert"
+    effect_type: line_break_bonus
+    affects: stone
+    resource_cost: iron
+    starting_price: 5
+    price_growth_multiplier: 1.50
+    effect_base: 1
+    effect_growth_multiplier: 1.25
+    max_level: 50
+
+  - id: diamond_spawn_rate
+    name: "Diamond detector"
+    effect_type: spawn_rate_increase
+    affects: diamond
+    resource_cost: iron
+    starting_price: 25
+    price_growth_multiplier: 1.20
+    effect_per_level: 0.01
+    effect_growth_multiplier: 1.0
+    max_level: 100
+
+  - id: iron_line_break_bonus
+    name: "Iron Expert"
+    effect_type: line_break_bonus
+    affects: iron
+    resource_cost: diamond
+    starting_price: 5
+    price_growth_multiplier: 1.55
+    effect_base: 1
+    effect_growth_multiplier: 1.23
+    max_level: 50
+
+trades:
+  # Basic resource -> Emerald exchanges
+  - id: dirt_to_emerald
+    name: "128 Dirt → 1 Emerald"
+    give:
+      emerald: 1
+    cost:
+      dirt: 128
+
+  - id: stone_to_emerald
+    name: "64 Stone → 1 Emerald"
+    give:
+      emerald: 1
+    cost:
+      stone: 64
+
+  - id: iron_to_emerald
+    name: "32 Iron → 1 Emerald"
+    give:
+      emerald: 1
+    cost:
+      iron: 32
+
+  - id: diamond_to_emerald
+    name: "16 Diamond → 1 Emerald"
+    give:
+      emerald: 1
+    cost:
+      diamond: 16
+
+crafts:
+  # Placeholder craft for now; effects can be filled later
+  - id: fortune_enchant
+    name: "Fortune Enchantment"
+    cost:
+      dirt: 135
+      stone: 65
+      iron: 12
+      diamond: 1
+    outputs:
+      silly_relic: 1
+    effects:
+      fortune_multiplier_percent: 200
+    max_crafts: 1
+    craft_time_seconds: 0
+  - id: magical_hands
+    name: "Magical hands"
+    cost:
+      dirt: 900
+      stone: 750
+      iron: 320
+      diamond: 100
+    outputs:
+      diamond_detector: 1
+    effects:
+      diamond_line_break_bonus: 1
+    max_crafts: 10
+    craft_time_seconds: 0
+  - id: bonus_multiplayer
+    name: "Duplication Glitch"
+    cost:
+      dirt: 12000
+      stone: 9800
+      iron: 7600
+      diamond: 420
+    outputs:
+      bonus_multiplayer: 1
+    effects:
+      line_break_bonus_multiplayer: 1.5
+    max_crafts: 10
+    craft_time_seconds: 0
+  - id: dirt_battle_pass
+    name: "Dirt Battle Pass"
+    cost:
+      dirt: 1000
+    outputs:
+      dirt_battle_pass: 1
+    effects:
+      shop_reduction: 5
+    max_crafts: 1
+    craft_time_seconds: 0
+  - id: stone_battle_pass
+    name: "Stone Battle Pass"
+    cost:
+      stone: 1000
+    outputs:
+      stone_battle_pass: 1
+    effects:
+      shop_reduction: 5
+    max_crafts: 1
+    craft_time_seconds: 0
+  - id: iron_battle_pass
+    name: "Iron Battle Pass"
+    cost:
+      iron: 1000
+    outputs:
+      iron_battle_pass: 1
+    effects:
+      shop_reduction: 5
+    max_crafts: 1
+    craft_time_seconds: 0
+  - id: diamond_battle_pass
+    name: "Diamond Battle Pass"
+    cost:
+      diamond: 1000
+    outputs:
+      diamond_battle_pass: 1
+    effects:
+      shop_reduction: 5
+    max_crafts: 1
+    craft_time_seconds: 0
+  - id: delux_battle_pass
+    name: "Delux Battle Pass"
+    cost:
+      dirt: 1000
+      stone: 1000
+      iron: 1000
+      diamond: 1000
+    outputs:
+      delux_battle_pass: 1
+    effects:
+      shop_reduction: 20
+    max_crafts: 1
+    craft_time_seconds: 0
+
+notes:
+  pricing_model: "cost(level) = starting_price * (price_growth_multiplier)^(level-1)"
+  line_break_bonus_formula: "bonus(level) = effect_base * (effect_growth_multiplier)^(level-1) per line break"
+  trade_ui_hint: "If batchable, allow a 'Max' button to compute floor(owned/cost) per trade."

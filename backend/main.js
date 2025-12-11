@@ -5,6 +5,7 @@ import http from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 import { Gateway } from './classes/Gateway';
 import { Database } from './classes/Database';
+import { Shop } from './classes/Shop';
 
 // --- Constants ---
 const serverPort = Number(process.env.SERVER_PORT || 3004);
@@ -33,7 +34,8 @@ const io = new SocketIOServer(server, {
   },
 });
 
-const gateway = new Gateway(io, db);
+const shop = new Shop(db);
+const gateway = new Gateway(io, db, shop);
 
 // --- Socket.IO connection handling ---
 io.on('connection', (socket) => {
@@ -119,6 +121,26 @@ io.on('connection', (socket) => {
     socket.on('update_rates_by_player_name', async (data, callback) => {
       
       const response = await gateway.update_rates_by_player_name(socket, data);
+      callback && callback(response);
+    });
+
+    socket.on('update_inventory', async (data, callback) => {
+      const response = await gateway.update_inventory(socket, data);
+      callback && callback(response);
+    });
+
+    socket.on('shop_buy', async (data, callback) => {
+      const response = await gateway.shop_buy(socket, data);
+      callback && callback(response);
+    });
+
+    socket.on('shop_trade', async (data, callback) => {
+      const response = await gateway.shop_trade(socket, data);
+      callback && callback(response);
+    });
+
+    socket.on('shop_craft', async (data, callback) => {
+      const response = await gateway.shop_craft(socket, data);
       callback && callback(response);
     });
 });

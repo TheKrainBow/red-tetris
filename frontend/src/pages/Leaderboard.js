@@ -3,6 +3,7 @@ import Button from '../components/Button'
 import SpinningCube from '../components/SpinningCube.jsx'
 import { getLocalStorageItem } from '../utils/storage'
 import { navigate } from '../utils/navigation'
+import socketClient from '../utils/socketClient'
 
 const ICONS = {
   Dirt: '/blocks/Dirt.jpg',
@@ -17,44 +18,74 @@ const ICONS = {
 }
 
 const METRICS = [
-  { key: 'emerald', label: 'Per Emerald', icon: ICONS.Emerald },
-  { key: 'dirt_collected', label: 'Per Dirt collected', icon: ICONS.Dirt },
-  { key: 'dirt_owned', label: 'Per Dirt owned', icon: ICONS.Dirt },
-  { key: 'stone_collected', label: 'Per Stone collected', icon: ICONS.Stone },
-  { key: 'stone_owned', label: 'Per Stone Owned', icon: ICONS.Stone },
-  { key: 'iron_collected', label: 'Per Iron collected', icon: ICONS.Iron },
-  { key: 'iron_owned', label: 'Per Iron Owned', icon: ICONS.Iron },
-  { key: 'diamond_collected', label: 'Per Diamond collected', icon: ICONS.Diamond },
-  { key: 'diamond_owned', label: 'Per Diamond Owned', icon: ICONS.Diamond },
-  { key: 'pvp_wins', label: 'Per PvP Game won', icon: ICONS.Sword },
-  { key: 'games_played', label: 'Per Game Played', icon: ICONS.Controller },
-  { key: 'time_played', label: 'Per Time Played', icon: ICONS.Clock },
+  { key: 'emeralds', field: 'emeralds', label: 'Per Emerald', icon: ICONS.Emerald },
+  { key: 'dirt_collected', field: 'dirt_collected', label: 'Per Dirt collected', icon: ICONS.Dirt },
+  { key: 'dirt_owned', field: 'dirt_owned', label: 'Per Dirt owned', icon: ICONS.Dirt },
+  { key: 'stone_collected', field: 'stone_collected', label: 'Per Stone collected', icon: ICONS.Stone },
+  { key: 'stone_owned', field: 'stone_owned', label: 'Per Stone Owned', icon: ICONS.Stone },
+  { key: 'iron_collected', field: 'iron_collected', label: 'Per Iron collected', icon: ICONS.Iron },
+  { key: 'iron_owned', field: 'iron_owned', label: 'Per Iron Owned', icon: ICONS.Iron },
+  { key: 'diamond_collected', field: 'diamond_collected', label: 'Per Diamond collected', icon: ICONS.Diamond },
+  { key: 'diamond_owned', field: 'diamond_owned', label: 'Per Diamond Owned', icon: ICONS.Diamond },
+  { key: 'game_won', field: 'game_won', label: 'Per PvP Game won', icon: ICONS.Sword },
+  { key: 'game_played', field: 'game_played', label: 'Per Game Played', icon: ICONS.Controller, combine: (u) => (Number(u.game_played) || 0) + (Number(u.singleplayer_game_played) || 0) },
+  { key: 'time_played', field: 'time_played', label: 'Per Time Played', icon: ICONS.Clock, formatter: formatDuration },
 ]
 
-// Temporary placeholder data; replace with API integration later
-const BASE_USERS = [
-  'Alex', 'Steve', 'Creeper', 'Villager', 'Herobrine', 'Skeleton', 'Enderman', 'Spider',
-  'Zombie', 'Ghast', 'Slime', 'Wither', 'Piglin', 'Blaze', 'Warden', 'Strider',
-  'Bee', 'Goat', 'Drowned', 'Husk', 'Pillager', 'Vindicator', 'Evoker', 'Ravager'
-]
-
-function makeSample(metric, username) {
-  const seed = metric.length
-  // Replace Steve with current username if provided
-  const list = BASE_USERS.map(n => (n === 'Steve' && username) ? username : n)
-  return list.map((name, idx) => ({
-    name,
-    value: Math.floor(((idx + 1) * 97 + seed * 53) % 10000),
-  }))
-    .sort((a, b) => b.value - a.value)
-    .map((row, i) => ({ rank: i + 1, ...row }))
+function formatDuration(ms = 0) {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000))
+  const days = Math.floor(totalSeconds / 86400)
+  const hours = Math.floor((totalSeconds % 86400) / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const seconds = totalSeconds % 60
+  const parts = []
+  if (days) parts.push(`${days}d`)
+  if (hours || parts.length) parts.push(`${hours}h`)
+  if (minutes || parts.length) parts.push(`${minutes}m`)
+  parts.push(`${seconds}s`)
+  return parts.join('')
 }
 
 export default function Leaderboard() {
   const [metric, setMetric] = useState(METRICS[0].key)
   const username = useMemo(() => getLocalStorageItem('username', '') || '', [])
   const [query, setQuery] = useState('')
-  const rowsAll = useMemo(() => makeSample(metric, username), [metric, username])
+  const [users, setUsers] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+    setError('')
+    socketClient.sendCommand('get_all_users', {})
+      .then((res) => {
+        if (cancelled) return
+        const list = res?.data?.users_list || []
+        setUsers(Array.isArray(list) ? list : [])
+      })
+      .catch((err) => {
+        if (cancelled) return
+        setError('Failed to load leaderboard')
+        console.error('[leaderboard] fetch failed', err)
+      })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [])
+
+  const rowsAll = useMemo(() => {
+    const selected = METRICS.find((m) => m.key === metric) || METRICS[0]
+    if (!selected) return []
+    const field = selected.field || selected.key
+    return [...users]
+      .map((u) => ({
+        name: u.player_name || u.name || '',
+        value: selected.combine ? selected.combine(u) : (Number(u[field]) || 0),
+        raw: selected.combine ? selected.combine(u) : u[field],
+      }))
+      .sort((a, b) => b.value - a.value)
+      .map((row, idx) => ({ rank: idx + 1, ...row }))
+  }, [users, metric])
   const rows = rowsAll
   const tableBodyRef = useRef(null)
   // Matching indices within full rows list
@@ -199,10 +230,14 @@ export default function Leaderboard() {
               </div>
             </div>
             <div className="lb-table-body" ref={tableBodyRef}>
-              {rows.map((r, idx) => {
+              {loading ? <div className="lb-row lb-row-loading">Loading...</div> : null}
+              {!loading && error ? <div className="lb-row lb-row-error">{error}</div> : null}
+              {!loading && !error && rows.length === 0 ? <div className="lb-row lb-row-empty">No players yet.</div> : null}
+              {!loading && !error ? rows.map((r, idx) => {
                 const isMe = username && r.name === username
                 const isMatch = query && matches.includes(idx)
                 const isActive = query && matches.length > 0 && matches[matchIndex] === idx
+                const formatted = selected?.formatter ? selected.formatter(r.raw) : r.value
                 return (
                   <div className={`lb-row${isMe ? ' lb-row-me' : ''}${isMatch ? ' lb-row-match' : ''}${isActive ? ' lb-row-match-active' : ''}`} key={r.rank + r.name} data-index={idx}>
                     <div className="lb-col-rank">{r.rank}</div>
@@ -211,11 +246,11 @@ export default function Leaderboard() {
                       {metricIcon ? (
                         <img className="lb-metric-icon lb-metric-icon--sm" src={metricIcon} alt="" onError={(e) => { e.currentTarget.style.display = 'none' }} />
                       ) : null}
-                      <span>{r.value}</span>
+                      <span>{formatted}</span>
                     </div>
                   </div>
                 )
-              })}
+              }) : null}
             </div>
           </div>
         </div>

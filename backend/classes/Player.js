@@ -10,6 +10,7 @@ export class Player {
         this.board = new Board();
         this.current_piece = null;
         this.spectrum = Array(10).fill(0);
+        this.effects = info.effects || {};
     }
 
     set_spectrum() {

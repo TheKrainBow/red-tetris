@@ -2,9 +2,10 @@ import { Game } from "./Game.js";
 import { Piece } from "./Piece.js";
 
 export class Gateway {
-    constructor(io, db) {
+    constructor(io, db, shop) {
         this.io = io;
         this.db = db;
+        this.shop = shop;
         this.games = {};
         this.rooms = new Map();
         this.playerInfo = new Map();
@@ -210,16 +211,27 @@ export class Gateway {
 
         const players_info = await Promise.all(
             [...playersMap.entries()].map(async ([playerName, socketId]) => {
-                const playerRates = await this.db.get_rates_by_player_name(playerName);
+                const ratesRow = await this.db.get_rates_by_player_name(playerName);
+                const baseRates = ratesRow?.[0] || { dirt_probability: 100, stone_probability: 0, iron_probability: 0, diamond_probability: 0 };
+                let computedRates = [
+                    baseRates.dirt_probability,
+                    baseRates.stone_probability,
+                    baseRates.iron_probability,
+                    baseRates.diamond_probability
+                ];
+                let effects = {};
+                if (this.shop) {
+                    const mods = await this.shop.getPlayerEffects(playerName, baseRates);
+                    if (mods?.spawnRates) {
+                        computedRates = mods.spawnRates;
+                    }
+                    effects = mods?.effects || {};
+                }
                 return {
                     socketId,
                     playerName,
-                    playerRates: [
-                        playerRates[0].dirt_probability,
-                        playerRates[0].stone_probability,
-                        playerRates[0].iron_probability,
-                        playerRates[0].diamond_probability
-                    ]
+                    playerRates: computedRates,
+                    effects,
                 };
             })
         );
@@ -592,12 +604,85 @@ export class Gateway {
     async get_rates_by_player_name(socket, data){
         const {playerName} = data;
         const rates = await this.db.get_rates_by_player_name(playerName);
-        const payload = {success: rates != null, playerName, rates};
+        let caps = null;
+        if (this.shop) {
+            caps = await this.shop.getSpawnCaps(playerName);
+        }
+        const payload = {success: rates != null, playerName, rates, caps};
         return this.#formatCommandResponse('get_rates_by_player_name', payload);
     }
 
     async update_rates_by_player_name(socket, data){
         const payload = await this.db.update_rates_by_player_name(data);
+        if (payload?.success !== false) {
+            await this.#refreshPlayerRatesInGames(data?.playerName);
+        }
         return this.#formatCommandResponse('update_rates_by_player_name', payload);
+    }
+
+    async update_inventory(socket, data){
+        const { playerName, resources = {}, items = {} } = data || {};
+        const result = await this.db.update_inventory(playerName, { resources, items });
+        const payload = { success: Boolean(result?.success), player_name: playerName, user: result?.user, inventory: result?.inventory };
+        if (this.io && payload.success) {
+            socket.emit('player_inventory', payload);
+        }
+        return this.#formatCommandResponse('update_inventory', payload);
+    }
+
+    async shop_buy(socket, data) {
+        const { playerName, itemId } = data || {};
+        if (!this.shop) return this.#formatCommandResponse('shop_buy', { success: false, reason: 'shop_unavailable' });
+        const res = await this.shop.buy(playerName, itemId);
+        if (this.io && res?.success) {
+            socket.emit('player_inventory', { player_name: playerName, user: res.user, inventory: res.inventory });
+        }
+        return this.#formatCommandResponse('shop_buy', res);
+    }
+
+    async shop_trade(socket, data) {
+        const { playerName, tradeId, times } = data || {};
+        if (!this.shop) return this.#formatCommandResponse('shop_trade', { success: false, reason: 'shop_unavailable' });
+        const res = await this.shop.trade(playerName, tradeId, times);
+        if (this.io && res?.success) {
+            socket.emit('player_inventory', { player_name: playerName, user: res.user, inventory: res.inventory });
+        }
+        return this.#formatCommandResponse('shop_trade', res);
+    }
+
+    async shop_craft(socket, data) {
+        const { playerName, craftId, times } = data || {};
+        if (!this.shop) return this.#formatCommandResponse('shop_craft', { success: false, reason: 'shop_unavailable' });
+        const res = await this.shop.craft(playerName, craftId, times);
+        if (this.io && res?.success) {
+            socket.emit('player_inventory', { player_name: playerName, user: res.user, inventory: res.inventory });
+        }
+        return this.#formatCommandResponse('shop_craft', res);
+    }
+
+    async #refreshPlayerRatesInGames(playerName) {
+        if (!playerName) return;
+        const baseRatesRow = await this.db.get_rates_by_player_name(playerName);
+        const baseRates = Array.isArray(baseRatesRow) && baseRatesRow[0]
+            ? baseRatesRow[0]
+            : { dirt_probability: 100, stone_probability: 0, iron_probability: 0, diamond_probability: 0 };
+        let computedRates = [
+            baseRates.dirt_probability,
+            baseRates.stone_probability,
+            baseRates.iron_probability,
+            baseRates.diamond_probability,
+        ];
+        let effects = {};
+        if (this.shop) {
+            const mods = await this.shop.getPlayerEffects(playerName, baseRates);
+            if (mods?.spawnRates) computedRates = mods.spawnRates;
+            effects = mods?.effects || {};
+        }
+
+        for (const game of Object.values(this.games)) {
+            if (game && typeof game.updatePlayerRates === 'function') {
+                game.updatePlayerRates(playerName, computedRates, effects);
+            }
+        }
     }
 }

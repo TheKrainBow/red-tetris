@@ -1,7 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react'
 import Button from '../components/Button'
 import { getLocalStorageItem } from '../utils/storage'
-import socketClient from '../utils/socketClient'
 import { navigate } from '../utils/navigation'
 
 const USERNAME_KEY = 'username'
@@ -20,21 +19,14 @@ export default function CreateServer() {
     navigate('/multiplayer')
   }
 
-  const onCreate = async () => {
+  const onCreate = () => {
     const playerName = username || getLocalStorageItem(USERNAME_KEY, '')
     const roomName = (serverName || '').trim() || 'New Server'
-    const gamemode = mode === 'Cooperation' ? 'Coop' : 'Normal'
     if (!playerName) {
       alert('Please set a username first.')
       return
     }
-    try {
-      await socketClient.joinRoom(roomName, playerName, gamemode)
-      navigate(`/${encodeURIComponent(roomName)}/${encodeURIComponent(playerName)}`)
-    } catch (err) {
-      console.error('Failed to create/join room', err)
-      alert('Failed to create server. Please try again.')
-    }
+    navigate(`/${encodeURIComponent(roomName)}/${encodeURIComponent(playerName)}`)
   }
 
   const modeKey = mode.toLowerCase()

@@ -2,7 +2,7 @@ import { io } from 'socket.io-client'
 
 const env = (typeof process !== 'undefined' && process.env) ? process.env : {}
 
-const EVENT_TYPES = ['player_list', 'room_boards', 'game_start', 'game_end', 'player_kick', 'room_list_response', 'room_list', 'game_history', 'lobby_rooms', 'lobby_update', 'room_settings']
+const EVENT_TYPES = ['player_list', 'room_boards', 'game_start', 'game_end', 'player_kick', 'room_list_response', 'room_list', 'game_history', 'lobby_rooms', 'lobby_update', 'room_settings', 'player_inventory']
 const COMMAND_TIMEOUT = 5500
 const DEFAULT_SOCKET_PATH = '/socket.io'
 
