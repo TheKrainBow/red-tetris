@@ -2,8 +2,9 @@ import { Game } from "./Game.js";
 import { Piece } from "./Piece.js";
 
 export class Gateway {
-    constructor(io) {
+    constructor(io, db) {
         this.io = io;
+        this.db = db;
         this.games = {};
         this.rooms = new Map();
         this.playerInfo = new Map();
@@ -196,7 +197,7 @@ export class Gateway {
         return payload;
     }
 
-    #new_game(socket, roomName, io) {
+    async #new_game(socket, roomName) {
         if (!this.rooms.has(roomName)) {
             return ;
         }
@@ -205,11 +206,23 @@ export class Gateway {
         }
         let mode = Game.SINGLE_PLAYER;
 
-        let players_info = []
-        this.rooms.get(roomName).forEach((socketId, playerName) => {
-            players_info.push({socketId, playerName})
-        });
+        const playersMap = this.rooms.get(roomName);
 
+        const players_info = await Promise.all(
+            [...playersMap.entries()].map(async ([playerName, socketId]) => {
+                const playerRates = await this.db.get_rates_by_player_name(playerName);
+                return {
+                    socketId,
+                    playerName,
+                    playerRates: [
+                        playerRates[0].dirt_probability,
+                        playerRates[0].stone_probability,
+                        playerRates[0].iron_probability,
+                        playerRates[0].diamond_probability
+                    ]
+                };
+            })
+        );
         if (players_info.length > 1){
             mode = Game.MULTI_PLAYER;
         }
@@ -220,7 +233,7 @@ export class Gateway {
             this.#broadcast_player_list(roomName);
             this.#broadcast_lobby_room(roomName);
         };
-        this.games[roomName].run(io);
+        this.games[roomName].run(this.io, this.db);
     }
 
     #create_room(socket, data) {
@@ -232,7 +245,7 @@ export class Gateway {
         socket.join(room);
     }
 
-    async handle_key_press(socket, data, io) {
+    async handle_key_press(socket, data) {
         if (!data || !data.key) {
             return this.#formatCommandResponse('handle_key_press', { error: 'Missing key input' });
         }
@@ -262,8 +275,8 @@ export class Gateway {
         }
 
         const handled = game.handle_player_input(playerInfo.playerName, action);
-        if (handled && io) {
-            game.broadcast_state(io);
+        if (handled && this.io) {
+            game.broadcast_state(this.io);
         }
         return this.#formatCommandResponse('handle_key_press', { success: Boolean(handled) });
     }
@@ -273,6 +286,8 @@ export class Gateway {
         if (!room || typeof playerName !== 'string') {
             return this.#formatCommandResponse('join_room', { error: 'Invalid room or name' });
         }
+
+        await this.db.insert_user(playerName);
 
         if (!this.rooms.has(room)) {
             this.#create_room(socket, data);
@@ -424,7 +439,7 @@ export class Gateway {
         this.playerInfo.delete(socket.id);
     }
 
-    async start_game(socket, data, io) {
+    async start_game(socket, data) {
         const playerInfo = this.playerInfo.get(socket.id);
         if (!playerInfo) return this.#formatCommandResponse('start_game', { error: 'Player not in a room' });
 
@@ -432,7 +447,7 @@ export class Gateway {
         if (host === false){
             return this.#formatCommandResponse('start_game', { success: false, room, error: 'Only the host can start the game' });
         }
-        this.#new_game(socket, room , io);
+        await this.#new_game(socket, room);
         this.#broadcast_player_list(room);
         return this.#formatCommandResponse('start_game', { success: true, room });
     }
@@ -548,5 +563,41 @@ export class Gateway {
             player_limit: Number.isFinite(meta.player_limit) ? meta.player_limit : 16,
         };
         return this.#formatCommandResponse('room_settings', payload);
+    }
+
+    async insert_user(socket, data){
+        const {playerName} = data;
+        const success = await this.db.insert_user(playerName);
+        const payload = {success};
+        return this.#formatCommandResponse('insert_user', payload);
+    }
+
+    async get_user_by_player_name(socket, data){
+        const {playerName} = data;
+        let inventory = null;
+        const user = await this.db.get_user_by_player_name(playerName);
+        if (user){
+            inventory = await this.db.get_inventory_by_player_name(playerName);
+        }
+        const payload = {success: user != null && user.length > 0, user, inventory};
+        return this.#formatCommandResponse('get_user_by_player_name', payload);
+    }
+
+    async get_all_users(socket, data){
+        const users = await this.db.get_all_users();
+        const payload = {success: users != null, users_list: users};
+        return this.#formatCommandResponse('get_all_users', payload);
+    }
+
+    async get_rates_by_player_name(socket, data){
+        const {playerName} = data;
+        const rates = await this.db.get_rates_by_player_name(playerName);
+        const payload = {success: rates != null, playerName, rates};
+        return this.#formatCommandResponse('get_rates_by_player_name', payload);
+    }
+
+    async update_rates_by_player_name(socket, data){
+        const payload = await this.db.update_rates_by_player_name(data);
+        return this.#formatCommandResponse('update_rates_by_player_name', payload);
     }
 }

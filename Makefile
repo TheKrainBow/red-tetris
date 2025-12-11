@@ -8,6 +8,9 @@ build:
 up: build
 	$(COMPOSE) up -d
 
+nodaemon: build
+	$(COMPOSE) up
+
 down:
 	$(COMPOSE) down
 

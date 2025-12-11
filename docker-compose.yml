@@ -1,10 +1,30 @@
 services:
+  db:
+    image: postgres:16
+    restart: always
+    env_file:
+      - .postgres.secret
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - red-tetrix-network
+  
+  adminer:
+    image: adminer
+    ports:
+      - 2121:8080
+    networks:
+      - red-tetrix-network
+
   backend:
     build:
       context: .
       dockerfile: backend/Dockerfile
     env_file:
       - backend/.env
+      - .postgres.secret
+    depends_on:
+      - db
     command: npm run srv-dev
     environment:
       - CHOKIDAR_USEPOLLING=true
@@ -54,3 +74,5 @@ services:
 networks: 
   red-tetrix-network:
     driver: bridge
+volumes:
+  pgdata:

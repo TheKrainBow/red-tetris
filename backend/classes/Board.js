@@ -3,6 +3,7 @@ export class Board {
         this.state = this.#createBoard(20, 10);
         this.blocked_rows = 0;
         this.last_cleared_rows = [];
+        this.points = [0,0,0,0];
     }
 
     #createBoard(rows, cols) {
@@ -12,6 +13,12 @@ export class Board {
             output.push(row);
         }
         return output;
+    }
+
+    async #add_points(p){
+        for (let index = 0; index < this.points.length; index++) {
+            this.points[index] += p[index];
+        }
     }
 
     check_collision(piece) {
@@ -78,6 +85,7 @@ export class Board {
         let new_board = [];
         let lines_cleared = 0;
         const cleared_rows = [];
+        let points = [0,0,0,0];
 
         for (let i = 0; i < rows; i++) {
             let full_row = true;
@@ -86,10 +94,14 @@ export class Board {
                     full_row = false;
                     break;
                 }
+                points[this.state[i][j]-1] += 1;
             }
             if (!full_row) {
                 new_board.push([...this.state[i]]);
-            } else {
+                points = [0,0,0,0];
+            }
+            else {
+                this.#add_points(points);
                 lines_cleared++;
                 cleared_rows.push(i);
             }

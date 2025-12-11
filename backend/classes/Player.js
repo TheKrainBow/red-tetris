@@ -5,7 +5,7 @@ export class Player {
     constructor(info) {
         this.name = info.playerName;
         this.id = info.socketId;
-        this.points = 0;
+        this.spawn_rates = info.playerRates;
         this.piece_queue = new Queue();
         this.board = new Board();
         this.current_piece = null;
@@ -94,5 +94,9 @@ export class Player {
             moved = this.step_down();
         }
         return true;
+    }
+
+    set_time_played(start_time){
+        this.time_played = Date.now() - start_time;
     }
 }

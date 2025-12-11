@@ -36,18 +36,34 @@ export class Game {
         }
     }
 
-    #add_to_players_piece_queue() {
+    async #add_to_players_piece_queue() {
         const randomShapeIndex = Math.floor(Math.random() * this.shapes.length);
         const shape = this.shapes[randomShapeIndex];
-        const material = Math.floor(Math.random() * 4) + 1;
         const randomRotationIndex = Math.floor(Math.random() * 4);
-        
-        this.players.forEach((player, player_name) => {
-            const piece = new Piece(shape, material);
-            piece.state_index = randomRotationIndex;
-            piece.state = piece.rotations[piece.state_index];
-            player.queue_piece(piece);
-        });
+
+        await Promise.all(
+            [...this.players.entries()].map(async ([player_name, player]) => {
+            
+                const rand = Math.floor(Math.random() * 100);
+                let material = 1;
+                let rates = 0;
+            
+                for (let i = 0; i < player.spawn_rates.length; i++) {
+                    rates += player.spawn_rates[i];
+                
+                    if (rand < rates) {
+                        material = i + 1;
+                        break;
+                    }
+                }
+            
+                const piece = new Piece(shape, material);
+                piece.state_index = randomRotationIndex;
+                piece.state = piece.rotations[piece.state_index];
+            
+                player.queue_piece(piece);
+            })
+        );
     }
 
     #set_players_piece() {
@@ -103,9 +119,6 @@ export class Game {
             const lines_cleared = player.board.remove_lines();
             
             if (lines_cleared > 0) {
-                // const points = [0, 100, 300, 500, 800];
-                // player.points += points[Math.min(lines_cleared, 4)];
-                
                 this.#set_blocked_rows(player, lines_cleared);
             }
             
@@ -159,7 +172,7 @@ export class Game {
         this.isRunning = false;
     }
 
-    async run(io) {
+    async run(io, db) {
         if (this.isRunning) return;
         
         this.start(io);
@@ -169,6 +182,7 @@ export class Game {
             this.players.forEach((player, player_name) => {
 
                 if (this.eliminatedPlayers.includes(player_name)){
+                    db.update_player_stats(player);
                     this.players.delete(player_name);
                     io.to(this.room).emit('player_eliminated', { player_name: player_name });
                     this.#notifyStatusChange();
@@ -176,6 +190,7 @@ export class Game {
                 
                 if (this.#end_game(player)) {
                     this.eliminatedPlayers.push(player_name);
+                    player.set_time_played(this.startTime);
                     this.#notifyStatusChange();
                     
                 }
@@ -193,7 +208,12 @@ export class Game {
         }
         this.stop();
         const room_name = this.room;
-        const winner = this.players.size === 1 ? this.players.keys().value : "";
+        const winner = this.players.size === 1 ? this.players.keys().next().value : "";
+        if (winner !== ""){
+            const player = this.players.get(winner);
+            player.set_time_played(this.startTime);
+            db.update_player_stats(player, true);
+        }
         const game_end = {
             type: "game_end",
             data: { room_name, winner }

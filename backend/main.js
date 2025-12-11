@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import http from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 import { Gateway } from './classes/Gateway';
+import { Database } from './classes/Database';
 
 // --- Constants ---
 const serverPort = Number(process.env.SERVER_PORT || 3004);
@@ -14,6 +15,10 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Create a new instance of the Database class
+const db = new Database();
+db.init();
 
 // Create HTTP server for Express + Socket.IO
 const server = http.createServer(app);
@@ -28,7 +33,7 @@ const io = new SocketIOServer(server, {
   },
 });
 
-const gateway = new Gateway(io);
+const gateway = new Gateway(io, db);
 
 // --- Socket.IO connection handling ---
 io.on('connection', (socket) => {
@@ -47,17 +52,17 @@ io.on('connection', (socket) => {
     });
 
     socket.on('start_game', async (data, callback) => {
-      const response = await gateway.start_game(socket, data, io);
+      const response = await gateway.start_game(socket, data);
       callback && callback(response);
     });
 
     socket.on('player_kick', async (data, callback) => {
-      const response = await gateway.player_kick(socket, data, io);
+      const response = await gateway.player_kick(socket, data);
       callback && callback(response);
     });
     
     socket.on('handle_key_press', async (data, callback) => {
-      const response = await gateway.handle_key_press(socket, data, io);
+      const response = await gateway.handle_key_press(socket, data);
       callback && callback(response);
     });
 
@@ -88,6 +93,32 @@ io.on('connection', (socket) => {
 
     socket.on('room_settings_get', async (data, callback) => {
       const response = await gateway.get_room_settings(socket, data);
+      callback && callback(response);
+    });
+
+    socket.on('insert_user', async (data, callback) => {
+      const response = await gateway.insert_user(socket, data);
+      callback && callback(response);
+    });
+
+    socket.on('get_user_by_player_name', async (data, callback) => {
+      const response = await gateway.get_user_by_player_name(socket, data);
+      callback && callback(response);
+    });
+
+    socket.on('get_all_users', async (data, callback) => {
+      const response = await gateway.get_all_users(socket, data);
+      callback && callback(response);
+    });
+
+    socket.on('get_rates_by_player_name', async (data, callback) => {
+      const response = await gateway.get_rates_by_player_name(socket, data);
+      callback && callback(response);
+    });
+
+    socket.on('update_rates_by_player_name', async (data, callback) => {
+      
+      const response = await gateway.update_rates_by_player_name(socket, data);
       callback && callback(response);
     });
 });
