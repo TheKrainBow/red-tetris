@@ -6,14 +6,18 @@ function sleep(ms) {
 }
 
 export class Game {
-    constructor(players, room, mode, gravity=500, getSpectatorSockets = () => []) {
+    constructor(players, room, mode, gravity=500, getSpectatorSockets = () => [], gamemodeName = 'Normal') {
         this.room = room;
         this.players = new Map(players.map(player_info => [player_info.playerName, new Player(player_info)]));
+        this.allPlayers = players.map((p) => ({ name: p.playerName, socketId: p.socketId }));
         this.mode = mode;
+        this.gamemodeName = gamemodeName;
         this.minimum_players = mode;
         this.eliminatedPlayers = [];
         this.onStatusChange = null;
         this.resourceSnapshots = new Map();
+        this.lastBoardSnapshots = new Map();
+        this.finalResources = new Map();
         this.players.forEach((_, playerName) => {
             this.resourceSnapshots.set(playerName, [0, 0, 0, 0]);
         });
@@ -107,6 +111,12 @@ export class Game {
         });
     }
 
+    #recordFinalResources(playerName, sourcePoints) {
+        if (!playerName) return;
+        const points = Array.isArray(sourcePoints) ? sourcePoints : [];
+        this.finalResources.set(playerName, [...points]);
+    }
+
     async #send_game_state(io, db) {
         const spectatorSockets = this.getSpectatorSockets() || [];
     
@@ -124,6 +134,7 @@ export class Game {
                     NextPiece: {Shape: currentPlayer.piece_queue.peek().state},
                     player_name: currentPlayerName,
             };
+            this.lastBoardSnapshots.set(currentPlayerName, { ...playerGameState, captured_at: Date.now() });
             this.players.forEach((otherPlayer, otherPlayerId) => {
                 if (otherPlayerId !== currentPlayerName) {
                     opponents.push({name: otherPlayer.name, spectrum: otherPlayer.get_spectrum()})
@@ -240,6 +251,7 @@ export class Game {
             for (const [player_name, player] of this.players.entries()) {
 
                 if (this.eliminatedPlayers.includes(player_name)){
+                    this.#recordFinalResources(player_name, player.board.points);
                     await this.#syncPlayerInventory(player_name, player, db, io);
                     await db.update_player_stats(player, false, isSinglePlayer, [0, 0, 0, 0]);
                     this.players.delete(player_name);
@@ -273,12 +285,63 @@ export class Game {
             player.set_time_played(this.startTime);
             await this.#syncPlayerInventory(winner, player, db, io);
             await db.update_player_stats(player, true, isSinglePlayer, [0, 0, 0, 0]);
+            this.#recordFinalResources(winner, player.board.points);
         }
         const game_end = {
             type: "game_end",
             data: { room_name, winner }
         };
         io.to(this.room).emit('game_end', game_end);
+        // Persist game history after finishing
+        try {
+            const endedAt = Date.now();
+            const gmRaw = this.gamemodeName || '';
+            const gamemodeLabel = this.mode === Game.SINGLE_PLAYER
+                ? 'Singleplayer'
+                : (String(gmRaw).toLowerCase().includes('coop') ? 'Cooperation' : 'PvP');
+            const serverName = this.mode === Game.SINGLE_PLAYER ? (room_name || '').replace(/_singleplayer$/i, '') : room_name;
+            const playersSummary = this.allPlayers.map((p) => {
+                const name = p?.name || p?.playerName;
+                if (!name) return null;
+                const status = winner === name ? 'winner' : (this.eliminatedPlayers.includes(name) ? 'eliminated' : 'finished');
+                return { name, socketId: p?.socketId || null, status };
+            }).filter(Boolean);
+            const boards = {};
+            this.lastBoardSnapshots.forEach((snapshot, name) => {
+                boards[name] = snapshot;
+            });
+            const resources = {};
+            const ensureResourceEntry = (name, pts) => {
+                if (!name) return;
+                const arr = Array.isArray(pts) ? pts : [];
+                resources[name] = {
+                    dirt: arr[0] || 0,
+                    stone: arr[1] || 0,
+                    iron: arr[2] || 0,
+                    diamond: arr[3] || 0,
+                };
+            };
+            this.finalResources.forEach((pts, name) => ensureResourceEntry(name, pts));
+            this.allPlayers.forEach((p) => {
+                const name = p?.name || p?.playerName;
+                if (resources[name]) return;
+                const livePlayer = this.players.get(name);
+                ensureResourceEntry(name, livePlayer?.board?.points || [0, 0, 0, 0]);
+            });
+            db.insert_game_history && db.insert_game_history({
+                room_name,
+                server_name: serverName,
+                gamemode: gamemodeLabel,
+                started_at: this.startTime,
+                ended_at: endedAt,
+                winner,
+                players: playersSummary,
+                boards,
+                resources,
+            });
+        } catch (err) {
+            console.error('Failed to store game history', err);
+        }
         this.#notifyStatusChange();
     } 
 

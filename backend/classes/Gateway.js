@@ -240,7 +240,8 @@ export class Gateway {
         }
 
         const spectatorProvider = () => this.#getSpectatorSocketIds(roomName);
-        this.games[roomName] = new Game(players_info, roomName, mode, 500, spectatorProvider);
+        const roomGamemode = (this.roomMetadata.get(roomName)?.gamemode) || 'Normal';
+        this.games[roomName] = new Game(players_info, roomName, mode, 500, spectatorProvider, roomGamemode);
         this.games[roomName].onStatusChange = () => {
             this.#broadcast_player_list(roomName);
             this.#broadcast_lobby_room(roomName);
@@ -658,6 +659,12 @@ export class Gateway {
             socket.emit('player_inventory', { player_name: playerName, user: res.user, inventory: res.inventory });
         }
         return this.#formatCommandResponse('shop_craft', res);
+    }
+
+    async get_history_by_player_name(socket, data) {
+        const playerName = data?.playerName;
+        const res = await this.db.get_history_by_player_name(playerName);
+        return this.#formatCommandResponse('get_history_by_player_name', res);
     }
 
     async #refreshPlayerRatesInGames(playerName) {

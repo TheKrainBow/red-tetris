@@ -2,7 +2,7 @@ import { io } from 'socket.io-client'
 
 const env = (typeof process !== 'undefined' && process.env) ? process.env : {}
 
-const EVENT_TYPES = ['player_list', 'room_boards', 'game_start', 'game_end', 'player_kick', 'room_list_response', 'room_list', 'game_history', 'lobby_rooms', 'lobby_update', 'room_settings', 'player_inventory']
+const EVENT_TYPES = ['player_list', 'room_boards', 'game_start', 'game_end', 'player_kick', 'room_list_response', 'room_list', 'game_history', 'lobby_rooms', 'lobby_update', 'room_settings', 'player_inventory', 'get_history_by_player_name']
 const COMMAND_TIMEOUT = 5500
 const DEFAULT_SOCKET_PATH = '/socket.io'
 
@@ -144,6 +144,8 @@ export function parseEventPayload(type, payload = {}) {
       }
     case 'game_history':
       return Array.isArray(body?.games) ? body.games : body
+    case 'get_history_by_player_name':
+      return body
     default:
       return body
   }
@@ -445,6 +447,14 @@ class TetrisSocketClient {
 
   fetchGameHistory(playerName) {
     return this.sendCommand('game_history', { playerName, player: playerName }, { expectEvent: 'game_history' })
+  }
+
+  fetchPlayerHistory(playerName) {
+    return this.sendCommand(
+      'get_history_by_player_name',
+      { playerName, player: playerName },
+      { expectEvent: 'get_history_by_player_name' }
+    )
   }
 
   subscribeLobby() {

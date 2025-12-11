@@ -110,6 +110,32 @@ export class Database {
         }
     }
 
+    async #create_game_history_table() {
+        const query = `
+            CREATE TABLE IF NOT EXISTS game_history (
+                id SERIAL PRIMARY KEY,
+                room_name VARCHAR(200),
+                server_name VARCHAR(200),
+                gamemode VARCHAR(50),
+                started_at TIMESTAMPTZ,
+                ended_at TIMESTAMPTZ,
+                winner VARCHAR(100),
+                players JSONB,
+                boards JSONB,
+                resources JSONB DEFAULT '{}'::jsonb,
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            );
+            CREATE INDEX IF NOT EXISTS idx_game_history_started_at ON game_history(started_at);
+            ALTER TABLE game_history ADD COLUMN IF NOT EXISTS resources JSONB DEFAULT '{}'::jsonb;
+        `;
+        try {
+            await this.client.query(query);
+            console.log('Table "game_history" created or already exists');
+        } catch (err) {
+            console.error('Error creating game_history table:', err);
+        }
+    }
+
     release() {
         this.client.release();
         console.log('Client released');
@@ -120,6 +146,7 @@ export class Database {
         await this.#create_users_table();
         await this.#create_inventory_table();
         await this.#create_rates_table();
+        await this.#create_game_history_table();
         await this.#build_shop();
     }
 
@@ -475,6 +502,50 @@ export class Database {
         } catch (err) {
             console.error(`Error updating ${playerName}'s stats:`, err);
             return  {success: false};
+        }
+    }
+
+    async insert_game_history({ room_name, server_name, gamemode, started_at, ended_at, winner, players, boards, resources }) {
+        const query = `
+            INSERT INTO game_history (room_name, server_name, gamemode, started_at, ended_at, winner, players, boards, resources)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            RETURNING id;
+        `;
+        try {
+            const res = await this.client.query(query, [
+                room_name || null,
+                server_name || null,
+                gamemode || null,
+                started_at ? new Date(started_at) : null,
+                ended_at ? new Date(ended_at) : null,
+                winner || null,
+                players ? JSON.stringify(players) : null,
+                boards ? JSON.stringify(boards) : null,
+                resources ? JSON.stringify(resources) : null,
+            ]);
+            console.log('Game history stored with id', res.rows?.[0]?.id);
+            return { success: true, id: res.rows?.[0]?.id };
+        } catch (err) {
+            console.error('Error inserting game history:', err);
+            return { success: false, error: err?.message };
+        }
+    }
+
+    async get_history_by_player_name(playerName) {
+        if (!playerName) return { success: false, error: 'Missing player name' };
+        const clause = JSON.stringify([{ name: playerName }]);
+        const query = `
+            SELECT id, room_name, server_name, gamemode, started_at, ended_at, winner, players, boards, resources, created_at
+            FROM game_history
+            WHERE players @> $1::jsonb
+            ORDER BY COALESCE(ended_at, started_at, created_at) DESC;
+        `;
+        try {
+            const res = await this.client.query(query, [clause]);
+            return { success: true, history: res.rows };
+        } catch (err) {
+            console.error('Error fetching game history:', err);
+            return { success: false, error: err?.message };
         }
     }
 
