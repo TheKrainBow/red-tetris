@@ -90,6 +90,23 @@ export class Database {
         }
     }
 
+    async #create_shop_table() {
+        const createTableQuery = `
+            CREATE TABLE IF NOT EXISTS shop (
+            id SERIAL PRIMARY KEY,
+            item_name VARCHAR(100) NOT NULL,
+            price JSONB NOT NULL DEFAULT '{}'::jsonb,
+            UNIQUE(item_name)
+        );
+        `;
+        try {
+            await this.client.query(createTableQuery);  
+            console.log('Table "shop" created or already exists');
+        } catch (err) {
+            console.error('Error creating table:', err);
+        }
+    }
+
     release() {
         this.client.release();
         console.log('Client released');
@@ -100,6 +117,7 @@ export class Database {
         await this.#create_users_table();
         await this.#create_inventory_table();
         await this.#create_rates_table();
+        await this.#build_shop();
     }
 
     async insert_user(player_name) {
@@ -131,11 +149,49 @@ export class Database {
         await this.insert_inventory_item_by_player_name(player_name, "iron_battle_pass", 1);
         await this.insert_inventory_item_by_player_name(player_name, "diamond_battle_pass", 1);
         await this.insert_inventory_item_by_player_name(player_name, "delux_battle_pass", 1);
-        await this.insert_inventory_item_by_player_name(player_name, "stone_battle_pass", 1);
 
         await this.insert_rates_by_player_name(player_name);
 
         return true;
+    }
+
+    async #insert_item_shop(item_name, price) {
+        const insertQuery = `
+            INSERT INTO shop (item_name, price)
+            VALUES ($1, $2)
+            ON CONFLICT (item_name)
+            DO UPDATE SET price = EXCLUDED.price
+        `;
+        try {
+            const res = await this.client.query(insertQuery, [item_name, price]);
+            console.log('item inserted:', res.rows[0]);
+        } catch (err) {
+            console.error('Error inserting item:', err);
+            return false;
+        }
+
+        return true;
+    }
+
+    async #build_shop(){
+        await this.#create_shop_table();
+        await this.#insert_item_shop("rock_detector", {dirt_owned: 25});
+        await this.#insert_item_shop("iron_detector", {stone_owned: 578});
+        await this.#insert_item_shop("diamond_detector", {iron_owned: 666});
+        
+        await this.#insert_item_shop("dirt_expert", {stone_owned: 74});
+        await this.#insert_item_shop("stone_expert", {iron_owned: 128});
+        await this.#insert_item_shop("iron_expert", {emeralds: 5});
+        await this.#insert_item_shop("diamond_expert", {dirt_owned: 900, stone_owned: 750, iron_owned: 320, emeralds: 100});
+
+        await this.#insert_item_shop("fortune_enchantment", {dirt_owned: 135, stone_owned: 65, iron_owned: 12, emeralds: 1});
+        await this.#insert_item_shop("dirt_battle_pass",  {dirt_owned: 1000});
+        await this.#insert_item_shop("stone_battle_pass", {stone_owned: 1000});
+        await this.#insert_item_shop("iron_battle_pass", {iron_owned: 1000});
+        await this.#insert_item_shop("diamond_battle_pass", {emeralds: 1000});
+        await this.#insert_item_shop("delux_battle_pass", {dirt_owned: 1000, stone_owned: 1000, iron_owned: 1000, emeralds: 1000});
+
+        await this.#insert_item_shop("emeralds", {dirt_owned: 128, stone_owned: 64, iron_owned: 32, diamond_owned: 16});
     }
 
     async get_inventory_by_player_name(playerName) {
