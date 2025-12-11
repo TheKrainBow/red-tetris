@@ -41,6 +41,9 @@ export default function Singleplayer() {
   const [error, setError] = useState('')
   const [hovered, setHovered] = useState(null)
   const [hoverPos, setHoverPos] = useState({ x: 0, y: 0 })
+  const [showModal, setShowModal] = useState(false)
+  const [modalGame, setModalGame] = useState(null)
+  const [modalPlayer, setModalPlayer] = useState(null)
   const wrapRef = useRef(null)
   const listRef = useRef(null)
   const rootRef = useRef(null)
@@ -76,6 +79,10 @@ export default function Singleplayer() {
             mode: formatModeLabel(row.gamemode || 'Singleplayer'),
             startedAt: ts,
             resources: resEntry || null,
+            fullResources: resMap || {},
+            boards: row.boards || {},
+            players: Array.isArray(row.players) ? row.players : [],
+            raw: row,
           }
         }).sort((a, b) => {
           const ta = new Date(a.startedAt || 0).getTime()
@@ -103,7 +110,73 @@ export default function Singleplayer() {
     const target = `/${encodeURIComponent(name)}_singleplayer/${encodeURIComponent(name)}`
     navigate(target)
   }
-  const onView = () => { if (selectedGame) alert(`Viewing ${selectedGame.name} (placeholder)`) }
+  const onView = () => {
+    if (!selectedGame) return
+    setModalGame(selectedGame)
+    const defaultPlayer = selectedGame.players.find((p) => p?.name)?.name
+      || Object.keys(selectedGame.boards || {})[0]
+      || username
+    setModalPlayer(defaultPlayer || username)
+    setShowModal(true)
+  }
+
+  const closeModal = () => {
+    setShowModal(false)
+    setModalGame(null)
+    setModalPlayer(null)
+  }
+
+  const renderBoard = (game, playerName) => {
+    const snapshot = game?.boards?.[playerName] || {}
+    const board = Array.isArray(snapshot.Board) ? snapshot.Board : []
+    const grid = board.length ? board : Array.from({ length: 20 }, () => Array.from({ length: 10 }, () => 0))
+    const CELL_TEXTURES = {
+      1: '/blocks/Dirt.jpg',
+      2: '/blocks/Stone.jpeg',
+      3: '/blocks/Iron.jpeg',
+      4: '/blocks/Diamond.jpg',
+      5: '/ui/Dark_Dirt.webp',
+    }
+    return (
+      <div className="game-board" style={{ '--cell': '20px', width: 'auto', height: 'auto', padding: '12px', background: '#111', borderRadius: 10 }}>
+        <div className="game-board-grid">
+          {grid.map((row, rIdx) => (
+            <div key={`row-${rIdx}`} className="game-row">
+              {row.map((val, cIdx) => (
+                <div
+                  key={`cell-${rIdx}-${cIdx}`}
+                  className={`game-cell ${val ? 'filled' : ''}`}
+                  style={val ? { backgroundImage: `url(${CELL_TEXTURES[val] || '/ui/Dirt.png'})` } : undefined}
+                />
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  const renderPlayerResources = (game, playerName) => {
+    const res = game?.fullResources?.[playerName] || { dirt: 0, stone: 0, iron: 0, diamond: 0 }
+    return (
+      <div className="shop-inventory-section" style={{ marginTop: 10 }}>
+        <div className="shop-inventory-heading">Resources</div>
+        {['dirt', 'stone', 'iron', 'diamond'].map((r) => (
+          <div key={r} className="shop-inventory-entry" style={{ gap: 10 }}>
+            <span className="shop-inventory-label">
+              <img src={getResourceIcon(r)} alt={getResourceName(r)} className="shop-inventory-icon" />
+              {getResourceName(r)}
+            </span>
+            <span className="shop-inventory-value">{formatNumber(res?.[r] || 0)}</span>
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  const modalPlayers = modalGame?.players?.map((p) => p.name).filter(Boolean)
+    || Object.keys(modalGame?.boards || {})
+  const activePlayer = modalPlayer || modalPlayers?.[0] || username
 
   return (
     <div className="mp-root" ref={rootRef}>
@@ -202,6 +275,77 @@ export default function Singleplayer() {
           <Button onClick={onCancel} className="ui-btn-wide">Cancel</Button>
         </div>
       </div>
+
+      {showModal && modalGame && (
+        <div className="game-modal-backdrop">
+          <div
+            className="game-modal"
+            style={{
+              maxWidth: 960,
+              width: '92%',
+              padding: 20,
+              backgroundImage: 'url(/ui/Dark_Dirt.webp)',
+              backgroundSize: 'cover',
+              color: '#f1f1f1',
+              boxShadow: '0 10px 30px rgba(0,0,0,0.6)',
+            }}
+          >
+            <div className="game-modal-title" style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>{modalGame.name} — {formatModeLabel(modalGame.mode)}</span>
+              <span style={{ fontSize: '0.95rem', opacity: 0.85 }}>
+                Duration: {formatDate(modalGame.startedAt)}
+                {modalGame.raw?.ended_at || modalGame.raw?.endedAt ? ` → ${formatDate(modalGame.raw?.ended_at || modalGame.raw?.endedAt)}` : ''}
+              </span>
+            </div>
+            <div
+              className="game-modal-body"
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '220px 1fr 250px',
+                gap: '20px',
+                alignItems: 'start',
+                marginTop: 12,
+              }}
+            >
+              <div className="game-card" style={{ padding: 12, borderRadius: 12, background: 'rgba(0,0,0,0.45)', boxShadow: '0 6px 20px rgba(0,0,0,0.35)' }}>
+                <div className="game-roster-heading" style={{ marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Players</div>
+                <div className="game-roster-list">
+                  {modalPlayers?.map((p) => (
+                    <div
+                      key={p}
+                      className={`game-roster-row ${activePlayer === p ? 'selected' : ''}`}
+                      onClick={() => setModalPlayer(p)}
+                      style={{
+                        cursor: 'pointer',
+                        borderRadius: 8,
+                        marginBottom: 6,
+                        background: activePlayer === p ? 'rgba(120, 190, 90, 0.2)' : 'rgba(255,255,255,0.03)',
+                        border: activePlayer === p ? '1px solid rgba(120, 190, 90, 0.6)' : '1px solid rgba(255,255,255,0.05)',
+                      }}
+                    >
+                      <div className="game-roster-left">
+                        <div className="game-roster-name">
+                          <span className="game-roster-text">{p}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )) || <div className="game-roster-empty">No players</div>}
+                </div>
+              </div>
+              <div className="game-card" style={{ padding: 12, borderRadius: 12, background: 'rgba(0,0,0,0.45)', boxShadow: '0 6px 20px rgba(0,0,0,0.35)' }}>
+                <div style={{ marginBottom: 8, fontWeight: 600 }}>{activePlayer}</div>
+                {renderBoard(modalGame, activePlayer)}
+              </div>
+              <div className="game-card" style={{ padding: 12, borderRadius: 12, background: 'rgba(0,0,0,0.45)', boxShadow: '0 6px 20px rgba(0,0,0,0.35)' }}>
+                {renderPlayerResources(modalGame, activePlayer)}
+              </div>
+            </div>
+            <div className="game-modal-actions" style={{ marginTop: 16, textAlign: 'right' }}>
+              <Button onClick={closeModal}>Close</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
