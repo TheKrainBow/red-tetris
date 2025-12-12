@@ -164,21 +164,23 @@ export class Database {
             console.error('Error inserting user:', err);
             return false;
         }
-        await this.insert_inventory_item_by_player_name(player_name, "rock_detector", 100);
-        await this.insert_inventory_item_by_player_name(player_name, "iron_detector", 100);
-        await this.insert_inventory_item_by_player_name(player_name, "diamond_detector", 100);
+        await this.insert_inventory_item_by_player_name(player_name, "stone_spawn_rate", 100);
+        await this.insert_inventory_item_by_player_name(player_name, "iron_spawn_rate", 100);
+        await this.insert_inventory_item_by_player_name(player_name, "diamond_spawn_rate", 100);
         
-        await this.insert_inventory_item_by_player_name(player_name, "dirt_expert", 50);
-        await this.insert_inventory_item_by_player_name(player_name, "stone_expert", 50);
-        await this.insert_inventory_item_by_player_name(player_name, "iron_expert", 50);
-        await this.insert_inventory_item_by_player_name(player_name, "diamond_expert", 50);
+        await this.insert_inventory_item_by_player_name(player_name, "dirt_line_break_bonus", 50);
+        await this.insert_inventory_item_by_player_name(player_name, "stone_line_break_bonus", 50);
+        await this.insert_inventory_item_by_player_name(player_name, "iron_line_break_bonus", 50);
+        await this.insert_inventory_item_by_player_name(player_name, "diamond_expert", 10);
 
-        await this.insert_inventory_item_by_player_name(player_name, "fortune_enchantment", 1);
+        await this.insert_inventory_item_by_player_name(player_name, "fortune_enchant", 1);
         await this.insert_inventory_item_by_player_name(player_name, "dirt_battle_pass", 1);
         await this.insert_inventory_item_by_player_name(player_name, "stone_battle_pass", 1);
         await this.insert_inventory_item_by_player_name(player_name, "iron_battle_pass", 1);
         await this.insert_inventory_item_by_player_name(player_name, "diamond_battle_pass", 1);
         await this.insert_inventory_item_by_player_name(player_name, "delux_battle_pass", 1);
+
+        await this.insert_inventory_item_by_player_name(player_name, "bonus_multiplayer", 10);
 
         await this.insert_rates_by_player_name(player_name);
 

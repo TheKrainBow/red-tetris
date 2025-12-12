@@ -192,7 +192,7 @@ export function ShopStateProvider({ children }) {
     }
   }
 
-  const trade = async (tradeId, times = 1) => {
+  const tradeItem = async (tradeId, times = 1) => {
     if (!username) return { success: false }
     try {
       const res = await socketClient.sendCommand('shop_trade', { playerName: username, tradeId, times })
@@ -204,7 +204,7 @@ export function ShopStateProvider({ children }) {
     }
   }
 
-  const craft = async (craftId, times = 1) => {
+  const craftItem = async (craftId, times = 1) => {
     if (!username) return { success: false }
     try {
       const res = await socketClient.sendCommand('shop_craft', { playerName: username, craftId, times })
@@ -230,8 +230,8 @@ export function ShopStateProvider({ children }) {
     spawnRates,
     persistSpawnRates,
     buyItem,
-    trade,
-    craft,
+    tradeItem,
+    craftItem,
     refreshSpawnRates,
     resetShopState,
   }), [inventory, purchases, craftUnlocks, craftCounts, spawnCaps, spawnRates])

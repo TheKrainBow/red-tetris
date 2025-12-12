@@ -130,20 +130,20 @@ crafts:
       iron: 12
       diamond: 1
     outputs:
-      silly_relic: 1
+      fortune_enchant: 1
     effects:
       fortune_multiplier_percent: 200
     max_crafts: 1
     craft_time_seconds: 0
-  - id: magical_hands
-    name: "Magical hands"
+  - id: diamond_expert
+    name: "Diamond Expert"
     cost:
       dirt: 900
       stone: 750
       iron: 320
       diamond: 100
     outputs:
-      diamond_detector: 1
+      diamond_expert: 1
     effects:
       diamond_line_break_bonus: 1
     max_crafts: 10
@@ -168,7 +168,7 @@ crafts:
     outputs:
       dirt_battle_pass: 1
     effects:
-      shop_reduction: 5
+      shop_reduction: 20
     max_crafts: 1
     craft_time_seconds: 0
   - id: stone_battle_pass
@@ -178,7 +178,7 @@ crafts:
     outputs:
       stone_battle_pass: 1
     effects:
-      shop_reduction: 5
+      shop_reduction: 20
     max_crafts: 1
     craft_time_seconds: 0
   - id: iron_battle_pass
@@ -188,7 +188,7 @@ crafts:
     outputs:
       iron_battle_pass: 1
     effects:
-      shop_reduction: 5
+      shop_reduction: 20
     max_crafts: 1
     craft_time_seconds: 0
   - id: diamond_battle_pass
@@ -198,7 +198,7 @@ crafts:
     outputs:
       diamond_battle_pass: 1
     effects:
-      shop_reduction: 5
+      shop_reduction: 20
     max_crafts: 1
     craft_time_seconds: 0
   - id: delux_battle_pass
@@ -211,7 +211,7 @@ crafts:
     outputs:
       delux_battle_pass: 1
     effects:
-      shop_reduction: 20
+      shop_reduction: 200
     max_crafts: 1
     craft_time_seconds: 0
 

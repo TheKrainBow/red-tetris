@@ -130,20 +130,20 @@ crafts:
       iron: 12
       diamond: 1
     outputs:
-      silly_relic: 1
+      fortune_enchant: 1
     effects:
       fortune_multiplier_percent: 200
     max_crafts: 1
     craft_time_seconds: 0
-  - id: diamond_detector
-    name: "Diamond Detector"
+  - id: diamond_expert
+    name: "Diamond Expert"
     cost:
       dirt: 900
       stone: 750
       iron: 320
       diamond: 100
     outputs:
-      diamond_detector: 1
+      diamond_expert: 1
     effects:
       diamond_line_break_bonus: 1
     max_crafts: 10

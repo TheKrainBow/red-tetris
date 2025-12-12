@@ -263,8 +263,8 @@ export default function Shop() {
     craftCounts,
     setCraftUnlocks,
     buyItem,
-    trade,
-    craft,
+    tradeItem,
+    craftItem,
     resetShopState,
   } = useShopState()
 
@@ -410,7 +410,7 @@ export default function Shop() {
     }
     const costEntries = Object.entries(trade.cost || {})
     if (costEntries.length) playSpendSound(formatResourceId(costEntries[0][0]))
-    trade(trade.id, times)
+    tradeItem(trade.id, times)
   }
 
   function handleCraft(craft) {
@@ -428,7 +428,7 @@ export default function Shop() {
     }
     const costEntries = Object.entries(craft.cost || {})
     if (costEntries.length) playSpendSound(formatResourceId(costEntries[0][0]))
-    craft(craft.id, 1)
+    craftItem(craft.id, 1)
     setCraftUnlocks((prev) => (prev[craft.id] ? prev : { ...prev, [craft.id]: true }))
   }
 
