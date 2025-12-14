@@ -214,17 +214,14 @@ export class Gateway {
                 const ratesRow = await this.db.get_rates_by_player_name(playerName);
                 const baseRates = ratesRow?.[0] || { dirt_probability: 100, stone_probability: 0, iron_probability: 0, diamond_probability: 0 };
                 let computedRates = [
-                    baseRates.dirt_probability,
-                    baseRates.stone_probability,
-                    baseRates.iron_probability,
-                    baseRates.diamond_probability
+                    Number(baseRates.dirt_probability) || 0,
+                    Number(baseRates.stone_probability) || 0,
+                    Number(baseRates.iron_probability) || 0,
+                    Number(baseRates.diamond_probability) || 0,
                 ];
                 let effects = {};
                 if (this.shop) {
                     const mods = await this.shop.getPlayerEffects(playerName, baseRates);
-                    if (mods?.spawnRates) {
-                        computedRates = mods.spawnRates;
-                    }
                     effects = mods?.effects || {};
                 }
                 return {
@@ -674,15 +671,14 @@ export class Gateway {
             ? baseRatesRow[0]
             : { dirt_probability: 100, stone_probability: 0, iron_probability: 0, diamond_probability: 0 };
         let computedRates = [
-            baseRates.dirt_probability,
-            baseRates.stone_probability,
-            baseRates.iron_probability,
-            baseRates.diamond_probability,
+            Number(baseRates.dirt_probability) || 0,
+            Number(baseRates.stone_probability) || 0,
+            Number(baseRates.iron_probability) || 0,
+            Number(baseRates.diamond_probability) || 0,
         ];
         let effects = {};
         if (this.shop) {
             const mods = await this.shop.getPlayerEffects(playerName, baseRates);
-            if (mods?.spawnRates) computedRates = mods.spawnRates;
             effects = mods?.effects || {};
         }
 

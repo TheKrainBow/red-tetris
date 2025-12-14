@@ -18,8 +18,13 @@ export class Game {
         this.resourceSnapshots = new Map();
         this.lastBoardSnapshots = new Map();
         this.finalResources = new Map();
+        this.awardedTotals = new Map();
+        // Global fortune multiplier starts at max per-player fortune effect
+        const baseFortunes = players.map((p) => 1 + Math.max(0, (p.effects?.fortuneMultiplierPercent || 0)) / 100);
+        this.gameFortuneMultiplier = baseFortunes.length ? Math.max(...baseFortunes) : 1;
         this.players.forEach((_, playerName) => {
             this.resourceSnapshots.set(playerName, [0, 0, 0, 0]);
+            this.awardedTotals.set(playerName, [0, 0, 0, 0]);
         });
         
         this.I = [[0,0,0,0],[1,1,1,1],[0,0,0,0],[0,0,0,0]];
@@ -81,17 +86,18 @@ export class Game {
         });
     }
 
-    async #syncPlayerInventory(playerName, player, db, io, bonusDelta = null) {
+    async #syncPlayerInventory(playerName, player, db, io, baseEarned = null, bonusEarned = null) {
         const currentPoints = player.board.points || [];
         const lastPoints = this.resourceSnapshots.get(playerName) || [0, 0, 0, 0];
         const delta = currentPoints.map((p, idx) => Math.max(0, (p || 0) - (lastPoints[idx] || 0)));
-        const bonus = Array.isArray(bonusDelta) ? bonusDelta : [0, 0, 0, 0];
-        const deltaWithBonus = delta.map((v, i) => v + (bonus[i] || 0));
-        const deltaSum = deltaWithBonus.reduce((sum, v) => sum + v, 0);
+        const base = Array.isArray(baseEarned) ? baseEarned : delta;
+        const bonus = Array.isArray(bonusEarned) ? bonusEarned : [0, 0, 0, 0];
+        const deltaCombined = base.map((v, i) => v + (bonus[i] || 0));
+        const deltaSum = deltaCombined.reduce((sum, v) => sum + v, 0);
         if (deltaSum <= 0) return;
 
         if (db?.update_player_resources) {
-            const res = await db.update_player_resources(playerName, deltaWithBonus);
+            const res = await db.update_player_resources(playerName, deltaCombined);
             this.resourceSnapshots.set(playerName, [...currentPoints]);
             if (res?.success && io) {
                 io.to(player.id).emit('player_inventory', {
@@ -124,6 +130,23 @@ export class Game {
             let opponents = []
             const clearedBlocks = currentPlayer.board.consume_cleared_blocks ? currentPlayer.board.consume_cleared_blocks() : [];
             const linesCleared = Array.isArray(clearedBlocks) ? new Set(clearedBlocks.map((b) => b?.position?.y)).size : 0;
+            if (linesCleared > 0) {
+                this.gameFortuneMultiplier += linesCleared * 0.03;
+            }
+            const bonusPerLine = this.#computeLineBonus(currentPlayer, 1);
+            const baseBonus = this.#computeLineBonus(currentPlayer, linesCleared);
+            const lineMultiplier = this.#getLineClearMultiplier(linesCleared);
+            const totalBonus = baseBonus.map((v) => Math.floor(v * lineMultiplier));
+            // Compute base earned with fortune + line multiplier (authoritative for inventory/UI)
+            const baseDelta = currentPlayer.board.points.map((p, idx) => Math.max(0, (p || 0) - ((this.resourceSnapshots.get(currentPlayerName) || [0,0,0,0])[idx] || 0)));
+            const fortune = this.gameFortuneMultiplier || 1;
+            const baseFortuned = this.#applyFortune(baseDelta, fortune);
+            const baseWithLineMult = baseFortuned.map((v) => Math.floor(v * lineMultiplier));
+            const totalAwarded = baseWithLineMult.map((v, i) => v + (totalBonus[i] || 0));
+            const runningTotals = this.awardedTotals.get(currentPlayerName) || [0, 0, 0, 0];
+            const nextTotals = runningTotals.map((v, i) => v + (totalAwarded[i] || 0));
+            this.awardedTotals.set(currentPlayerName, nextTotals);
+
             const playerGameState = {
                     Board: currentPlayer.board.get_state(),
                     CurrentPiece: {
@@ -133,6 +156,12 @@ export class Game {
                     },
                     NextPiece: {Shape: currentPlayer.piece_queue.peek().state},
                     player_name: currentPlayerName,
+                    fortuneMultiplier: this.gameFortuneMultiplier,
+                    line_bonus_per_line: bonusPerLine,
+                    line_bonus_total: totalBonus,
+                    line_multiplier: lineMultiplier,
+                    resources_awarded: totalAwarded,
+                    resources_total: nextTotals,
             };
             this.lastBoardSnapshots.set(currentPlayerName, { ...playerGameState, captured_at: Date.now() });
             this.players.forEach((otherPlayer, otherPlayerId) => {
@@ -146,12 +175,17 @@ export class Game {
                 io.to(currentPlayer.id).emit('cleared_blocks', {
                     player_name: currentPlayerName,
                     blocks: clearedBlocks,
+                    line_bonus_per_line: bonusPerLine,
+                    line_bonus_total: totalBonus,
+                    line_multiplier: lineMultiplier,
+                    resources_awarded: totalAwarded,
+                    resources_total: nextTotals,
                 });
             }
 
             // Sync collected resources to DB on each tick based on delta since last sync
-            const bonusDelta = this.#computeLineBonus(currentPlayer, linesCleared);
-            await this.#syncPlayerInventory(currentPlayerName, currentPlayer, db, io, bonusDelta);
+            const bonusDelta = totalBonus;
+            await this.#syncPlayerInventory(currentPlayerName, currentPlayer, db, io, baseWithLineMult, bonusDelta);
 
             if (spectatorSockets.length > 0) {
                 spectatorSockets.forEach((socketId) => {
@@ -166,12 +200,32 @@ export class Game {
         const effects = player.effects || {};
         const lineBonus = effects.lineBonus || {};
         const multiplier = Math.max(0, effects.lineBonusMultiplier || 1);
-        const fortune = 1 + Math.max(0, effects.fortuneMultiplierPercent || 0) / 100;
         const resOrder = ['dirt', 'stone', 'iron', 'diamond'];
         return resOrder.map((key) => {
             const perLine = lineBonus[key] || 0;
-            const raw = perLine * linesCleared * multiplier * fortune;
+            // Explicitly exclude fortune from bonus lines; only base collected blocks get fortune
+            const raw = perLine * linesCleared * multiplier;
             return Math.floor(raw);
+        });
+    }
+
+    #getLineClearMultiplier(linesCleared = 0) {
+        if (linesCleared >= 4) return 4.0;
+        if (linesCleared === 3) return 2.5;
+        if (linesCleared === 2) return 1.5;
+        return 1.0;
+    }
+
+    #applyFortune(deltaArr = [], multiplier = 1) {
+        if (!multiplier || multiplier <= 1) return deltaArr;
+        return deltaArr.map((val) => {
+            const n = Number(val) || 0;
+            if (n <= 0) return 0;
+            const total = n * multiplier;
+            const guaranteed = Math.floor(total);
+            const remainder = total - guaranteed;
+            const extra = Math.random() < remainder ? 1 : 0;
+            return guaranteed + extra;
         });
     }
 

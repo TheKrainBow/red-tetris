@@ -94,6 +94,7 @@ export function parseEventPayload(type, payload = {}) {
       const opponents = body.Opponents ?? body.opponents ?? body.opponent
       const currentPiece = body.CurrentPiece || body.currentPiece || {}
       const nextPiece = body.NextPiece || body.nextPiece || {}
+      const fortuneMultiplier = body.fortuneMultiplier ?? body.fortune_multiplier ?? body.fortune ?? null
       return {
         board,
         player_name: body.player_name || body.playerName || body.player || '',
@@ -107,6 +108,7 @@ export function parseEventPayload(type, payload = {}) {
         nextPiece: {
           shape: nextPiece.Shape || nextPiece.shape || [],
         },
+        fortuneMultiplier,
       }
     }
     case 'game_start':

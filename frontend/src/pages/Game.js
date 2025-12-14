@@ -204,6 +204,9 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
   const hasPrevBoardRef = useRef(false)
   const shardIdRef = useRef(0)
   const [shards, setShards] = useState([])
+  const [lineFx, setLineFx] = useState([])
+  const lineFxIdRef = useRef(0)
+  const bonusBadgeIdRef = useRef(0)
   const [spectatorCellSize, setSpectatorCellSize] = useState(18)
   const boardRef = useRef(null)
   const spectatorGridRef = useRef(null)
@@ -715,8 +718,23 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
       setCurrentPiece({ shape: curShape, pos: curPos, material: curMaterial })
       prevPieceRef.current = { shape: curShape, pos: curPos, material: curMaterial }
 
-      const baseFortune = fortuneBaseRef.current || 1
-      setFortuneMultiplier((prev) => Math.max(prev, baseFortune))
+      const serverFortune = payload.fortuneMultiplier || payload.fortune_multiplier || null
+      if (serverFortune) {
+        fortuneBaseRef.current = serverFortune
+        setFortuneMultiplier(serverFortune)
+      } else {
+        const baseFortune = fortuneBaseRef.current || 1
+        setFortuneMultiplier((prev) => Math.max(prev, baseFortune))
+      }
+      const totalRes = Array.isArray(payload.resources_total) ? payload.resources_total : null
+      if (totalRes && totalRes.length === 4) {
+        setCollected({
+          dirt: Number(totalRes[0]) || 0,
+          stone: Number(totalRes[1]) || 0,
+          iron: Number(totalRes[2]) || 0,
+          diamond: Number(totalRes[3]) || 0,
+        })
+      }
       prevBoardRef.current = cleanBoard
       hasPrevBoardRef.current = true
     })
@@ -729,7 +747,8 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
       setWinnerName('')
       setCollected({ dirt: 0, stone: 0, iron: 0, diamond: 0 })
       totalClearedRef.current = 0
-      setFortuneMultiplier(fortuneBaseRef.current || 1)
+      setFortuneMultiplier(1)
+      fortuneBaseRef.current = 1
       fortuneRemainderRef.current = { dirt: 0, stone: 0, iron: 0, diamond: 0 }
       suppressShardsRef.current = false
       prevBoardRef.current = makeEmptyBoard()
@@ -786,21 +805,104 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
       if (!shards.length) return
 
       const linesCleared = uniqueRows.size
-      if (linesCleared > 0) {
-        totalClearedRef.current += linesCleared
-        const baseFortune = fortuneBaseRef.current || 1
-        const targetFortune = baseFortune + (totalClearedRef.current || 0) * 0.03
-        setFortuneMultiplier((prev) => Math.max(prev, targetFortune))
+      // fortune multiplier now authoritative from server; no local increment
+
+      const lineBonus = Array.isArray(payload.line_bonus_total) ? payload.line_bonus_total : []
+      const lineMultiplier = Number(payload.line_multiplier) || 1
+      if (lineBonus.length) {
+        const mats = ['dirt', 'stone', 'iron', 'diamond']
+        lineBonus.forEach((amt, idx) => {
+          const val = Number(amt) || 0
+          if (val > 0) spawnBonusBadge(mats[idx], val, idx)
+        })
+      } else if (lineMultiplier > 1) {
+        // show a small badge noting the multiplier even if no bonus resources (for visibility)
+        spawnBonusBadge('dirt', lineMultiplier, 0)
+      }
+      if (lineMultiplier > 1) {
+        spawnLineFx(lineMultiplier)
+      }
+
+      const totalRes = Array.isArray(payload.resources_total) ? payload.resources_total : null
+      const awarded = Array.isArray(payload.resources_awarded) ? payload.resources_awarded : null
+      if (totalRes && totalRes.length === 4) {
+        setCollected({
+          dirt: Number(totalRes[0]) || 0,
+          stone: Number(totalRes[1]) || 0,
+          iron: Number(totalRes[2]) || 0,
+          diamond: Number(totalRes[3]) || 0,
+        })
+      } else if (awarded && awarded.length === 4) {
+        setCollected((prev) => ({
+          dirt: prev.dirt + (Number(awarded[0]) || 0),
+          stone: prev.stone + (Number(awarded[1]) || 0),
+          iron: prev.iron + (Number(awarded[2]) || 0),
+          diamond: prev.diamond + (Number(awarded[3]) || 0),
+        }))
       }
 
       shards.forEach((cell) => {
         playMaterialSound(cell.val, cell.delay)
-        spawnShard({ ...cell, awardAmount: 1, matKey: materialKeyFromVal(cell.val) })
+        // Award handled from server totals; keep animation only
+        spawnShard({ ...cell, awardAmount: 0, matKey: materialKeyFromVal(cell.val) })
       })
     }
     const offBlocks = socketClient.on('cleared_blocks', onBlocks)
     return () => { offBlocks && offBlocks() }
   }, [forceSpectator, room, player])
+
+  const spawnBonusBadge = useCallback((matKey, amount, index = 0) => {
+    if (!matKey || !amount) return
+    const id = bonusBadgeIdRef.current++
+    const offsetY = index * 46
+    const offsetX = index * 6
+    const iconMap = {
+      dirt: CELL_TEXTURES[1],
+      stone: CELL_TEXTURES[2],
+      iron: CELL_TEXTURES[3],
+      diamond: CELL_TEXTURES[4],
+    }
+    const icon = iconMap[matKey] || CELL_TEXTURES[1]
+    const baseTop = 100
+    const baseLeft = window.innerWidth / 2 + 120
+    setBonusBadges((prev) => [
+      ...prev,
+      { id, icon, amount, top: baseTop + offsetY, left: baseLeft + offsetX },
+    ])
+    setTimeout(() => {
+      setBonusBadges((prev) => prev.filter((b) => b.id !== id))
+    }, 1800)
+  }, [])
+
+  const spawnLineFx = useCallback((multiplier) => {
+    const mult = Number(multiplier) || 1
+    if (mult <= 1) return
+    const tierTexts = mult >= 4
+      ? ['TETRIS!!!', 'GODLIKE!!!', 'NO WAY?!']
+      : mult >= 2.5
+        ? ['Extra Hot!!', 'Unstopable!!', 'Stonks!!']
+        : ['Superbe!', 'Combo!', 'Hot!', 'Damn!']
+    const text = tierTexts[Math.floor(Math.random() * tierTexts.length)]
+    const scale = mult >= 4 ? 1.8 : mult >= 2.5 ? 1.4 : 1.2
+    const id = lineFxIdRef.current++
+    const padX = 0.15 * (window.innerWidth || 1200)
+    const padY = 0.15 * (window.innerHeight || 800)
+    const left = padX + Math.random() * ((window.innerWidth || 1200) - 2 * padX)
+    const top = padY + Math.random() * ((window.innerHeight || 800) - 2 * padY)
+    const tilt = (Math.random() * 12 - 6) // -6deg to 6deg
+    const sparkCount = mult >= 4 ? 48 : mult >= 2.5 ? 20 : 10
+    const sparks = Array.from({ length: sparkCount }).map((_, idx) => {
+      const angle = Math.random() * Math.PI * 2
+      const dist = (mult >= 4 ? 110 : mult >= 2.5 ? 80 : 60) * (0.5 + Math.random() * 0.8)
+      const dx = Math.cos(angle) * dist
+      const dy = Math.sin(angle) * dist
+      return { id: `${id}-s-${idx}`, dx, dy, delay: Math.random() * 120 }
+    })
+    setLineFx((prev) => [...prev, { id, text, scale, left, top, mult, tilt, sparks }])
+    setTimeout(() => {
+      setLineFx((prev) => prev.filter((fx) => fx.id !== id))
+    }, 3000)
+  }, [])
 
   useEffect(() => {
     const offKick = socketClient.on('player_kick', (payload = {}) => {
@@ -1224,6 +1326,29 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
 
       {shardLayerRef.current && createPortal(
         <div aria-hidden="true">
+          <style>
+            {`
+            @keyframes lineFxPop {
+              0% { transform: scale(0.6); opacity: 0; }
+              60% { transform: scale(1.1); opacity: 1; }
+              100% { transform: scale(1); opacity: 1; }
+            }
+            @keyframes lineFxBreath {
+              0% { transform: scale(1); }
+              100% { transform: scale(1.15); }
+            }
+            @keyframes lineFxFade {
+              0% { opacity: 1; }
+              80% { opacity: 1; }
+              100% { opacity: 0; }
+            }
+            @keyframes sparkFly {
+              0% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+              30% { opacity: 1; }
+              100% { opacity: 0; transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(0.6); }
+            }
+            `}
+          </style>
           {bonusBadges.map((b) => (
             <div
               key={b.id}
@@ -1235,6 +1360,60 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
             >
               <div className="game-bonus-icon" style={{ backgroundImage: `url(${b.icon})` }} />
               <span>+{b.amount}</span>
+            </div>
+          ))}
+          {lineFx.map((fx) => (
+            <div
+              key={fx.id}
+              className="line-fx"
+              style={{
+                position: 'fixed',
+                left: fx.left,
+                top: fx.top,
+                transform: `translate(-50%, -50%) scale(${fx.scale}) rotate(${fx.tilt}deg)`,
+                color: fx.mult >= 4 ? '#ffd83d' : fx.mult >= 2.5 ? '#ffd83d' : '#f8f8f8',
+                fontSize: `${24 * fx.scale}px`,
+                fontWeight: 800,
+                textDecoration: fx.mult >= 4 ? 'underline' : 'none',
+                textShadow: '0 0 12px rgba(0,0,0,0.65)',
+                pointerEvents: 'none',
+                animation: 'lineFxBreath 0.5s ease-in-out infinite alternate, lineFxFade 3s ease-out',
+                whiteSpace: 'nowrap',
+                zIndex: 5000,
+              }}
+            >
+              <div>{fx.text}</div>
+              <div style={{ fontSize: '0.7em', opacity: 0.9 }}>x{fx.mult.toFixed(1)}</div>
+              <div
+                style={{
+                  position: 'absolute',
+                  left: 0,
+                  top: 0,
+                  width: '100%',
+                  height: '100%',
+                  pointerEvents: 'none',
+                }}
+              >
+                {fx.sparks.map((s) => (
+                  <span
+                    key={s.id}
+                    style={{
+                      position: 'absolute',
+                      left: '50%',
+                      top: '50%',
+                      width: 6,
+                      height: 6,
+                      borderRadius: '50%',
+                      background: fx.mult >= 4 ? '#ffec6e' : fx.mult >= 2.5 ? '#ffd16e' : '#fff1c1',
+                      opacity: 0,
+                      transform: 'translate(-50%, -50%)',
+                      animation: `sparkFly 0.9s ease-out ${s.delay}ms forwards`,
+                      '--dx': `${s.dx}px`,
+                      '--dy': `${s.dy}px`,
+                    }}
+                  />
+                ))}
+              </div>
             </div>
           ))}
           {shards.map((s) => {

@@ -24,6 +24,7 @@ import {
   computeMaxTimes,
   canCraft,
   describeCraftEffects,
+  computeShopReduction,
 } from '../utils/shopLogic'
 import { useShopState } from '../context/ShopStateContext'
 import { navigate } from '../utils/navigation'
@@ -371,6 +372,7 @@ export default function Shop() {
 
   const onBack = () => { navigate('/') }
   const [activeTab, setActiveTab] = useState('shops')
+  const shopReduction = computeShopReduction(purchases, craftCounts)
 
   function resetShop() {
     resetShopState()
@@ -390,7 +392,7 @@ export default function Shop() {
       return
     }
     const costId = formatResourceId(item.resource_cost)
-    const price = computeShopPrice(item, level)
+    const price = computeShopPrice(item, level, shopReduction)
     const have = inv[costId] || 0
     if (have < price) {
       playFrom(sounds.current.deny)
@@ -478,6 +480,8 @@ export default function Shop() {
             <ShopList
               inv={inv}
               purchases={purchases}
+              craftCounts={craftCounts}
+              reduction={shopReduction}
               onBuy={handleBuy}
               onDeny={() => playFrom(sounds.current.deny)}
             />
@@ -516,16 +520,17 @@ const SHOP_TABS = [
   { id: 'crafts', label: 'Crafts', icon: '/ui/Backpack.png' },
 ]
 
-function ShopList({ inv, purchases, onBuy, onDeny }) {
+function ShopList({ inv, purchases, craftCounts, reduction = 0, onBuy, onDeny }) {
   if (!SHOP_ITEMS.length) {
     return <div className="shop-empty">No shop upgrades configured.</div>
   }
+  const computedReduction = reduction || computeShopReduction(purchases, craftCounts)
   return (
     <div className="shop-list">
       {SHOP_ITEMS.map((item) => {
         const level = purchases[item.id] || 0
         const maxLevel = item.max_level ?? Infinity
-        const price = computeShopPrice(item, level)
+        const price = computeShopPrice(item, level, computedReduction)
         const costId = formatResourceId(item.resource_cost)
         const have = inv[costId] || 0
         const affordable = have >= price

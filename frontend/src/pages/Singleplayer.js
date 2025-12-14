@@ -194,12 +194,43 @@ export default function Singleplayer() {
           <h3 className="mp-title">History</h3>
         </div>
 
-        <div className="mp-list-wrap" ref={wrapRef} style={{ position: 'relative' }}>
-          <div className="mp-list" ref={listRef}>
-            {loading && <div className="mp-row"><div className="mp-name">Loading history...</div></div>}
-            {error && !loading && <div className="mp-row"><div className="mp-name">{error}</div></div>}
-            {!loading && !games.length && !error && <div className="mp-row"><div className="mp-name">No games yet</div></div>}
-            {games.map((g) => (
+          <div
+            className="mp-list-wrap"
+            ref={wrapRef}
+          >
+            <style>
+              {`
+                .mp-list-wrap::-webkit-scrollbar {
+                  width: 8px;
+                }
+                .mp-list-wrap::-webkit-scrollbar-track {
+                  background: rgba(0,0,0,0.25);
+                }
+                .mp-list-wrap::-webkit-scrollbar-thumb {
+                  background: rgba(255,255,255,0.25);
+                  border-radius: 8px;
+                }
+                .mp-list-wrap::-webkit-scrollbar-thumb:hover {
+                  background: rgba(255,255,255,0.35);
+                }
+              `}
+            </style>
+            <div
+              style={{
+                position: 'sticky',
+                top: 0,
+                height: 18,
+                marginTop: -12,
+                pointerEvents: 'none',
+                background: 'linear-gradient(180deg, rgba(0,0,0,0.6), rgba(0,0,0,0))',
+                zIndex: 2,
+              }}
+            />
+            <div className="mp-list" ref={listRef}>
+              {loading && <div className="mp-row"><div className="mp-name">Loading history...</div></div>}
+              {error && !loading && <div className="mp-row"><div className="mp-name">{error}</div></div>}
+              {!loading && !games.length && !error && <div className="mp-row"><div className="mp-name">No games yet</div></div>}
+              {games.map((g) => (
               <div
                 key={g.id}
                 className={`mp-row ${selected === g.id ? 'selected' : ''}`}
@@ -229,9 +260,20 @@ export default function Singleplayer() {
                   </div>
                   <div className="mp-meta">
                     {formatDate(g.startedAt)} — <span className={modeClass(g.mode)}>{formatModeLabel(g.mode)}</span>
-                  </div>
-                </div>
               </div>
+            </div>
+            <div
+              style={{
+                position: 'sticky',
+                bottom: 0,
+                height: 18,
+                marginBottom: -12,
+                pointerEvents: 'none',
+                background: 'linear-gradient(0deg, rgba(0,0,0,0.6), rgba(0,0,0,0))',
+                zIndex: 2,
+              }}
+            />
+          </div>
             ))}
           </div>
         </div>

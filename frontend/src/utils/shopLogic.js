@@ -1,4 +1,4 @@
-import { RESOURCES, RESOURCE_DISPLAY, formatResourceId, startCase } from './shopData'
+import { RESOURCES, RESOURCE_DISPLAY, formatResourceId, startCase, SHOP_ITEMS, CRAFT_ITEMS } from './shopData'
 
 export const RESOURCE_ICONS = {
   dirt: '/blocks/Dirt.jpg',
@@ -23,10 +23,32 @@ export function formatNumber(value) {
   return n.toLocaleString()
 }
 
-export function computeShopPrice(item, level) {
+export function computeShopPrice(item, level, reductionPercent = 0) {
   const base = Number(item?.starting_price) || 0
   const growth = Number(item?.price_growth_multiplier) || 1
-  return Math.max(0, Math.round(base * Math.pow(growth, level)))
+  const raw = base * Math.pow(growth, level)
+  const factor = Math.max(0, 1 - (Number(reductionPercent) || 0) / 100)
+  return Math.max(0, Math.round(raw * factor))
+}
+
+export function computeShopReduction(purchases = {}, craftCounts = {}) {
+  let total = 0
+  // From upgrades (if any carry shop_reduction)
+  for (const item of SHOP_ITEMS) {
+    const level = purchases?.[item.id] || 0
+    if (!level) continue
+    const eff = item.effects || {}
+    const per = Number(eff.shop_reduction || 0)
+    if (per) total += per * level
+  }
+  // From crafts that grant shop_reduction
+  for (const craft of CRAFT_ITEMS) {
+    const count = craftCounts?.[craft.id] || 0
+    if (!count) continue
+    const per = Number(craft.effects?.shop_reduction || 0)
+    if (per) total += per * count
+  }
+  return total
 }
 
 export function describeEffect(item, level) {

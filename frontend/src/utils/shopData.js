@@ -2,7 +2,8 @@ import YAML from 'js-yaml'
 
 function loadRawShop() {
   try {
-    const mod = require('../../shop.yml')
+    // First, try loading from repo root (shop.yml now lives at project root)
+    const mod = require('../../../shop.yml')
     if (typeof mod === 'string') return mod
     if (mod && typeof mod.default === 'string') return mod.default
   } catch (err) {
@@ -10,7 +11,8 @@ function loadRawShop() {
       const nodeRequire = eval('require')
       const fs = nodeRequire('fs')
       const path = nodeRequire('path')
-      const file = path.resolve(process.cwd(), 'frontend/shop.yml')
+      // Fallback to repo root shop.yml
+      const file = path.resolve(process.cwd(), 'shop.yml')
       return fs.readFileSync(file, 'utf8')
     } catch (nodeErr) {
       console.error('[shop] failed to load shop.yml', nodeErr)

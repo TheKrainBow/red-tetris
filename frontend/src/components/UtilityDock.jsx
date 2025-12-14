@@ -14,6 +14,7 @@ import {
   getResourceName,
   formatNumber,
   describeCraftEffects,
+  computeShopReduction,
 } from '../utils/shopLogic'
 import { RESOURCES, SHOP_ITEMS, CRAFT_ITEMS, formatResourceId } from '../utils/shopData'
 
@@ -380,6 +381,7 @@ function StatsPanel({ purchases, spawnCaps, inventory, craftCounts }) {
   })
   const fortuneFromUpgrades = computeFortuneFromUpgrades(purchases)
   const fortuneFromCrafts = computeFortuneFromCrafts(craftCounts, inventory)
+  const shopReduction = computeShopReduction(purchases, craftCounts)
   const sections = [
     {
       heading: 'Resources Spawn rates:',
@@ -400,7 +402,7 @@ function StatsPanel({ purchases, spawnCaps, inventory, craftCounts }) {
     {
       heading: 'Shop reductions:',
       entries: [
-        { label: 'From upgrades', value: '-0.00%', icon: RESOURCE_ICONS.emerald, rawValue: 0 },
+        { label: 'From upgrades/crafts', value: `-${shopReduction.toFixed(2)}%`, icon: RESOURCE_ICONS.emerald, rawValue: shopReduction },
       ],
     },
   ]
