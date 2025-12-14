@@ -110,6 +110,11 @@ export class Game {
     }
 
     #set_blocked_rows(thisPlayer, nrows_to_block) {
+        const gm = String(this.gamemodeName || '').toLowerCase();
+        if (gm.includes('coop')) {
+            // In Cooperation, no malus lines are added.
+            return;
+        }
         this.players.forEach((player, player_name) => {
             if (player.name !== thisPlayer.name) {
                 player.board.block_row(nrows_to_block);

@@ -1233,11 +1233,11 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
           </div>
         </div>
 
-        <div className="game-board-shell">
-          <div className={`game-board ${eliminated ? 'eliminated' : ''}`}>
-            <div className="game-grid" ref={boardRef}>
-              {board.map((row, rIdx) => (
-                <div key={rIdx} className="game-row">
+          <div className="game-board-shell">
+            <div className={`game-board ${eliminated ? 'eliminated' : ''}`}>
+              <div className="game-grid" ref={boardRef}>
+                {board.map((row, rIdx) => (
+                  <div key={rIdx} className="game-row">
                   {row.map((cell, cIdx) => {
                     // Overlay the active piece on top of the board for display only
                     const val = cell || currentCellValue(rIdx, cIdx)
@@ -1255,13 +1255,47 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
                 </div>
               ))}
             </div>
-            {(eliminated || winnerName) && (
-              <div className="game-board-overlay">
-                <div className="game-over-text">Game Over</div>
-                {winnerName && <div className="game-over-subtext">Winner: {winnerName}</div>}
-              </div>
-            )}
-          </div>
+              {(eliminated || winnerName) && (
+                <div className="game-board-overlay">
+                  <div className="game-over-text">Game Over</div>
+                  {winnerName && <div className="game-over-subtext">Winner: {winnerName}</div>}
+                </div>
+              )}
+            </div>
+            <div
+              className="game-keybinds"
+              style={{
+                position: 'absolute',
+                left: '-250px',
+                bottom: '12px',
+                padding: '10px 12px',
+                border: '1px solid rgba(255,255,255,0.6)',
+                borderRadius: 10,
+                backdropFilter: 'blur(6px)',
+                background: 'rgba(0,0,0,0.25)',
+                display: 'grid',
+                gridTemplateColumns: '74px 12px auto',
+                rowGap: '6px',
+                fontSize: '0.9rem',
+                color: '#eaeaea',
+                textShadow: '0 1px 2px rgba(0,0,0,0.8)',
+              }}
+            >
+              {[
+                { icon: '◄ / ►', label: 'Move the piece' },
+                { icon: '▲', label: 'Rotate the piece' },
+                { icon: '▼', label: 'Soft fall' },
+                { icon: <span style={{ fontWeight: 700, padding: '2px 6px', border: '1px solid #ccc', borderRadius: '4px', background: 'rgba(255,255,255,0.08)' }}>Space</span>, label: 'Hard fall' },
+              ].map((row, idx) => (
+                <React.Fragment key={`kb-${idx}`}>
+                  <div style={{ fontWeight: 700, display: 'flex', justifyContent: 'center', gap: 4, alignItems: 'center' }}>
+                    {row.icon}
+                  </div>
+                  <div style={{ textAlign: 'center' }}>:</div>
+                  <div>{row.label}</div>
+                </React.Fragment>
+              ))}
+            </div>
 
           <div className="game-float-panel">
             <div className="game-card game-card-two">
