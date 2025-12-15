@@ -66,13 +66,21 @@ const MATERIAL_LABELS = {
   diamond: 'Diamond',
 }
 
-const GAMEMODES = ['PvP', 'Cooperation']
+const GAMEMODES = [
+  { label: 'PvP', value: 'multiplayer_pvp' },
+  { label: 'Cooperation', value: 'multiplayer_coop' },
+  { label: 'Singleplayer', value: 'singleplayer' },
+]
 const labelFromServerGamemode = (val) => {
   const v = String(val || '').toLowerCase()
+  if (v.includes('single')) return 'Singleplayer'
   if (v.includes('coop')) return 'Cooperation'
   return 'PvP'
 }
-const serverValueFromLabel = (label) => label === 'Cooperation' ? 'Coop' : 'Normal'
+const serverValueFromLabel = (label) => {
+  const match = GAMEMODES.find((gm) => gm.label === label)
+  return match ? match.value : 'multiplayer_pvp'
+}
 const clampPlayerLimit = (val) => {
   const n = Number(val)
   if (!Number.isFinite(n)) return 16
@@ -151,6 +159,7 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
   const [fortuneMultiplier, setFortuneMultiplier] = useState(1)
   const [collected, setCollected] = useState({ dirt: 0, stone: 0, iron: 0, diamond: 0 })
   const [startTime, setStartTime] = useState(null)
+  const [endTime, setEndTime] = useState(null)
   const [running, setRunning] = useState(false)
   const [showConfirmLeave, setShowConfirmLeave] = useState(false)
   const [roomJoined, setRoomJoined] = useState(false)
@@ -239,7 +248,7 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
       }),
     }
   }, [rosterPlayers])
-  const showSettingsCard = isHost && !running && isWaitingPhase && !isSingleplayerRoom
+  const showSettingsCard = isHost && !running && isWaitingPhase
 
   const currentCellValue = (rowIdx, colIdx) => {
     const [posX, posY] = currentPiece.pos || [0, 0]
@@ -620,7 +629,7 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
         }
         if (me && typeof me.status === 'string') {
           const status = (me.status || '').toLowerCase()
-          setIsSpectator(status === 'spectating')
+          setIsSpectator(status === 'spectating' || status === 'eliminated')
         } else {
           setIsSpectator(false)
         }
@@ -658,7 +667,7 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
       }
 
       // Spectators keep a lightweight flow: store snapshots and skip the player-only UI work.
-      if (isSpectator) {
+      if (isSpectator && !isSingleplayerRoom) {
         setRunning(true)
         setStartTime((prev) => prev || Date.now())
         return
@@ -742,6 +751,7 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
     const offStart = socketClient.on('game_start', (data = {}) => {
       const t = data.starting_time || data.start_time || Date.now()
       setStartTime(Number(t))
+      setEndTime(null)
       setRunning(true)
       setEliminated(false)
       setWinnerName('')
@@ -754,12 +764,16 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
       prevBoardRef.current = makeEmptyBoard()
       hasPrevBoardRef.current = false
       setAllBoards({})
+      if (!forceSpectator && !isSingleplayerRoom) {
+        setIsSpectator(false)
+      }
     })
     const offEnd = socketClient.on('game_end', (payload = {}) => {
       const winner = payload?.data?.winner ?? payload?.winner
       setWinnerName(winner || '')
       // Even if winner is empty (singleplayer), treat as finished so controls re-enable
       setRunning(false)
+      setEndTime(Date.now())
       suppressShardsRef.current = true
       if (winner) {
         // future: could show winner UI
@@ -771,6 +785,9 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
       const selfName = stored || player
       if (name && selfName && name === selfName) {
         setEliminated(true)
+        setIsSpectator(true)
+        setRunning(true)
+        setStartTime((prev) => prev || Date.now())
       }
     })
 
@@ -1068,7 +1085,9 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
     return merged
   }
 
-  const elapsed = startTime ? now - Number(startTime) : 0
+  const elapsed = startTime
+    ? (endTime ? Math.max(0, endTime - Number(startTime)) : running ? now - Number(startTime) : 0)
+    : 0
 
   if (isSpectator) {
     return (
@@ -1179,6 +1198,9 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
             </div>
           </div>
         </div>
+        <div className="game-footer" style={{ position: 'fixed', bottom: 12, right: 12 }}>
+          <Button onClick={handleLeave} className="ui-btn-wide">Back</Button>
+        </div>
       </div>
     )
   }
@@ -1255,13 +1277,15 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
                 </div>
               ))}
             </div>
-              {(eliminated || winnerName) && (
-                <div className="game-board-overlay">
-                  <div className="game-over-text">Game Over</div>
+            {(eliminated || winnerName) && (
+              <div className="game-board-overlay">
+                <div className="game-over-text">
+                  <div>Game Over</div>
                   {winnerName && <div className="game-over-subtext">Winner: {winnerName}</div>}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
+          </div>
             <div
               className="game-keybinds"
               style={{
@@ -1340,19 +1364,71 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
         </div>
       </div>
 
-      <div className="game-timer-float game-card game-card-two">
-        <div className="game-stat-inline">
-          <div className="game-stat-label">Time Elapsed</div>
-          <div className="game-stat-value">{formatTime(elapsed)}</div>
+      <div className="game-top-right" style={{ position: 'fixed', top: 80, right: 40, display: 'flex', flexDirection: 'column', gap: 10, zIndex: 20, maxWidth: '90vw' }}>
+        <div className="game-timer-float game-card game-card-two" style={{ minWidth: 160 }}>
+          <div className="game-stat-inline">
+            <div className="game-stat-label">Time Elapsed</div>
+            <div className="game-stat-value">{formatTime(elapsed)}</div>
+          </div>
+        </div>
+        <div className="game-settings-float" style={{ position: 'static' }}>
+          <div className="game-card game-card-settings">
+            <div className="game-settings-title">Game Settings</div>
+            <label className="game-settings-row" htmlFor="game-gamemode">
+              <span className="game-settings-label">Gamemode</span>
+              <select
+                id="game-gamemode"
+                className={`game-settings-select ${
+                  roomGamemode === 'Cooperation'
+                    ? 'mode-coop'
+                    : roomGamemode === 'Singleplayer'
+                      ? 'mode-single'
+                      : 'mode-pvp'
+                }`}
+                style={{ color: roomGamemode === 'Singleplayer' ? '#6fcf6f' : undefined }}
+                value={roomGamemode}
+                onChange={(e) => handleGamemodeChange(e.target.value)}
+                disabled={savingSettings || running || !isWaitingPhase || !isHost}
+              >
+                {GAMEMODES.map((gm) => (
+                  <option
+                    key={gm.value}
+                    value={gm.label}
+                    style={gm.label === 'Singleplayer' ? { color: '#6fcf6f' } : undefined}
+                  >
+                    {gm.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="game-settings-row game-settings-row-slider">
+              <span className="game-settings-label" aria-hidden="true"></span>
+              <div className={`opt-slider ${savingSettings || running || !isWaitingPhase || !isHost ? 'is-disabled' : ''}`}>
+                <input
+                  className="opt-range"
+                  type="range"
+                  min="1"
+                  max="16"
+                  step="1"
+                  value={playerLimit}
+                  disabled={savingSettings || running || !isWaitingPhase || !isHost}
+                  onChange={(e) => setPlayerLimit(clampPlayerLimit(e.target.value))}
+                  onMouseUp={(e) => handlePlayerLimitChange(e.target.value)}
+                  onTouchEnd={(e) => handlePlayerLimitChange(e.target.value)}
+                />
+                <span className="opt-slider-label">Max Players: {playerLimit}</span>
+              </div>
+            </div>
+            <div className="game-settings-row" style={{ justifyContent: 'flex-end' }}>
+              <Button onClick={onStartGame} disabled={!isHost || running} className="ui-btn-wide">Start Game</Button>
+            </div>
+            {settingsNotice && <div className="game-settings-notice">{settingsNotice}</div>}
+          </div>
         </div>
       </div>
 
       <div className="game-footer">
-        <div className="game-footer-left">
-          {isHost && (
-            <Button onClick={onStartGame} className="ui-btn-wide" disabled={running}>Start Game</Button>
-          )}
-        </div>
+        <div className="game-footer-left" />
         <div className="game-footer-right">
           <Button onClick={handleLeave} className="ui-btn-wide">Back</Button>
         </div>
@@ -1474,46 +1550,6 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
         shardLayerRef.current
       )}
 
-      {showSettingsCard && (
-        <div className="game-settings-float">
-          <div className="game-card game-card-settings">
-            <div className="game-settings-title">Game Settings</div>
-            <label className="game-settings-row" htmlFor="game-gamemode">
-              <span className="game-settings-label">Gamemode</span>
-              <select
-                id="game-gamemode"
-                className={`game-settings-select ${roomGamemode === 'Cooperation' ? 'mode-coop' : 'mode-pvp'}`}
-                value={roomGamemode}
-                onChange={(e) => handleGamemodeChange(e.target.value)}
-                disabled={savingSettings || running || !isWaitingPhase}
-              >
-                {GAMEMODES.map((gm) => (
-                  <option key={gm} value={gm}>{gm}</option>
-                ))}
-              </select>
-            </label>
-            <div className="game-settings-row game-settings-row-slider">
-              <span className="game-settings-label" aria-hidden="true"></span>
-              <div className={`opt-slider ${savingSettings || running || !isWaitingPhase ? 'is-disabled' : ''}`}>
-                <input
-                  className="opt-range"
-                  type="range"
-                  min="1"
-                  max="16"
-                  step="1"
-                  value={playerLimit}
-                  disabled={savingSettings || running || !isWaitingPhase}
-                  onChange={(e) => setPlayerLimit(clampPlayerLimit(e.target.value))}
-                  onMouseUp={(e) => handlePlayerLimitChange(e.target.value)}
-                  onTouchEnd={(e) => handlePlayerLimitChange(e.target.value)}
-                />
-                <span className="opt-slider-label">Max Players: {playerLimit}</span>
-              </div>
-            </div>
-            {settingsNotice && <div className="game-settings-notice">{settingsNotice}</div>}
-          </div>
-        </div>
-      )}
 
       {showConfirmLeave && (
         <div className="game-modal-backdrop">

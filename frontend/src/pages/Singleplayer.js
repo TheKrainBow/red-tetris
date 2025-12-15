@@ -19,6 +19,16 @@ function formatDate(iso) {
   }
 }
 
+function formatDurationMs(ms) {
+  if (!ms || ms < 0) return '00:00'
+  const total = Math.floor(ms / 1000)
+  const h = Math.floor(total / 3600)
+  const m = Math.floor((total % 3600) / 60)
+  const s = total % 60
+  if (h > 0) return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+}
+
 function formatModeLabel(mode) {
   const raw = String(mode || '').toLowerCase()
   if (raw.includes('single')) return 'Singleplayer'
@@ -65,6 +75,7 @@ export default function Singleplayer() {
           const startedAt = row.started_at || row.startedAt || row.created_at
           const endedAt = row.ended_at || row.endedAt
           const ts = endedAt || startedAt
+          const durationMs = startedAt && endedAt ? Math.max(0, new Date(endedAt) - new Date(startedAt)) : null
           const resMap = row.resources || {}
           const resEntry = (() => {
             if (!resMap || typeof resMap !== 'object') return null
@@ -83,6 +94,7 @@ export default function Singleplayer() {
             boards: row.boards || {},
             players: Array.isArray(row.players) ? row.players : [],
             raw: row,
+            durationMs,
           }
         }).sort((a, b) => {
           const ta = new Date(a.startedAt || 0).getTime()
@@ -335,8 +347,7 @@ export default function Singleplayer() {
             <div className="game-modal-title" style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span>{modalGame.name} — {formatModeLabel(modalGame.mode)}</span>
               <span style={{ fontSize: '0.95rem', opacity: 0.85 }}>
-                Duration: {formatDate(modalGame.startedAt)}
-                {modalGame.raw?.ended_at || modalGame.raw?.endedAt ? ` → ${formatDate(modalGame.raw?.ended_at || modalGame.raw?.endedAt)}` : ''}
+                Duration: {modalGame.durationMs != null ? formatDurationMs(modalGame.durationMs) : 'Unknown'}
               </span>
             </div>
             <div

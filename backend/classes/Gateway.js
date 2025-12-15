@@ -10,6 +10,8 @@ export class Gateway {
         this.rooms = new Map();
         this.playerInfo = new Map();
         this.roomMetadata = new Map();
+        this.roomStatuses = new Map(); // roomName -> Map(playerName -> status)
+        this.roomInitialPlayers = new Map(); // roomName -> Set(playerName) for current game
     }
 
     #formatCommandResponse(event, data = {}) {
@@ -18,8 +20,10 @@ export class Gateway {
 
     #normalizeGamemode(raw) {
         const value = typeof raw === 'string' ? raw.trim().toLowerCase() : '';
-        if (value.includes('coop')) return 'Coop';
-        return 'Normal';
+        if (value.includes('single')) return 'singleplayer';
+        if (value.includes('coop')) return 'multiplayer_coop';
+        if (value.includes('pvp') || value.includes('versus') || value.includes('multi')) return 'multiplayer_pvp';
+        return 'multiplayer_pvp';
     }
 
     #normalizePlayerLimit(raw) {
@@ -38,10 +42,19 @@ export class Gateway {
         return Number.isFinite(meta.player_limit) ? meta.player_limit : 16;
     }
 
+    #getStatusMap(roomName) {
+        if (!this.roomStatuses.has(roomName)) {
+            this.roomStatuses.set(roomName, new Map());
+        }
+        return this.roomStatuses.get(roomName);
+    }
+
     #build_room_status(roomName) {
         if (!this.rooms.has(roomName)) return null;
 
         const playersMap = this.rooms.get(roomName);
+        // Reset any persisted statuses when starting a fresh game
+        this.roomStatuses.set(roomName, new Map());
         const game = this.games[roomName];
         const metadata = this.roomMetadata.get(roomName) || {};
 
@@ -96,6 +109,8 @@ export class Gateway {
         const isRunning = game?.is_running() || false;
         const playingNames = new Set(game ? Array.from(game.players.keys()) : []);
         const eliminatedNames = new Set(game ? game.eliminatedPlayers : []);
+        const statusMap = this.#getStatusMap(roomName);
+        const initialSet = this.roomInitialPlayers.get(roomName) || new Set();
 
         const players = [];
         const counts = {
@@ -109,38 +124,63 @@ export class Gateway {
 
         const seenPlayers = new Set();
 
-        playersMap.forEach((socketId, playerName) => {
-            const info = this.playerInfo.get(socketId) || {};
-            let status = eliminatedNames.has(playerName) ? 'eliminated' : 'waiting';
-            if (isRunning) {
-                if (playingNames.has(playerName)) status = 'playing';
-                else if (eliminatedNames.has(playerName)) status = 'eliminated';
-                else status = 'spectating';
+        const addPlayer = (playerName, hostFlag, status) => {
+            if (!playerName || seenPlayers.has(playerName)) return;
+            seenPlayers.add(playerName);
+            players.push({ name: playerName, host: Boolean(hostFlag), status });
+            counts.total += 1;
+            counts.hosts += hostFlag ? 1 : 0;
+            counts[status] = (counts[status] || 0) + 1;
+        };
+
+        // Combine names from sockets, status map, and game state
+        const allNames = new Set([
+            ...Array.from(playersMap.keys()),
+            ...Array.from(statusMap.keys()),
+            ...Array.from(playingNames),
+            ...Array.from(eliminatedNames),
+        ]);
+
+        allNames.forEach((playerName) => {
+            const socketId = playersMap.get(playerName);
+            const info = socketId ? (this.playerInfo.get(socketId) || {}) : {};
+            let status = statusMap.get(playerName);
+
+            if (!status) {
+                if (isRunning) {
+                    if (playingNames.has(playerName)) status = 'playing';
+                    else if (eliminatedNames.has(playerName)) status = 'eliminated';
+                    else status = 'spectating';
+                } else {
+                    status = 'waiting';
+                }
             }
 
-            players.push({
-                name: playerName,
-                host: Boolean(info.host),
-                status,
-            });
-            seenPlayers.add(playerName);
+            // When game not running, normalize statuses
+            if (!isRunning) {
+                if (!socketId) {
+                    statusMap.delete(playerName);
+                    return;
+                }
+                if (status === 'disconnected') {
+                    statusMap.delete(playerName);
+                    return;
+                }
+                if (status === 'eliminated' || status === 'playing' || status === 'spectating') {
+                    status = 'waiting';
+                    statusMap.set(playerName, status);
+                }
+            }
 
-            counts.total += 1;
-            counts.hosts += info.host ? 1 : 0;
-            counts[status] = (counts[status] || 0) + 1;
+            addPlayer(playerName, info.host, status);
         });
 
-        if (game) {
-            game.eliminatedPlayers.forEach((playerName) => {
-                if (seenPlayers.has(playerName)) return;
-                players.push({
-                    name: playerName,
-                    host: false,
-                    status: 'eliminated',
-                });
-                counts.total += 1;
-                counts.eliminated = (counts.eliminated || 0) + 1;
-            });
+        // Drop any lingering disconnected entries after game end and clear initial set
+        if (!isRunning) {
+            for (const [name, st] of statusMap.entries()) {
+                if (st === 'disconnected') statusMap.delete(name);
+            }
+            this.roomInitialPlayers.delete(roomName);
         }
 
         return this.#formatCommandResponse('player_list', {
@@ -157,12 +197,13 @@ export class Gateway {
         if (!playersMap || !game) return [];
 
         const playingNames = new Set(game.players.keys());
-        const eliminatedNames = new Set(game.eliminatedPlayers || []);
         const spectatorSockets = [];
+        const statusMap = this.#getStatusMap(roomName);
 
         playersMap.forEach((socketId, playerName) => {
             if (playingNames.has(playerName)) return;
-            if (eliminatedNames.has(playerName)) return;
+            const status = statusMap.get(playerName);
+            if (status === 'disconnected') return;
             spectatorSockets.push(socketId);
         });
 
@@ -205,9 +246,18 @@ export class Gateway {
         if (this.games[roomName] && this.games[roomName].isRunning) {
             return;
         }
-        let mode = Game.SINGLE_PLAYER;
-
         const playersMap = this.rooms.get(roomName);
+        const roomGamemode = (this.roomMetadata.get(roomName)?.gamemode) || 'multiplayer_pvp';
+        const gmLower = String(roomGamemode).toLowerCase();
+        const isSingle = gmLower.includes('single');
+        let mode = isSingle ? Game.SINGLE_PLAYER : Game.MULTI_PLAYER;
+
+        const hostName = (() => {
+            for (const info of this.playerInfo.values()) {
+                if (info.room === roomName && info.host) return info.playerName;
+            }
+            return null;
+        })();
 
         const players_info = await Promise.all(
             [...playersMap.entries()].map(async ([playerName, socketId]) => {
@@ -232,13 +282,25 @@ export class Gateway {
                 };
             })
         );
-        if (players_info.length > 1){
+        const filteredPlayers = isSingle
+            ? players_info.filter((p) => !hostName || p.playerName === hostName)
+            : players_info;
+
+        if (!isSingle && filteredPlayers.length > 1){
             mode = Game.MULTI_PLAYER;
         }
 
         const spectatorProvider = () => this.#getSpectatorSocketIds(roomName);
-        const roomGamemode = (this.roomMetadata.get(roomName)?.gamemode) || 'Normal';
-        this.games[roomName] = new Game(players_info, roomName, mode, 500, spectatorProvider, roomGamemode);
+        this.games[roomName] = new Game(filteredPlayers, roomName, mode, 500, spectatorProvider, roomGamemode);
+        // Track initial players and seed statuses
+        const initialSet = new Set(filteredPlayers.map((p) => p.playerName));
+        this.roomInitialPlayers.set(roomName, initialSet);
+        const statusMap = this.#getStatusMap(roomName);
+        statusMap.clear();
+        playersMap.forEach((_, name) => {
+            if (initialSet.has(name)) statusMap.set(name, 'playing');
+            else statusMap.set(name, 'spectating');
+        });
         this.games[roomName].onStatusChange = () => {
             this.#broadcast_player_list(roomName);
             this.#broadcast_lobby_room(roomName);
@@ -323,6 +385,18 @@ export class Gateway {
         this.playerInfo.set(socket.id, { room, playerName, host });
         socket.join(room);
 
+        const statusMap = this.#getStatusMap(room);
+        const runningGame = this.games[room];
+        if (runningGame && runningGame.is_running()) {
+            if (statusMap.get(playerName) === 'disconnected' || runningGame.eliminatedPlayers?.includes(playerName)) {
+                statusMap.set(playerName, 'eliminated');
+            } else {
+                statusMap.set(playerName, 'spectating');
+            }
+        } else {
+            statusMap.delete(playerName);
+        }
+
         const response = this.#formatCommandResponse('join_room', { success: true, room, playerName, host, room_gamemode: this.#getRoomGamemode(room), player_limit: this.#getRoomPlayerLimit(room) });
         this.#broadcast_player_list(room);
         this.#broadcast_lobby_room(room);
@@ -397,10 +471,17 @@ export class Gateway {
         const playersMap = this.rooms.get(room);
         const isRunning = game?.is_running() || false;
         const isPlaying = Boolean(game && game.players.has(playerName));
+        const statusMap = this.#getStatusMap(room);
+        const initialSet = this.roomInitialPlayers.get(room) || new Set();
 
         if (isPlaying && isRunning && game) {
             game.eliminate_player(playerName);
             game.players.delete(playerName);
+            if (initialSet.has(playerName)) {
+                statusMap.set(playerName, 'eliminated');
+            } else {
+                statusMap.delete(playerName);
+            }
             if (this.io) {
                 this.io.to(room).emit('player_eliminated', { player_name: playerName });
                 this.#broadcast_lobby_room(room);
@@ -428,6 +509,8 @@ export class Gateway {
         if (playersMap.size === 0) {
             this.rooms.delete(room);
             this.roomMetadata.delete(room);
+            this.roomStatuses.delete(room);
+            this.roomInitialPlayers.delete(room);
             if (game) {
                 game.stop();
                 delete this.games[room];

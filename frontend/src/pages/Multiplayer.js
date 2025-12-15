@@ -22,13 +22,13 @@ const mapRoomsToUi = (rooms = []) => rooms.map((room, idx) => {
   const playersPlaying = Number.isFinite(room?.players_playing) ? room.players_playing : players.length
   const spectators = Number.isFinite(room?.spectators) ? room.spectators : 0
   const status = room?.game_status || 'WAITING_FOR_PLAYER'
-  const isSinglePlayer = /_singleplayer$/i.test(roomName)
-  const displayName = roomName.replace(/_singleplayer$/i, ' Singleplayer')
+  const gmRaw = String(room?.room_gamemode || '').toLowerCase()
+  const isSinglePlayer = gmRaw.includes('single')
+  const displayName = roomName
   const modeLabel = (() => {
     if (isSinglePlayer) return 'Singleplayer'
-    const gm = String(room?.room_gamemode || '').toLowerCase()
-    if (gm.includes('coop')) return 'Cooperation'
-    if (gm.includes('pvp') || gm.includes('versus') || gm.includes('multi')) return 'PvP'
+    if (gmRaw.includes('coop')) return 'Cooperation'
+    if (gmRaw.includes('pvp') || gmRaw.includes('versus') || gmRaw.includes('multi')) return 'PvP'
     return 'PvP'
   })()
   const modeIconClass = isSinglePlayer
@@ -85,11 +85,13 @@ export default function Multiplayer() {
   const lobbyUpdateHandlerRef = useRef(() => {})
 
   const selectedServer = servers.find(s => s.id === selected) || null
-  const selectedSpectatorFull = selectedServer && selectedServer.status === 'PLAYING'
-    ? ((Number.isFinite(selectedServer.spectators) ? selectedServer.spectators : 0) + (selectedServer.playerCount || 0) >= (selectedServer.maxPlayers || 16))
+  const selectedSpectatorFull = selectedServer
+    ? ((Number.isFinite(selectedServer.spectators) ? selectedServer.spectators : 0) >= 15)
     : false
-  const joinDisabled = !selectedServer || selectedServer.isSinglePlayer || selectedServer.isFull || selectedSpectatorFull
-  const joinLabel = selectedServer?.status === 'PLAYING' ? 'Spectate' : 'Join Server'
+  const joinDisabled = !selectedServer
+    || (selectedServer.status === 'PLAYING' && selectedSpectatorFull)
+    || (selectedServer.status !== 'PLAYING' && !selectedServer.isSinglePlayer && selectedServer.isFull)
+  const joinLabel = selectedServer?.isSinglePlayer ? 'Spectate' : (selectedServer?.status === 'PLAYING' ? 'Spectate' : 'Join Server')
 
   const fetchRooms = useCallback(async () => {
     if (!mountedRef.current) return

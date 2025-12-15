@@ -115,9 +115,12 @@ export class Game {
             // In Cooperation, no malus lines are added.
             return;
         }
+        // PvP malus: number of cleared lines minus one (never negative)
+        const malus = Math.max(0, (Number(nrows_to_block) || 0) - 1);
+        if (malus <= 0) return;
         this.players.forEach((player, player_name) => {
             if (player.name !== thisPlayer.name) {
-                player.board.block_row(nrows_to_block);
+                player.board.block_row(malus);
             }
         });
     }
@@ -136,7 +139,14 @@ export class Game {
             const clearedBlocks = currentPlayer.board.consume_cleared_blocks ? currentPlayer.board.consume_cleared_blocks() : [];
             const linesCleared = Array.isArray(clearedBlocks) ? new Set(clearedBlocks.map((b) => b?.position?.y)).size : 0;
             if (linesCleared > 0) {
-                this.gameFortuneMultiplier += linesCleared * 0.03;
+                const gm = String(this.gamemodeName || '').toLowerCase();
+                if (gm.includes('single') || gm.includes('pvp') || gm.includes('normal')) {
+                    // PvP/single: malus logic handled below; fortune still increases
+                    this.gameFortuneMultiplier += linesCleared * 0.03;
+                } else {
+                    // Coop still gets fortune increase
+                    this.gameFortuneMultiplier += linesCleared * 0.03;
+                }
             }
             const bonusPerLine = this.#computeLineBonus(currentPlayer, 1);
             const baseBonus = this.#computeLineBonus(currentPlayer, linesCleared);
