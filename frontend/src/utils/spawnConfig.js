@@ -9,9 +9,9 @@ const TEXTURES = {
 
 const ABSOLUTE_MAX_DEFAULTS = {
   dirt: 1.0,
-  stone: 0.5,
-  iron: 0.2,
-  diamond: 0.03,
+  stone: 1.0,
+  iron: 1.0,
+  diamond: 1.0,
 }
 
 export const SPAWN_MATERIALS = RESOURCES

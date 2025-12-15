@@ -94,6 +94,7 @@ trades:
   # Basic resource -> Emerald exchanges
   - id: dirt_to_emerald
     name: "128 Dirt → 1 Emerald"
+    requires: []
     give:
       emerald: 1
     cost:
@@ -101,6 +102,7 @@ trades:
 
   - id: stone_to_emerald
     name: "64 Stone → 1 Emerald"
+    requires: []
     give:
       emerald: 1
     cost:
@@ -108,6 +110,7 @@ trades:
 
   - id: iron_to_emerald
     name: "32 Iron → 1 Emerald"
+    requires: []
     give:
       emerald: 1
     cost:
@@ -115,50 +118,75 @@ trades:
 
   - id: diamond_to_emerald
     name: "16 Diamond → 1 Emerald"
+    requires: []
     give:
       emerald: 1
     cost:
       diamond: 16
+
+  # Battle pass unlocked reverse trades (emerald -> resource)
+  - id: emerald_to_dirt
+    name: "1 Emerald → 128 Dirt"
+    requires:
+      - dirt_battle_pass
+    give:
+      dirt: 128
+    cost:
+      emerald: 1
+
+  - id: emerald_to_stone
+    name: "1 Emerald → 64 Stone"
+    requires:
+      - stone_battle_pass
+    give:
+      stone: 64
+    cost:
+      emerald: 1
+
+  - id: emerald_to_iron
+    name: "1 Emerald → 32 Iron"
+    requires:
+      - iron_battle_pass
+    give:
+      iron: 32
+    cost:
+      emerald: 1
+
+  - id: emerald_to_diamond
+    name: "1 Emerald → 16 Diamond"
+    requires:
+      - diamond_battle_pass
+    give:
+      diamond: 16
+    cost:
+      emerald: 1
 
 crafts:
   # Placeholder craft for now; effects can be filled later
   - id: fortune_enchant
     name: "Fortune Enchantment"
     cost:
-      dirt: 135
-      stone: 65
-      iron: 12
-      diamond: 1
+      dirt: 300
+      stone: 120
+      iron: 60
+      diamond: 24
     outputs:
       fortune_enchant: 1
     effects:
       fortune_multiplier_percent: 200
-    max_crafts: 1
-    craft_time_seconds: 0
-  - id: diamond_expert
-    name: "Diamond Expert"
-    cost:
-      dirt: 900
-      stone: 750
-      iron: 320
-      diamond: 100
-    outputs:
-      diamond_expert: 1
-    effects:
-      diamond_line_break_bonus: 1
-    max_crafts: 10
+    max_crafts: 3
     craft_time_seconds: 0
   - id: bonus_multiplayer
     name: "Duplication Glitch"
     cost:
-      dirt: 12000
-      stone: 9800
-      iron: 7600
-      diamond: 420
+      dirt: 10000
+      stone: 10000
+      iron: 10000
+      diamond: 10000
     outputs:
       bonus_multiplayer: 1
     effects:
-      line_break_bonus_multiplayer: 1.5
+      fortune_multiplier_percent: 5000
     max_crafts: 10
     craft_time_seconds: 0
   - id: dirt_battle_pass
@@ -178,7 +206,7 @@ crafts:
     outputs:
       stone_battle_pass: 1
     effects:
-      shop_reduction: 20
+      shop_reduction: 50
     max_crafts: 1
     craft_time_seconds: 0
   - id: iron_battle_pass
@@ -198,21 +226,116 @@ crafts:
     outputs:
       diamond_battle_pass: 1
     effects:
-      shop_reduction: 20
+      shop_reduction: 9
     max_crafts: 1
     craft_time_seconds: 0
-  - id: delux_battle_pass
-    name: "Delux Battle Pass"
+
+  - id: dirt_god
+    name: "Dirt God"
     cost:
-      dirt: 1000
-      stone: 1000
-      iron: 1000
-      diamond: 1000
+      dirt: 420
+      stone: 240
     outputs:
-      delux_battle_pass: 1
+      dirt_god: 1
     effects:
-      shop_reduction: 200
+      dirt_gain_multiplier: 3
     max_crafts: 1
+    craft_time_seconds: 0
+
+  - id: stone_god
+    name: "Stone God"
+    cost:
+      stone: 420
+      iron: 240
+    outputs:
+      stone_god: 1
+    effects:
+      stone_gain_multiplier: 3
+    max_crafts: 1
+    craft_time_seconds: 0
+
+  - id: iron_god
+    name: "Iron God"
+    cost:
+      iron: 420
+      diamond: 240
+    outputs:
+      iron_god: 1
+    effects:
+      iron_gain_multiplier: 3
+    max_crafts: 1
+    craft_time_seconds: 0
+
+  - id: diamond_god
+    name: "Diamond God"
+    cost:
+      dirt: 420
+      stone: 420
+      iron: 420
+      diamond: 420
+    outputs:
+      diamond_god: 1
+    effects:
+      diamond_gain_multiplier: 3
+    max_crafts: 1
+    craft_time_seconds: 0
+
+  - id: dirt_master
+    name: "Dirt Master"
+    cost:
+      dirt: 9999
+    outputs:
+      dirt_master: 1
+    effects:
+      dirt_trade_multiplier: 0.5
+    max_crafts: 1
+    craft_time_seconds: 0
+
+  - id: stone_master
+    name: "Stone Master"
+    cost:
+      stone: 9999
+    outputs:
+      stone_master: 1
+    effects:
+      stone_trade_multiplier: 0.5
+    max_crafts: 1
+    craft_time_seconds: 0
+
+  - id: iron_master
+    name: "Iron Master"
+    cost:
+      iron: 9999
+    outputs:
+      iron_master: 1
+    effects:
+      iron_trade_multiplier: 0.5
+    max_crafts: 1
+    craft_time_seconds: 0
+
+  - id: diamond_master
+    name: "Diamond Master"
+    cost:
+      diamond: 9999
+    outputs:
+      diamond_master: 1
+    effects:
+      diamond_trade_multiplier: 0.5
+    max_crafts: 1
+    craft_time_seconds: 0
+
+  - id: efficiency_enchantment
+    name: "Efficiency Enchantment"
+    cost:
+      dirt: 2350
+      stone: 1420
+      iron: 400
+      diamond: 120
+    outputs:
+      efficiency_enchantment: 1
+    effects:
+      fortune_gain_per_line: 0.03
+    max_crafts: 5
     craft_time_seconds: 0
 
 notes:

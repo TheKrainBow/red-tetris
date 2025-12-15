@@ -78,6 +78,9 @@ export class Shop {
         let lineBonusMultiplier = 1;
         let shopReduction = 0;
         const spawnRateBonus = { dirt: 0, stone: 0, iron: 0, diamond: 0 };
+        const resourceGainMultipliers = { dirt: 1, stone: 1, iron: 1, diamond: 1 };
+        const tradeCostMultipliers = { dirt: 1, stone: 1, iron: 1, diamond: 1 };
+        let fortuneGainPerLineBonus = 0;
 
         for (const item of this.shops) {
             const level = this.#getLevel(invMap, item.id);
@@ -104,10 +107,24 @@ export class Shop {
                     lineBonusMultiplier *= Math.max(1, Number(raw) || 1) ** count;
                 } else if (key === 'shop_reduction') {
                     shopReduction += (Number(raw) || 0) * count;
+                } else if (key === 'fortune_gain_per_line') {
+                    fortuneGainPerLineBonus += (Number(raw) || 0) * count;
                 } else if (key.endsWith('_line_break_bonus')) {
                     const res = key.replace('_line_break_bonus', '');
                     if (res in lineBonus) {
                         lineBonus[res] += (Number(raw) || 0) * count;
+                    }
+                } else if (key.endsWith('_gain_multiplier')) {
+                    const res = key.replace('_gain_multiplier', '');
+                    if (res in resourceGainMultipliers) {
+                        const mult = Math.max(0, Number(raw) || 1);
+                        resourceGainMultipliers[res] *= mult ** count;
+                    }
+                } else if (key.endsWith('_trade_multiplier')) {
+                    const res = key.replace('_trade_multiplier', '');
+                    if (res in tradeCostMultipliers) {
+                        const mult = Math.max(0, Number(raw) || 1);
+                        tradeCostMultipliers[res] *= mult ** count;
                     }
                 }
             }
@@ -119,6 +136,9 @@ export class Shop {
             fortuneMultiplierPercent,
             shopReduction,
             spawnRateBonus,
+            resourceGainMultipliers,
+            tradeCostMultipliers,
+            fortuneGainPerLineBonus,
         };
     }
 
@@ -138,12 +158,6 @@ export class Shop {
         const state = await this.#getPlayerState(playerName);
         const bonuses = this.#deriveEffectsFromInventory(state?.inventory || {});
         const spawnStart = this.config.game?.spawn_probabilities_start || {};
-        const absoluteMax = {
-            dirt: 1.0,
-            stone: 0.5,
-            iron: 0.2,
-            diamond: 0.03,
-        };
         const baseCaps = {
             dirt: Number(spawnStart.dirt) || 0,
             stone: Number(spawnStart.stone) || 0,
@@ -152,10 +166,10 @@ export class Shop {
         };
         const bonus = bonuses.spawnRateBonus || {};
         const caps = {
-            dirt: clamp(baseCaps.dirt + (bonus.dirt || 0), 0, absoluteMax.dirt),
-            stone: clamp(baseCaps.stone + (bonus.stone || 0), 0, absoluteMax.stone),
-            iron: clamp(baseCaps.iron + (bonus.iron || 0), 0, absoluteMax.iron),
-            diamond: clamp(baseCaps.diamond + (bonus.diamond || 0), 0, absoluteMax.diamond),
+            dirt: Math.max(0, baseCaps.dirt + (bonus.dirt || 0)),
+            stone: Math.max(0, baseCaps.stone + (bonus.stone || 0)),
+            iron: Math.max(0, baseCaps.iron + (bonus.iron || 0)),
+            diamond: Math.max(0, baseCaps.diamond + (bonus.diamond || 0)),
         };
         return caps;
     }
@@ -211,12 +225,27 @@ export class Shop {
         const count = Math.max(1, Number(times) || 1);
         const state = await this.#getPlayerState(playerName);
         if (!state) return { success: false, reason: 'player_not_found' };
+        const effects = this.#deriveEffectsFromInventory(state.inventory);
+        const tradeMultipliers = effects?.tradeCostMultipliers || {};
+        const adjustMap = (obj = {}) => {
+            const next = {};
+            for (const [k, v] of Object.entries(obj)) {
+                const key = String(k);
+                const raw = Number(v) || 0;
+                const mult = key in tradeMultipliers ? Math.max(0, Number(tradeMultipliers[key]) || 1) : 1;
+                const adjusted = Math.max(1, Math.round(raw * mult));
+                next[key] = adjusted;
+            }
+            return next;
+        };
+        const adjustedCost = adjustMap(trade.cost || {});
+        const adjustedGive = adjustMap(trade.give || {});
 
         const resources = {};
-        for (const [k, v] of Object.entries(trade.cost || {})) {
+        for (const [k, v] of Object.entries(adjustedCost)) {
             resources[String(k)] = -((Number(v) || 0) * count);
         }
-        for (const [k, v] of Object.entries(trade.give || {})) {
+        for (const [k, v] of Object.entries(adjustedGive)) {
             resources[String(k)] = (resources[String(k)] || 0) + (Number(v) || 0) * count;
         }
         if (!this.#hasResources(state, resources)) return { success: false, reason: 'insufficient_resources' };
@@ -228,9 +257,14 @@ export class Shop {
     async craft(playerName, craftId, times = 1) {
         const craft = this.craftById[craftId];
         if (!craft) return { success: false, reason: 'craft_not_found' };
-        const count = Math.max(1, Number(times) || 1);
         const state = await this.#getPlayerState(playerName);
         if (!state) return { success: false, reason: 'player_not_found' };
+        const currentLevel = this.#getLevel(state.inventory, craftId);
+        const rawMax = Number(craft.max_crafts);
+        const maxCrafts = Number.isFinite(rawMax) && rawMax >= 0 ? rawMax : Infinity;
+        const remaining = Math.max(0, maxCrafts - currentLevel);
+        if (remaining <= 0) return { success: false, reason: 'max_crafts' };
+        const count = Math.max(1, Math.min(Number(times) || 1, remaining));
 
         const resources = {};
         for (const [k, v] of Object.entries(craft.cost || {})) {

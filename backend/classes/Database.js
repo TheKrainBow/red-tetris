@@ -178,7 +178,6 @@ export class Database {
         await this.insert_inventory_item_by_player_name(player_name, "stone_battle_pass", 1);
         await this.insert_inventory_item_by_player_name(player_name, "iron_battle_pass", 1);
         await this.insert_inventory_item_by_player_name(player_name, "diamond_battle_pass", 1);
-        await this.insert_inventory_item_by_player_name(player_name, "delux_battle_pass", 1);
 
         await this.insert_inventory_item_by_player_name(player_name, "bonus_multiplayer", 10);
 
@@ -221,7 +220,6 @@ export class Database {
         await this.#insert_item_shop("stone_battle_pass", {stone_owned: 1000});
         await this.#insert_item_shop("iron_battle_pass", {iron_owned: 1000});
         await this.#insert_item_shop("diamond_battle_pass", {emeralds: 1000});
-        await this.#insert_item_shop("delux_battle_pass", {dirt_owned: 1000, stone_owned: 1000, iron_owned: 1000, emeralds: 1000});
 
         await this.#insert_item_shop("emeralds", {dirt_owned: 128, stone_owned: 64, iron_owned: 32, diamond_owned: 16});
     }
@@ -434,15 +432,20 @@ export class Database {
                 const fetchQuery = 'SELECT current_count, max_count FROM inventory WHERE user_id = $1 AND item_name = $2 LIMIT 1;';
                 const existing = await this.client.query(fetchQuery, [userId, safeName]);
                 const current = existing.rows[0]?.current_count || 0;
-                const maxCount = existing.rows[0]?.max_count || 999999;
-                const nextCount = Math.min(maxCount, Math.max(0, current + change));
+                const existingMax = existing.rows[0]?.max_count;
+                // If a previous seed set max_count low (e.g., 1), raise it to allow stacking crafted items.
+                const desiredMax = Math.max(
+                    Number.isFinite(existingMax) && existingMax > 0 ? existingMax : 999999,
+                    current + Math.max(0, change)
+                );
+                const nextCount = Math.max(0, current + change);
                 const upsertQuery = `
                     INSERT INTO inventory (user_id, item_name, current_count, max_count)
                     VALUES ($1, $2, $3, $4)
                     ON CONFLICT (user_id, item_name)
-                    DO UPDATE SET current_count = EXCLUDED.current_count
+                    DO UPDATE SET current_count = EXCLUDED.current_count, max_count = GREATEST(inventory.max_count, EXCLUDED.max_count)
                 `;
-                await this.client.query(upsertQuery, [userId, safeName, nextCount, maxCount]);
+                await this.client.query(upsertQuery, [userId, safeName, nextCount, desiredMax]);
             }
 
             const updatedUser = await this.get_user_by_player_name(playerName);

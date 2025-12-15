@@ -135,6 +135,46 @@ export function computeMaxTimes(inv, cost = {}) {
   )
 }
 
+export function hasTradeRequirements(inv, trade) {
+  const reqs = Array.isArray(trade?.requires) ? trade.requires : []
+  if (!reqs.length) return true
+  return reqs.every((reqId) => (inv[formatResourceId(reqId)] || 0) > 0)
+}
+
+export function computeTradeMultipliers(craftCounts = {}) {
+  const multipliers = { dirt: 1, stone: 1, iron: 1, diamond: 1 }
+  for (const craft of CRAFT_ITEMS) {
+    const count = craftCounts?.[craft.id] || 0
+    if (!count) continue
+    const effects = craft.effects || {}
+    for (const [key, raw] of Object.entries(effects)) {
+      if (!key.endsWith('_trade_multiplier')) continue
+      const res = key.replace('_trade_multiplier', '')
+      if (!(res in multipliers)) continue
+      const mult = Math.max(0, Number(raw) || 1)
+      multipliers[res] *= mult ** count
+    }
+  }
+  return multipliers
+}
+
+export function applyTradeMultipliers(trade, multipliers = {}) {
+  const scaleMap = (obj = {}) => {
+    const next = {}
+    for (const [key, value] of Object.entries(obj)) {
+      const mult = key in multipliers ? Math.max(0, Number(multipliers[key]) || 1) : 1
+      const adjusted = Math.max(1, Math.round((Number(value) || 0) * mult))
+      next[key] = adjusted
+    }
+    return next
+  }
+  return {
+    ...trade,
+    cost: scaleMap(trade?.cost || {}),
+    give: scaleMap(trade?.give || {}),
+  }
+}
+
 export function canCraft(inv, craft) {
   const costEntries = Object.entries(craft?.cost || {})
   if (!costEntries.length) return false

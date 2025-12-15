@@ -22,6 +22,9 @@ import {
   computeShopPrice,
   describeEffect,
   computeMaxTimes,
+  hasTradeRequirements,
+  applyTradeMultipliers,
+  computeTradeMultipliers,
   canCraft,
   describeCraftEffects,
   computeShopReduction,
@@ -489,6 +492,7 @@ export default function Shop() {
           {activeTab === 'trades' && (
             <TradeList
               inv={inv}
+              craftCounts={craftCounts}
               onTrade={handleTrade}
               onDeny={() => playFrom(sounds.current.deny)}
             />
@@ -568,20 +572,23 @@ function ShopList({ inv, purchases, craftCounts, reduction = 0, onBuy, onDeny })
   )
 }
 
-function TradeList({ inv, onTrade, onDeny }) {
-  if (!TRADE_ITEMS.length) {
-    return <div className="shop-empty">No trades configured.</div>
+function TradeList({ inv, craftCounts, onTrade, onDeny }) {
+  const tradeMultipliers = useMemo(() => computeTradeMultipliers(craftCounts), [craftCounts])
+  const visibleTrades = TRADE_ITEMS.filter((trade) => hasTradeRequirements(inv, trade))
+  if (!visibleTrades.length) {
+    return <div className="shop-empty">Craft special items to unlock more trades.</div>
   }
   return (
     <div className="shop-list">
-      {TRADE_ITEMS.map((trade) => {
-        const maxTimes = computeMaxTimes(inv, trade.cost)
+      {visibleTrades.map((trade) => {
+        const adjustedTrade = applyTradeMultipliers(trade, tradeMultipliers)
+        const maxTimes = computeMaxTimes(inv, adjustedTrade.cost)
         const disabled = maxTimes <= 0 || !Number.isFinite(maxTimes)
         const maxLabel = Number.isFinite(maxTimes) ? maxTimes : '∞'
-        const costEntries = Object.entries(trade.cost || {})
-        const giveEntries = Object.entries(trade.give || {})
+        const costEntries = Object.entries(adjustedTrade.cost || {})
+        const giveEntries = Object.entries(adjustedTrade.give || {})
         return (
-          <div className="shop-item shop-item-trade" key={trade.id}>
+          <div className="shop-item shop-item-trade" key={adjustedTrade.id}>
               <div className="shop-trade">
                 <div className="shop-cost">
                   {costEntries.map(([resId, amount]) => (
@@ -594,17 +601,17 @@ function TradeList({ inv, onTrade, onDeny }) {
                     <ResourceChip key={resId} resourceId={resId} amount={amount} />
                   ))}
                 </div>
-              </div>
+            </div>
             <div className="shop-btns">
               <div className="shop-btn-wrap">
-                <Button className="ui-btn-slim" disabled={disabled} onClick={() => onTrade(trade, 1)}>
+                <Button className="ui-btn-slim" disabled={disabled} onClick={() => onTrade(adjustedTrade, 1)}>
                   Trade
                 </Button>
                 {disabled && <div className="shop-btn-shield" onClick={() => onDeny && onDeny()} />}
               </div>
               <div className="shop-btn-wrap">
                 <Button className="ui-btn-slim" disabled={disabled}
-                  onClick={() => onTrade(trade, maxTimes)}>
+                  onClick={() => onTrade(adjustedTrade, maxTimes)}>
                   Max (+{maxLabel})
                 </Button>
                 {disabled && <div className="shop-btn-shield" onClick={() => onDeny && onDeny()} />}

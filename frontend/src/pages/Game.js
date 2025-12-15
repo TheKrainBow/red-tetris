@@ -462,16 +462,6 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
     }, delayMs)
   }
 
-  const queueAward = (matKey, amount = 0, delayMs = 0) => {
-    if (!matKey || !amount) return
-    setTimeout(() => {
-      setCollected((prev) => ({
-        ...prev,
-        [matKey]: prev[matKey] + amount,
-      }))
-    }, delayMs)
-  }
-
   const getInventoryDest = (materialVal, matKeyOverride) => {
     const panel = document.querySelector('.utility-panel-inventory')
     if (!panel || panel.offsetParent === null) return null
@@ -526,9 +516,6 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
       setShards((prev) => prev.map((s) => (s.id === id ? { ...s, phase: 'done' } : s)))
     }, 650 + delay)
     setTimeout(() => {
-      if (matKey && awardAmount) {
-        queueAward(matKey, awardAmount, 0)
-      }
       setShards((prev) => prev.filter((s) => s.id !== id))
     }, awardLagMs + delay)
   }
@@ -774,6 +761,7 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
           iron: Number(totalRes[2]) || 0,
           diamond: Number(totalRes[3]) || 0,
         })
+        setBonusFlash({ dirt: false, stone: false, iron: false, diamond: false })
       }
       prevBoardRef.current = cleanBoard
       hasPrevBoardRef.current = true
@@ -880,13 +868,13 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
           iron: Number(totalRes[2]) || 0,
           diamond: Number(totalRes[3]) || 0,
         })
-      } else if (awarded && awarded.length === 4) {
-        setCollected((prev) => ({
-          dirt: prev.dirt + (Number(awarded[0]) || 0),
-          stone: prev.stone + (Number(awarded[1]) || 0),
-          iron: prev.iron + (Number(awarded[2]) || 0),
-          diamond: prev.diamond + (Number(awarded[3]) || 0),
-        }))
+      }
+      if (awarded && awarded.length === 4) {
+        const mats = ['dirt', 'stone', 'iron', 'diamond']
+        awarded.forEach((amt, idx) => {
+          const val = Number(amt) || 0
+          if (val > 0) spawnBonusBadge(mats[idx], val, idx)
+        })
       }
 
       shards.forEach((cell) => {
