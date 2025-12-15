@@ -22,10 +22,6 @@ export default function Options() {
     try { localStorage.removeItem('username') } catch (_) {}
     navigate('/login')
   }
-  const onResetAccount = () => {
-    navigate('/')
-  }
-
   return (
     <div className="opt-root">
       <div className="opt-panel">
@@ -48,7 +44,10 @@ export default function Options() {
             <Button className="ui-btn-narrow" onClick={onChangeUsername}>Change Username</Button>
           </div>
           <div className="opt-cell">
-            <Button className="ui-btn-narrow" onClick={onResetAccount}>Reset my account</Button>
+            <Button className="ui-btn-narrow" disabled>
+              <span role="img" aria-label="locked" style={{ marginRight: 6 }}>🔒</span>
+              Achievements <span style={{ opacity: 0.7, marginLeft: 6 }}>(Coming soon)</span>
+            </Button>
           </div>
         </div>
         <Button className="ui-btn-wide opt-done" onClick={onBack}>Done</Button>

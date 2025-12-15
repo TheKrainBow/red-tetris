@@ -511,7 +511,6 @@ export default function Shop() {
 
       <div className="shop-nav">
         <Button className="ui-btn shop-back" onClick={onBack}>Back</Button>
-        <Button size="small" className="ui-btn shop-reset" onClick={resetShop}>Reset</Button>
       </div>
     </div>
   )

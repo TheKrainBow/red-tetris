@@ -146,6 +146,7 @@
 .mp-mode-singleplayer { color: #b2ffad; }
 .mp-mode-pvp { color: #ff9a9a; }
 .mp-mode-cooperation { color: #a9c9ff; }
+.mp-mode-coop { color: #7ca6ff; }
 
 
 .mp-footer { position: absolute; left: 0; right: 0; bottom: 0; height: var(--mp-band-h); display: flex; align-items: center; justify-content: center; gap: 14px; z-index: 4; }
@@ -233,6 +234,59 @@
     1px 0 0 #000,
     0 -1px 0 #000,
     0 1px 0 #000;
+}
+.srv-mode-note { margin-top: 12px; color: #f3f3f3; }
+.srv-mode-note summary { list-style: none; cursor: pointer; }
+.srv-mode-summary { display: inline-flex; align-items: center; gap: 8px; color: #fff; text-shadow: 1px 1px 0 #000; }
+.srv-mode-help {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  color: #111;
+  border: 1px solid rgba(0,0,0,0.15);
+  font-weight: 700;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+}
+.srv-mode-summary-text { font-weight: 700; }
+.srv-mode-modal {
+  margin-top: 8px;
+  background: linear-gradient(180deg, rgba(15,15,15,0.94), rgba(28,28,28,0.96));
+  border-radius: 10px;
+  padding: 12px;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.35), inset 1px 1px 0 rgba(255,255,255,0.08), inset -1px -1px 0 rgba(0,0,0,0.5);
+  border: 1px solid rgba(0,0,0,0.35);
+  color: #e8e8e8;
+}
+.srv-mode-section + .srv-mode-section { margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.08); }
+.srv-mode-title { font-weight: 700; margin-bottom: 4px; }
+.srv-mode-desc { font-size: 0.95rem; line-height: 1.45; color: #e0e0e0; }
+.srv-mode-title[data-mode="pvp"] { color: #ff9a9a; }
+.srv-mode-title[data-mode="coop"] { color: #7ca6ff; }
+.srv-mode-title[data-mode="single"] { color: #b2ffad; }
+.srv-mode-row { display: flex; align-items: center; gap: 10px; justify-content: flex-start; }
+.srv-mode-help-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid #000;
+  background: linear-gradient(#d0d0d0, #8a8a8a);
+  color: #111;
+  font-weight: 800;
+  box-shadow: inset 1px 1px 0 rgba(255,255,255,0.35), inset -1px -1px 0 rgba(0,0,0,0.5), 0 2px 6px rgba(0,0,0,0.4);
+  cursor: pointer;
+}
+.srv-mode-help-btn:hover { filter: brightness(1.1); }
+.srv-mode-help-btn:active { transform: translateY(1px); }
+.srv-mode-modal.floating {
+  position: fixed;
+  right: 48px;
+  top: 220px;
+  width: 260px;
+  z-index: 100;
 }
 .srv-actions {
   display: flex;

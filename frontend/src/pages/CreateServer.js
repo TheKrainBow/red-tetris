@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import Button from '../components/Button'
 import { getLocalStorageItem } from '../utils/storage'
 import { navigate } from '../utils/navigation'
-
 const USERNAME_KEY = 'username'
 const GAMEMODE_OPTIONS = [
   { label: 'PvP', value: 'multiplayer_pvp' },
@@ -19,6 +18,7 @@ export default function CreateServer() {
   const rootRef = useRef(null)
   const [serverName, setServerName] = useState('Minecraft Server')
   const [mode, setMode] = useState('PvP')
+  const [showModeInfo, setShowModeInfo] = useState(false)
 
   const toggleMode = () => {
     setMode((prev) => {
@@ -92,12 +92,46 @@ export default function CreateServer() {
                 />
               </div>
 
-              <button type="button" className="srv-mode-btn" onClick={toggleMode}>
-                <span className="srv-mode-label">Gamemode:</span>
-                <span className="srv-mode">
-                  <span className={`mp-mode mp-mode-${modeKey}`}>{mode}</span>
-                </span>
-              </button>
+              <div className="srv-mode-row">
+                <button type="button" className="srv-mode-btn" onClick={toggleMode}>
+                  <span className="srv-mode-label">Gamemode:</span>
+                  <span className="srv-mode">
+                    <span className={`mp-mode mp-mode-${modeKey}`}>{mode}</span>
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className="srv-mode-help-btn"
+                  onClick={() => setShowModeInfo((v) => !v)}
+                  aria-label="Gamemode info"
+                >
+                  ?
+                </button>
+              </div>
+              {showModeInfo && (
+                <div className="srv-mode-modal floating">
+                  <div className="srv-mode-section">
+                    <div className="srv-mode-title" data-mode="pvp">PvP</div>
+                    <div className="srv-mode-desc">
+                      Player versus player gamemode. The last one standing wins.
+                      Destroying multiple lines in one move will send unbreakable lines to your opponents.
+                    </div>
+                  </div>
+                  <div className="srv-mode-section">
+                    <div className="srv-mode-title" data-mode="coop">Coop</div>
+                    <div className="srv-mode-desc">
+                      Cooperation gamemode. The last one standing wins.
+                      Fortune multiplier is shared across the players. The more you are, the better you scale.
+                    </div>
+                  </div>
+                  <div className="srv-mode-section">
+                    <div className="srv-mode-title" data-mode="single">Singleplayer</div>
+                    <div className="srv-mode-desc">
+                      Solo mode. Play alone with your chosen settings.
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="srv-actions">
                 <Button onClick={onCreate} className="ui-btn-narrow">Create Server</Button>

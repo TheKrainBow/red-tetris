@@ -250,6 +250,7 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
     }
   }, [rosterPlayers])
   const showSettingsCard = isHost && !running && isWaitingPhase
+  const autoSoloStartedRef = useRef(false)
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -981,6 +982,13 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
   const onStartGame = async () => {
     if (!room || !player) return
     try {
+      if (isHost && !forceSpectator) {
+        const activePlayers = rosterPlayers.filter((p) => p?.name && (p.status || '').toLowerCase() !== 'spectating')
+        if (activePlayers.length === 1 && roomGamemode !== 'Singleplayer') {
+          const targetGamemode = serverValueFromLabel('Singleplayer')
+          await socketClient.updateRoomSettings(room, player, { gamemode: targetGamemode })
+        }
+      }
       await socketClient.startGame(room, player)
       if (!startTime) setStartTime(Date.now())
       setRunning(true)
@@ -1016,6 +1024,10 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
     })
     return map
   }, [rosterPlayers])
+
+  useEffect(() => {
+    autoSoloStartedRef.current = false
+  }, [room, player])
 
   const spectatorBoards = useMemo(() => {
     const entries = []
