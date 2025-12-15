@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import Button from '../components/Button'
 import socketClient from '../utils/socketClient.js'
-import { navigate } from '../utils/navigation'
+import { navigate, replace } from '../utils/navigation'
 import { useShopState } from '../context/ShopStateContext'
 import { SHOP_ITEMS, CRAFT_ITEMS, formatResourceId } from '../utils/shopData'
 
@@ -170,6 +170,7 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
   const [isSpectator, setIsSpectator] = useState(Boolean(forceSpectator))
   const [allBoards, setAllBoards] = useState({})
   const [kickNotice, setKickNotice] = useState(null)
+  const pendingGamemodeRef = useRef(null)
   const kickNoticeTimerRef = useRef(null)
   const [roomGamemode, setRoomGamemode] = useState('PvP')
   const [savingSettings, setSavingSettings] = useState(false)
@@ -250,6 +251,22 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
   }, [rosterPlayers])
   const showSettingsCard = isHost && !running && isWaitingPhase
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    try {
+      const params = new URLSearchParams(window.location.search || '')
+      const gmParam = params.get('gamemode')
+      if (!gmParam) return
+      const label = labelFromServerGamemode(gmParam)
+      pendingGamemodeRef.current = label
+      setRoomGamemode(label)
+      const cleanPath = `${window.location.pathname}${window.location.hash || ''}`
+      replace(cleanPath)
+    } catch (err) {
+      // ignore URL parse errors in legacy browsers
+    }
+  }, [])
+
   const currentCellValue = (rowIdx, colIdx) => {
     const [posX, posY] = currentPiece.pos || [0, 0]
     const relY = rowIdx - posY
@@ -306,7 +323,7 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
     })
   }, [isHost, isWaitingPhase, room, player])
 
-  const handleGamemodeChange = async (nextLabel) => {
+  const handleGamemodeChange = useCallback(async (nextLabel) => {
     const label = nextLabel || 'PvP'
     if (label === roomGamemode) return
     const prevLabel = roomGamemode
@@ -321,7 +338,21 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
     } finally {
       setSavingSettings(false)
     }
-  }
+  }, [isHost, isWaitingPhase, room, player, roomGamemode])
+
+  useEffect(() => {
+    const desiredLabel = pendingGamemodeRef.current
+    if (!desiredLabel) return
+    if (!room || !player || !isHost || !isWaitingPhase) return
+    pendingGamemodeRef.current = null
+    setRoomGamemode(desiredLabel)
+    setSavingSettings(true)
+    socketClient.updateRoomSettings(room, player, { gamemode: serverValueFromLabel(desiredLabel) })
+      .catch((err) => {
+        console.error('Failed to apply URL gamemode', err)
+      })
+      .finally(() => setSavingSettings(false))
+  }, [room, player, isHost, isWaitingPhase])
 
   const handlePlayerLimitChange = async (value) => {
     const next = clampPlayerLimit(value)

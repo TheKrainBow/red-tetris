@@ -1,9 +1,18 @@
-import React, { useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import Button from '../components/Button'
 import { getLocalStorageItem } from '../utils/storage'
 import { navigate } from '../utils/navigation'
 
 const USERNAME_KEY = 'username'
+const GAMEMODE_OPTIONS = [
+  { label: 'PvP', value: 'multiplayer_pvp' },
+  { label: 'Cooperation', value: 'multiplayer_coop' },
+  { label: 'Singleplayer', value: 'singleplayer' },
+]
+const serverValueFromLabel = (label) => {
+  const found = GAMEMODE_OPTIONS.find((gm) => gm.label === label)
+  return found ? found.value : 'multiplayer_pvp'
+}
 
 export default function CreateServer() {
   const username = useMemo(() => getLocalStorageItem(USERNAME_KEY, '') || '', [])
@@ -12,7 +21,11 @@ export default function CreateServer() {
   const [mode, setMode] = useState('PvP')
 
   const toggleMode = () => {
-    setMode((prev) => prev === 'PvP' ? 'Cooperation' : 'PvP')
+    setMode((prev) => {
+      const idx = GAMEMODE_OPTIONS.findIndex((gm) => gm.label === prev)
+      const nextIdx = (idx + 1) % GAMEMODE_OPTIONS.length
+      return GAMEMODE_OPTIONS[nextIdx]?.label || 'PvP'
+    })
   }
 
   const onCancel = () => {
@@ -26,10 +39,30 @@ export default function CreateServer() {
       alert('Please set a username first.')
       return
     }
-    navigate(`/${encodeURIComponent(roomName)}/${encodeURIComponent(playerName)}`)
+    const gmParam = serverValueFromLabel(mode)
+    const query = gmParam ? `?gamemode=${encodeURIComponent(gmParam)}` : ''
+    navigate(`/${encodeURIComponent(roomName)}/${encodeURIComponent(playerName)}${query}`)
   }
 
-  const modeKey = mode.toLowerCase()
+  const modeKey = (() => {
+    const val = serverValueFromLabel(mode)
+    if (val.includes('single')) return 'singleplayer'
+    if (val.includes('coop')) return 'coop'
+    return 'pvp'
+  })()
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    try {
+      const params = new URLSearchParams(window.location.search || '')
+      const gmParam = params.get('gamemode')
+      if (!gmParam) return
+      const matched = GAMEMODE_OPTIONS.find((gm) => gm.value === gmParam || gm.label.toLowerCase() === gmParam.toLowerCase())
+      if (matched) setMode(matched.label)
+    } catch (err) {
+      // ignore parse errors
+    }
+  }, [])
 
   return (
     <div className="mp-root srv-root" ref={rootRef}>

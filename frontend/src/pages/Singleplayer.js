@@ -119,7 +119,7 @@ export default function Singleplayer() {
   const onCancel = () => { navigate('/') }
   const onCreate = () => {
     const name = username || getLocalStorageItem(USERNAME_KEY, '') || 'Guest'
-    const target = `/${encodeURIComponent(name)}_singleplayer/${encodeURIComponent(name)}`
+    const target = `/${encodeURIComponent(name)}_singleplayer/${encodeURIComponent(name)}?gamemode=singleplayer`
     navigate(target)
   }
   const onView = () => {
