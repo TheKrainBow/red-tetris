@@ -20,7 +20,7 @@ describe('Login page', function () {
     act(() => {
       create(React.createElement(Login))
     })
-    env.window.location.hash.should.equal('#/')
+    env.window.location.hash.should.equal('/')
   })
 
   it('saves trimmed username on submit', function () {
@@ -35,14 +35,14 @@ describe('Login page', function () {
     const form = renderer.root.findByType('form')
     act(() => form.props.onSubmit({ preventDefault() {} }))
     env.storage.getItem('username').should.equal('Builder')
-    env.window.location.hash.should.equal('#/')
+    env.window.location.hash.should.equal('/')
     renderer.unmount()
   })
 
   it('ignores submit when username empty', function () {
     const env = setupDom()
     cleanup = env.cleanup
-    env.window.location.hash = '#/login'
+    env.window.location.hash = '/login'
     let renderer
     act(() => {
       renderer = create(React.createElement(Login))
@@ -50,7 +50,7 @@ describe('Login page', function () {
     const form = renderer.root.findByType('form')
     act(() => form.props.onSubmit({ preventDefault() {} }))
     chai.expect(env.storage.getItem('username')).to.equal(null)
-    env.window.location.hash.should.equal('#/login')
+    env.window.location.hash.should.equal('/login')
     renderer.unmount()
   })
 })

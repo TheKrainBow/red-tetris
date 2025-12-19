@@ -20,15 +20,15 @@ describe('MainMenu helpers', function () {
   it('navToMultiplayer updates hash on provided window', function () {
     const fakeWin = { location: { hash: '' } }
     navToMultiplayer(fakeWin)
-    fakeWin.location.hash.should.equal('#/multiplayer')
+    fakeWin.location.hash.should.equal('/multiplayer')
   })
 
   it('navToSingleplayer and navToShop update hash; undefined window does nothing', function () {
     const fake = { location: { hash: '' } }
     navToSingleplayer(fake)
-    fake.location.hash.should.equal('#/singleplayer')
+    fake.location.hash.should.equal('/singleplayer')
     navToShop(fake)
-    fake.location.hash.should.equal('#/shop')
+    fake.location.hash.should.equal('/shop')
     // call with undefined — should not throw or change anything
     navToShop(undefined)
   })

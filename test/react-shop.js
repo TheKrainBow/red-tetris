@@ -120,9 +120,9 @@ function collectText(nodes) {
     const env = renderPage()
     const rootDiv = renderer.root.findByProps({ className: 'shop-root' })
     chai.expect(rootDiv).to.exist
-    env.window.location.hash = '#/shop'
+    env.window.location.hash = '/shop'
     act(() => buttonWithLabel('Back').props.onClick())
-    env.window.location.hash.should.equal('#/')
+    env.window.location.hash.should.equal('/')
   })
 
   it('Reset button restores default inventory', function () {

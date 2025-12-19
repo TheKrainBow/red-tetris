@@ -73,8 +73,8 @@ describe('Leaderboard page', function () {
     chai.expect(menu.children.length).to.be.greaterThan(1)
     act(() => menu.children[1].props.onClick())
     labelNode().children[0].should.not.equal('Per Emerald')
-    env.window.location.hash = '#/leaderboard'
+    env.window.location.hash = '/leaderboard'
     act(() => buttonByText('Back').props.onClick())
-    env.window.location.hash.should.equal('#/')
+    env.window.location.hash.should.equal('/')
   })
 })

@@ -60,10 +60,10 @@ describe('Options page', function () {
 
   it('Change Username clears username and navigates to login', function () {
     const env = renderPage({ username: 'PlayerOne' })
-    env.window.location.hash = '#/options'
+    env.window.location.hash = '/options'
     act(() => findButton('Change Username').props.onClick())
     chai.expect(env.storage.getItem('username')).to.equal(null)
-    env.window.location.hash.should.equal('#/login')
+    env.window.location.hash.should.equal('/login')
   })
 
   it('Reset my account stores default inventory and Done navigates home', function () {
@@ -72,8 +72,8 @@ describe('Options page', function () {
     const inv = JSON.parse(env.storage.getItem('shop.inv'))
     inv.should.deep.equal({ Dirt: 0, Stone: 0, Iron: 0, Diamond: 0, Emerald: 0 })
     chai.expect(env.storage.getItem('shop.purchases')).to.equal(null)
-    env.window.location.hash = '#/options'
+    env.window.location.hash = '/options'
     act(() => findButton('Done').props.onClick())
-    env.window.location.hash.should.equal('#/')
+    env.window.location.hash.should.equal('/')
   })
 })

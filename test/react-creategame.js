@@ -94,8 +94,8 @@ describe('CreateGame page', function () {
 
   it('cancel navigates back to singleplayer', function () {
     const env = renderPage()
-    env.window.location.hash = '#/create'
+    env.window.location.hash = '/create'
     act(() => findButton('Cancel').props.onClick())
-    env.window.location.hash.should.equal('#/singleplayer')
+    env.window.location.hash.should.equal('/singleplayer')
   })
 })

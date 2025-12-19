@@ -12,7 +12,7 @@ describe('Multiplayer interactions', function () {
   let alertCount
 
   beforeEach(function () {
-    global.window = { location: { hash: '#/multiplayer' } }
+    global.window = { location: { hash: '/multiplayer' } }
     alertCount = 0
     global.alert = () => { alertCount++ }
   })
@@ -54,7 +54,7 @@ describe('Multiplayer interactions', function () {
 
     // Cancel updates hash
     cancelBtn.props.onClick()
-    global.window.location.hash.should.equal('#/')
+    global.window.location.hash.should.equal('/')
   })
 })
 

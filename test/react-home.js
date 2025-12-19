@@ -21,7 +21,7 @@ describe('Home page', function () {
     act(() => {
       renderer = create(React.createElement(Home))
     })
-    env.window.location.hash.should.equal('#/login')
+    env.window.location.hash.should.equal('/login')
     renderer.unmount()
   })
 
@@ -49,7 +49,7 @@ describe('Home page', function () {
     const button = renderer.root.findByType('button')
     act(() => button.props.onClick())
     chai.expect(env.storage.getItem('username')).to.equal(null)
-    env.window.location.hash.should.equal('#/login')
+    env.window.location.hash.should.equal('/login')
     renderer.unmount()
   })
 })
