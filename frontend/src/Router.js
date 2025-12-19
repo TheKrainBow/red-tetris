@@ -60,7 +60,11 @@ export default function Router() {
   }, [])
 
   useEffect(() => {
-    const username = localStorage.getItem(USERNAME_KEY)
+    const pathUsername = gamePath?.player
+    if (pathUsername) {
+      try { localStorage.setItem(USERNAME_KEY, pathUsername) } catch (_) {}
+    }
+    const username = pathUsername || localStorage.getItem(USERNAME_KEY)
     // Guard routes
     if (!username && route !== '/login' && route !== '/spectate') {
       replace('/login')
@@ -69,7 +73,7 @@ export default function Router() {
     if (username && route === '/login') {
       replace('/')
     }
-  }, [route])
+  }, [route, gamePath])
 
   let page
   if (gamePath) {
