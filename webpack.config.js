@@ -18,7 +18,10 @@ module.exports = {
     historyApiFallback: true,
     devMiddleware: {
       publicPath: '/'
-    }
+    },
+    client: {
+      webSocketURL: 'auto://0.0.0.0/ws', // we will proxy /ws via nginx
+    },
   },
   module: {
     rules: [
