@@ -862,7 +862,7 @@
   border: 1px solid rgba(0,0,0,0.4);
 }
 .game-spectrum-cell.filled {
-  background: rgba(50,56,65,0.9);
+  background: rgba(63, 110, 180, 0.9);
   border: none;
 }
 .game-spectrum-name {
