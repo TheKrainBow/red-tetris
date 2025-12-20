@@ -1,8 +1,10 @@
 {
   "require": [
     "chai",
-    "@babel/register"
+    "@babel/register",
+    "./test/setup.js"
   ],
+  "timeout": 3000,
   "spec": [
     "test/**/*.js"
   ],
