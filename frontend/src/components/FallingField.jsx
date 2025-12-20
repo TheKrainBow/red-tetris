@@ -21,6 +21,7 @@ export default function FallingField({ side = 'left', containerRef, targetRef })
   const [items, setItems] = useState([])
   const lastTime = useRef(0)
   const spawnTimer = useRef(0)
+  const idCounter = useRef(0)
 
   const bounds = () => {
     const cont = containerRef?.current
@@ -41,7 +42,8 @@ export default function FallingField({ side = 'left', containerRef, targetRef })
     const size = Math.floor(16 + Math.random() * (28 - 16 + 1))
     const tex = pickWeighted(TEXTURES).src
     const type = TYPES[Math.floor(Math.random() * TYPES.length)]
-    const id = Math.random().toString(36).slice(2)
+    const randomId = Math.random().toString(36).slice(2)
+    const id = `fall-${idCounter.current++}-${randomId || '0'}`
     const rotation = [0, 90, 180, 270][Math.floor(Math.random() * 4)]
 
     // rough width/height in blocks to ensure we keep inside lane

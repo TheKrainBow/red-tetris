@@ -526,6 +526,202 @@ describe('Gateway orchestration', () => {
   })
 })
 
+describe('backend Game helper coverage', () => {
+  it('updates rates, handles input, and broadcasts game state', async () => {
+    class MockPiece {
+      constructor(shape, material) {
+        this.spawn_position = [0, 0]
+        this.position = [0, 0]
+        this.state = shape
+        this.material = material
+        this.rotations = [shape]
+        this.verticalMoves = 0
+      }
+      move(dx, dy) {
+        this.position[0] += dx
+        this.position[1] += dy
+        if (dy > 0) {
+          this.verticalMoves += 1
+          return this.verticalMoves < 2
+        }
+        return true
+      }
+      rotate() { return true }
+      rotate_backwards() { return true }
+    }
+
+    class MockPlayer {
+      constructor(info) {
+        this.name = info.playerName
+        this.id = info.socketId || 'player'
+        this.spawn_rates = Array.isArray(info.playerRates) && info.playerRates.length ? info.playerRates : [0.25, 0.25, 0.25, 0.25]
+        this.effects = info.effects || {}
+        this.spectrum = [0, 0, 0, 0]
+        this.current_piece = null
+        this._queue = []
+        this.piece_queue = {
+          enqueue: (piece) => this._queue.push(piece),
+          dequeue: () => this._queue.shift(),
+          size: () => this._queue.length,
+          peek: () => this._queue[0]
+        }
+        this.board = {
+          removedLines: 0,
+          clearedBlocks: [],
+          blockedRows: [],
+          canMoveDown: true,
+          state: [[0]],
+          points: 0,
+          get_state: () => ({ board: this.board.state }),
+          block_row: (n) => { this.board.blockedRows.push(n) },
+          lock_piece: () => {},
+          remove_lines: () => {
+            const result = this.board.removedLines
+            this.board.removedLines = 0
+            return result
+          },
+          set_spectrum: () => { this.spectrum = [1, 1, 1, 1] },
+          consume_cleared_blocks: () => {
+            const blocks = [...this.board.clearedBlocks]
+            this.board.clearedBlocks = []
+            return blocks
+          },
+          can_move_down: () => this.board.canMoveDown,
+          get_spectrum: () => this.spectrum
+        }
+      }
+      queue_piece(piece) {
+        this.piece_queue.enqueue(piece)
+      }
+      set_current_piece() {
+        const piece = this.piece_queue.dequeue()
+        if (piece) {
+          piece.position = [...piece.spawn_position]
+          this.current_piece = piece
+        }
+      }
+      set_spectrum() { this.spectrum = [1, 1, 1, 1] }
+      move_left() { return this.current_piece ? this.current_piece.move(-1, 0, this.board) : false }
+      move_right() { return this.current_piece ? this.current_piece.move(1, 0, this.board) : false }
+      step_down() { return this.current_piece ? this.current_piece.move(0, 1, this.board) : false }
+      rotate() { return this.current_piece ? this.current_piece.rotate(this.board) : false }
+      hard_drop() {
+        if (!this.current_piece) return false
+        let moved
+        do {
+          moved = this.step_down()
+        } while (moved)
+        return true
+      }
+      set_time_played() { this.timePlayed = Date.now() }
+      get_spectrum() { return this.spectrum }
+    }
+
+    const { Game } = proxyquire('../backend/classes/Game.js', {
+      './Player.js': { Player: MockPlayer },
+      './Piece.js': { Piece: MockPiece }
+    })
+
+    const players = [
+      {
+        playerName: 'tester',
+        socketId: 'sock-tester',
+        playerRates: [0.5, 0.3, 0.1, 0.1],
+        effects: {}
+      }
+    ]
+
+    const game = new Game(players, 'alpha', Game.MULTI_PLAYER, 1, () => ['spectator-1'], 'coop-mode')
+    const ioLog = []
+    const io = {
+      to(target) {
+        return {
+          emit(event, payload) {
+            ioLog.push({ target, event, payload })
+          }
+        }
+      }
+    }
+
+    let resourceCalls = 0
+    const db = {
+      async update_player_resources() {
+        resourceCalls += 1
+        if (resourceCalls === 1) {
+          return { success: false }
+        }
+        return { success: true, user: { id: 1 }, inventory: [] }
+      },
+      async update_player_stats() { return { success: true } },
+      async insert_game_history() { return { success: true } }
+    }
+
+    expect(game.updatePlayerRates('tester', [0.4, 0.3, 0.2, 0.1], {
+      lineBonus: { dirt: 1 },
+      lineBonusMultiplier: 2,
+      resourceGainMultipliers: { dirt: 1.5 },
+      fortuneGainPerLineBonus: 0.1
+    })).to.equal(true)
+    expect(game.updatePlayerRates('ghost', [])).to.equal(false)
+
+    game.start(io)
+    expect(game.is_running()).to.equal(true)
+    expect(ioLog.some(entry => entry.event === 'game_start')).to.equal(true)
+
+    const player = game.players.get('tester')
+    player.board.removedLines = 1
+    player.board.clearedBlocks = [{ position: { y: 0 }, block: { material: 2 }, mat: 1, Material: 3 }]
+    player.board.canMoveDown = false
+    player.board.points = 7
+
+    await game.broadcast_state(io, db)
+    expect(ioLog.some(entry => entry.event === 'room_boards')).to.equal(true)
+    expect(ioLog.some(entry => entry.event === 'cleared_blocks')).to.equal(true)
+
+    for (const action of ['left', 'right', 'down', 'rotate']) {
+      expect(game.handle_player_input('tester', action)).to.equal(true)
+    }
+    expect(game.handle_player_input('tester', 'hard_drop')).to.equal(true)
+    expect(game.handle_player_input('tester', 'unknown')).to.equal(false)
+
+    game.eliminate_player('tester')
+    expect(game.eliminatedPlayers).to.include('tester')
+    game.eliminate_player('tester')
+
+    const state = game.get_game_state()
+    expect(state.tester).to.exist
+    expect(state.tester.points).to.equal(7)
+
+    game.stop()
+    expect(game.is_running()).to.equal(false)
+  })
+})
+
+describe('backend params helper', () => {
+  const paramsPath = '../backend/params.js'
+  const loadParams = () => {
+    delete require.cache[require.resolve(paramsPath)]
+    return require(paramsPath)
+  }
+
+  it('builds urls from environment overrides', () => {
+    process.env.SERVER_HOST = 'api.example.com'
+    process.env.SERVER_PORT = '8080'
+    const params = loadParams()
+    expect(params.server.host).to.equal('api.example.com')
+    expect(params.server.port).to.equal(8080)
+    expect(params.server.url).to.equal('http://api.example.com:8080')
+  })
+
+  it('falls back to default host and port', () => {
+    delete process.env.SERVER_HOST
+    delete process.env.SERVER_PORT
+    const params = loadParams()
+    expect(params.server.host).to.equal('0.0.0.0')
+    expect(params.server.port).to.equal(3004)
+  })
+})
+
 function makeSocket(id) {
   return {
     id,

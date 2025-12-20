@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import Button from '../components/Button'
-import SpinningCube from '../components/SpinningCube.jsx'
 import { getLocalStorageItem } from '../utils/storage'
 import { navigate } from '../utils/navigation'
 import socketClient from '../utils/socketClient'
@@ -118,17 +117,7 @@ export default function Leaderboard() {
   }, [query, matches])
   const selected = METRICS.find(m => m.key === metric) || METRICS[0]
 
-  // Map selected metric to a block texture for rotating cube preview
-  const cubeTexture = useMemo(() => {
-    if (!selected) return null
-    const k = selected.key
-    if (k.includes('dirt')) return '/blocks/Dirt.jpg'
-    if (k.includes('stone')) return '/blocks/Stone.jpeg'
-    if (k.includes('iron')) return '/blocks/Iron.jpeg'
-    if (k.includes('diamond')) return '/blocks/Diamond.jpg'
-    return null
-  }, [selected])
-  const metricIcon = useMemo(() => selected?.icon || cubeTexture || null, [selected, cubeTexture])
+  const metricIcon = useMemo(() => selected?.icon || null, [selected])
 
   // Dropdown open/close and outside click handling
   const [open, setOpen] = useState(false)
@@ -191,11 +180,7 @@ export default function Leaderboard() {
           </div>
           <div className="lb-dd" ref={ddRef}>
             <button className="lb-dd-button" type="button" onClick={() => setOpen(v => !v)}>
-              {cubeTexture ? (
-                <div className="gc-icon lb-cube-inline"><SpinningCube textureUrl={cubeTexture} size={20} scale={0.76} /></div>
-              ) : metricIcon ? (
-                <img className="lb-metric-icon" src={metricIcon} alt="" onError={(e) => { e.currentTarget.style.display = 'none' }} />
-              ) : null}
+              <img className="lb-metric-icon" src={metricIcon} alt="" onError={(e) => { e.currentTarget.style.display = 'none' }} />
               <span className="lb-dd-label">{selected.label}</span>
               <span className="lb-caret">▾</span>
             </button>

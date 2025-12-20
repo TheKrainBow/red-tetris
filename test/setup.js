@@ -39,6 +39,7 @@ global.navigator = dom.window.navigator
 global.CustomEvent = dom.window.CustomEvent
 global.Event = dom.window.Event
 global.HTMLElement = dom.window.HTMLElement
+global.IS_REACT_ACT_ENVIRONMENT = true
 global.HTMLCanvasElement = dom.window.HTMLCanvasElement
 const localStorageMock = createStorage()
 const sessionStorageMock = createStorage()
@@ -57,11 +58,31 @@ global.cancelAnimationFrame = caf
 window.requestAnimationFrame = raf
 window.cancelAnimationFrame = caf
 
+const filterActWarning = (msg) => (
+  msg.includes('An update to Root inside a test was not wrapped in act(') ||
+  msg.includes('The current testing environment is not configured to support act(')
+)
 const origError = console.error
 console.error = (...args) => {
   const msg = String(args[0] || '')
-  if (msg.includes('Not implemented: navigation to another Document')) return
+  if (msg.includes('Not implemented: navigation to another Document') || filterActWarning(msg)) return
   origError(...args)
+}
+const origWarn = console.warn
+console.warn = (...args) => {
+  const msg = String(args[0] || '')
+  if (filterActWarning(msg)) return
+  origWarn(...args)
+}
+
+const origStderrWrite = process.stderr.write.bind(process.stderr)
+process.stderr.write = (chunk, encoding, cb) => {
+  const str = typeof chunk === 'string' ? chunk : chunk?.toString?.() || ''
+  if (filterActWarning(str)) {
+    if (typeof cb === 'function') cb()
+    return true
+  }
+  return origStderrWrite(chunk, encoding, cb)
 }
 
 class ResizeObserverMock {

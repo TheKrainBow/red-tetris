@@ -10,12 +10,12 @@
     "srv-dev": "DEBUG=tetris:* babel-watch -w backend backend/main.js",
     "srv-dist": "DEBUG=tetris:* babel backend --out-dir dist/backend",
     "start:server": "node -r @babel/register backend/main.js",
-    "test:frontend": "mocha test/frontend_test.js",
+    "test:frontend": "mocha --require ./test/setup.js test/frontend_test.js",
     "test:backend": "mocha test/backend_test.js",
     "test:classes": "mocha test/test_classes.js",
     "test": "npm run test:frontend && npm run test:backend && npm run test:classes",
     "test_classes": "npm run test:classes",
-    "coverage": "NODE_ENV=test NODE_OPTIONS=--max-old-space-size=8192 nyc --include classes --include backend --include frontend --all --reporter=text --reporter=lcov mocha --exit"
+    "coverage": "NODE_ENV=test NODE_OPTIONS=--max-old-space-size=8192 nyc --include classes --include backend --include frontend --all --reporter=text --reporter=lcov mocha --require ./test/setup.js --exit"
   },
   "dependencies": {
     "@react-three/fiber": "^8.15.10",

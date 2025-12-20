@@ -10,8 +10,8 @@ export class Gateway {
         this.rooms = new Map();
         this.playerInfo = new Map();
         this.roomMetadata = new Map();
-        this.roomStatuses = new Map(); // roomName -> Map(playerName -> status)
-        this.roomInitialPlayers = new Map(); // roomName -> Set(playerName) for current game
+        this.roomStatuses = new Map();
+        this.roomInitialPlayers = new Map();
     }
 
     #formatCommandResponse(event, data = {}) {
@@ -53,7 +53,7 @@ export class Gateway {
         if (!this.rooms.has(roomName)) return null;
 
         const playersMap = this.rooms.get(roomName);
-        // Reset any persisted statuses when starting a fresh game
+
         this.roomStatuses.set(roomName, new Map());
         const game = this.games[roomName];
         const metadata = this.roomMetadata.get(roomName) || {};
@@ -247,11 +247,13 @@ export class Gateway {
             return;
         }
         const playersMap = this.rooms.get(roomName);
-        const roomGamemode = (this.roomMetadata.get(roomName)?.gamemode) || 'multiplayer_pvp';
-        const gmLower = String(roomGamemode).toLowerCase();
-        const isSingle = gmLower.includes('single');
-        let mode = isSingle ? Game.SINGLE_PLAYER : Game.MULTI_PLAYER;
+        const roomGamemode = (this.roomMetadata.get(roomName)?.gamemode) || 'singleplayer';
+        const isSingle = roomGamemode == 'singleplayer';
+        let mode = Game.SINGLE_PLAYER;
+        if (roomGamemode == 'multiplayer_pvp')
+            mode = Game.MULTI_PLAYER;
 
+        console.log('Gamemode', mode);
         const hostName = (() => {
             for (const info of this.playerInfo.values()) {
                 if (info.room === roomName && info.host) return info.playerName;
@@ -286,8 +288,9 @@ export class Gateway {
             ? players_info.filter((p) => !hostName || p.playerName === hostName)
             : players_info;
 
-        if (!isSingle && filteredPlayers.length > 1){
-            mode = Game.MULTI_PLAYER;
+        if (!isSingle && filteredPlayers.length == 1){
+            mode = Game.SINGLE_PLAYER;
+            roomGamemode = 'singleplayer';
         }
 
         const spectatorProvider = () => this.#getSpectatorSocketIds(roomName);
