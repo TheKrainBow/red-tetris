@@ -582,8 +582,14 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
     socketClient.joinRoom(room, player)
       .then((res) => {
         const payload = res?.data ?? res
-        setRoomJoined(!payload?.error)
-        setJoinError(payload?.error || null)
+        console.log('Joined room error:', payload?.error || 'none')
+        if (payload?.error === 'A user is already using this name') {
+          try {
+            const msg = `A user is already using this name in room "${room}"`
+            try { window.sessionStorage.setItem(KICK_NOTICE_KEY, msg) } catch (_) {}
+          } catch (_) {}
+          navigate('/')
+        }
         const hostVal = payload?.data?.host ?? payload?.host
         if (typeof hostVal === 'boolean') setIsHost(hostVal)
         const gm = payload?.data?.room_gamemode ?? payload?.room_gamemode
