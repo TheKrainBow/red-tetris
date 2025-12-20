@@ -147,7 +147,6 @@ export class Database {
         await this.#create_inventory_table();
         await this.#create_rates_table();
         await this.#create_game_history_table();
-        await this.#build_shop();
     }
 
     async insert_user(player_name) {
@@ -202,26 +201,6 @@ export class Database {
         }
 
         return true;
-    }
-
-    async #build_shop(){
-        await this.#create_shop_table();
-        await this.#insert_item_shop("rock_detector", {dirt_owned: 25});
-        await this.#insert_item_shop("iron_detector", {stone_owned: 578});
-        await this.#insert_item_shop("diamond_detector", {iron_owned: 666});
-        
-        await this.#insert_item_shop("dirt_expert", {stone_owned: 74});
-        await this.#insert_item_shop("stone_expert", {iron_owned: 128});
-        await this.#insert_item_shop("iron_expert", {emeralds: 5});
-        await this.#insert_item_shop("diamond_expert", {dirt_owned: 900, stone_owned: 750, iron_owned: 320, emeralds: 100});
-
-        await this.#insert_item_shop("fortune_enchantment", {dirt_owned: 135, stone_owned: 65, iron_owned: 12, emeralds: 1});
-        await this.#insert_item_shop("dirt_battle_pass",  {dirt_owned: 1000});
-        await this.#insert_item_shop("stone_battle_pass", {stone_owned: 1000});
-        await this.#insert_item_shop("iron_battle_pass", {iron_owned: 1000});
-        await this.#insert_item_shop("diamond_battle_pass", {emeralds: 1000});
-
-        await this.#insert_item_shop("emeralds", {dirt_owned: 128, stone_owned: 64, iron_owned: 32, diamond_owned: 16});
     }
 
     async get_inventory_by_player_name(playerName) {
