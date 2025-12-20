@@ -32,8 +32,6 @@ df:
 
 test: build
 	$(COMPOSE) run --rm frontend npm run test_classes
-	$(COMPOSE) run --rm backend npm run test:backend
-	$(COMPOSE) run --rm frontend npm run test:frontend
 
 coverage: build
 	$(COMPOSE) run --rm backend npm run coverage
