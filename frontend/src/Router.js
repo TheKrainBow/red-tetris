@@ -5,7 +5,6 @@ import Singleplayer from './pages/Singleplayer'
 import Login from './pages/Login'
 import Shop from './pages/Shop'
 import Options from './pages/Options'
-import SkyboxBackground from './three/Skybox.jsx'
 import UtilityDock from './components/UtilityDock'
 import Leaderboard from './pages/Leaderboard'
 import CreateServer from './pages/CreateServer'
@@ -113,10 +112,6 @@ export default function Router() {
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-      {/* Persistent skybox avoids re-mount flicker; hidden on non-main routes */}
-      <div style={{ position: 'absolute', inset: 0, opacity: (route === '/' || route === '/options' || route === '/leaderboard') ? 1 : 0, transition: 'opacity 160ms ease', pointerEvents: 'none', zIndex: 0 }}>
-        <SkyboxBackground speed={0.02} />
-      </div>
       <div style={{ position: 'relative', zIndex: 1, width: '100%', height: '100%' }}>
         {page}
       </div>

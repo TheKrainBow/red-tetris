@@ -362,9 +362,6 @@ describe('page components', () => {
     openExternal: () => {},
   }
 
-  const skyboxStub = compatModule(() => React.createElement('div', null, 'sky'))
-  skyboxStub.loadSkyboxCube = () => Promise.resolve({})
-
   const shopStateStub = {
     ShopStateProvider: ({ children }) => React.createElement(React.Fragment, null, children),
 
@@ -395,7 +392,6 @@ describe('page components', () => {
     '../utils/socketClient.js': socketClientStub,
     '../context/ShopStateContext': shopStateStub,
     '../context/ShopStateContext.js': shopStateStub,
-    '../three/Skybox.jsx': skyboxStub,
   }
 
 
@@ -1125,7 +1121,6 @@ describe('Router component', () => {
       './pages/CreateServer.js': stubPage('create'),
       './pages/SpectatePreview.js': stubPage('spectate'),
       './pages/Game.js': stubPage('game'),
-      './three/Skybox.jsx': stubPage('skybox'),
       './components/UtilityDock': stubPage('dock'),
       './components/UtilityDock.jsx': stubPage('dock'),
       './utils/navigation': navigationStub
@@ -1351,49 +1346,12 @@ describe('UtilityDock component', () => {
   // })
 })
 
-describe('three utilities', () => {
-  it('builds skybox cube and updates helpers', async () => {
-    const skyboxModule = proxyquire('../frontend/src/three/Skybox.jsx', {
-      three: {
-        CubeTexture: function () { return { set needsUpdate(v) { this._needsUpdate = v } } },
-        LinearFilter: 1,
-        SRGBColorSpace: 1,
-        Color: function () { this.value = 0 }
-      }
-    })
-    skyboxModule.__resetSkyboxCacheForTests()
-    const cube = await skyboxModule.loadSkyboxCube()
-    expect(cube).to.be.an('object')
-    const scene = {}
-    skyboxModule.skyboxEffect(scene, () => {})
-    expect(scene.background).to.equal(cube)
-    const yawRef = { current: 0 }
-    const camera = { position: { set: () => {} }, rotation: { set: () => {} } }
-    skyboxModule.updatePanCamera(yawRef, camera, 0.016, 0.5)
-    const gl = { domElement: { addEventListener: () => {} }, setPixelRatio: () => {} }
-    skyboxModule.setupWebGLCanvas(gl, { devicePixelRatio: 2 })
-  })
-
-  it('applies KHR_materials extension logic', async () => {
-    const extension = require('../frontend/src/three/KHR_materials_pbrSpecularGlossiness.js').default
-    const parser = {
-      json: { materials: [{ extensions: { KHR_materials_pbrSpecularGlossiness: { diffuseFactor: [1, 0, 0, 1], glossinessFactor: 0.5 } } }] },
-      getDependency: async () => ({ colorSpace: null })
-    }
-    const handler = extension(parser)
-    const params = {}
-    await handler.extendMaterialParams(0, params)
-    expect(params.color).to.be.an('object')
-  })
-})
-
 describe('application entry point', () => {
   it('creates store and renders root component', () => {
     const renders = []
     proxyquire('../frontend/src/index.js', {
       'react-dom/client': { createRoot: () => ({ render: (node) => renders.push(node) }) },
       'redux-logger': { createLogger: () => () => next => action => next(action) },
-      './three/Skybox.jsx': { loadSkyboxCube: () => ({ catch: () => {} }) },
       './context/ShopStateContext': { ShopStateProvider: ({ children }) => React.createElement('div', null, children) },
       './utils/socketClient': createSocketClientStub()
     })

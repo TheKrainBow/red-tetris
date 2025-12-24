@@ -1,12 +1,12 @@
 import React, { useMemo, useState, useEffect } from 'react'
 import Button from '../components/Button'
-import { loadSkyboxCube } from '../three/Skybox.jsx'
 import { getLocalStorageItem } from '../utils/storage'
 import { navigate } from '../utils/navigation'
 import socketClient from '../utils/socketClient'
 
 const USERNAME_KEY = 'username'
 const KICK_NOTICE_KEY = 'kick.notice'
+const MAIN_MENU_BG = '/skybox/1.21.9_panorama_0.png'
 
 // Testable helpers
 export function readUsername() {
@@ -30,7 +30,16 @@ export default function MainMenu() {
   const username = useMemo(() => readUsername(), [])
   const [bgReady, setBgReady] = useState(false)
   const [kickedMessage, setKickedMessage] = useState('')
-  useEffect(() => attachReady(loadSkyboxCube(), setBgReady), [])
+  useEffect(() => {
+    const promise = new Promise((resolve) => {
+      const img = new Image()
+      const finish = () => resolve()
+      img.onload = finish
+      img.onerror = finish
+      img.src = MAIN_MENU_BG
+    })
+    return attachReady(promise, setBgReady)
+  }, [])
 
   useEffect(() => {
     try {
@@ -58,7 +67,7 @@ export default function MainMenu() {
   return (
     <div className="mm-root">
 
-      {/* Skybox is rendered persistently by Router; just overlay here */}
+      {/* Decorative overlay sits above the static panorama backdrop */}
       <div className="mm-overlay" />
 
       {/* content */}

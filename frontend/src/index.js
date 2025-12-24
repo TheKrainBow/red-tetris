@@ -7,7 +7,6 @@ import { Provider } from 'react-redux'
 import { storeStateMiddleWare } from './middleware/storeStateMiddleWare'
 import reducer from './reducers'
 import Router from './Router'
-import { loadSkyboxCube } from './three/Skybox.jsx'
 import { ShopStateProvider } from './context/ShopStateContext'
 import socketClient from './utils/socketClient'
 
@@ -23,13 +22,6 @@ const store = createStore(
 try {
   if (localStorage.getItem('sfx.volume') === null) localStorage.setItem('sfx.volume', '0.5')
   if (localStorage.getItem('music.volume') === null) localStorage.setItem('music.volume', '0.5')
-} catch (_) {}
-
-// Preload the skybox cube ASAP to avoid flashes when first visiting main menu
-// Be defensive in case the import is stubbed and not thenable in some builds
-try {
-  const pre = loadSkyboxCube()
-  if (pre && typeof pre.catch === 'function') pre.catch(() => {})
 } catch (_) {}
 
 // Global button click sound + SFX volume persistence

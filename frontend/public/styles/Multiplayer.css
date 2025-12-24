@@ -298,6 +298,16 @@
 .srv-actions .ui-btn { min-width: 200px; }
 
 .shop-root { position: relative; width: 100%; min-height: 100vh; overflow: hidden; }
+.shop-bg {
+  position: absolute;
+  inset: 0;
+  background-image: url('/ui/Shop_bg.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  filter: saturate(1.03);
+  z-index: 0;
+}
 
 /* Right-side modal (rounded), floats above 3D with margin around */
 .shop-modal {
