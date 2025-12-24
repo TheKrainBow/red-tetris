@@ -679,6 +679,27 @@ export class Gateway {
         return this.#formatCommandResponse('get_user_by_player_name', payload);
     }
 
+    async set_has_seen_tutorial(socket, data){
+        const playerName = data?.playerName;
+        if (!playerName) {
+            return this.#formatCommandResponse('set_has_seen_tutorial', { success: false, error: 'Missing playerName' });
+        }
+        if (!Object.prototype.hasOwnProperty.call(data, 'hasSeenTutorial')) {
+            return this.#formatCommandResponse('set_has_seen_tutorial', { success: false, error: 'Missing hasSeenTutorial' });
+        }
+        const hasSeen = Boolean(data.hasSeenTutorial);
+        const updatedUser = await this.db.set_user_has_seen_tutorial(playerName, hasSeen);
+        if (!updatedUser) {
+            return this.#formatCommandResponse('set_has_seen_tutorial', { success: false, error: 'Player not found' });
+        }
+        return this.#formatCommandResponse('set_has_seen_tutorial', {
+            success: true,
+            playerName,
+            hasSeenTutorial: updatedUser.hasSeenTutorial ?? updatedUser.has_seen_tutorial ?? hasSeen,
+            user: updatedUser
+        });
+    }
+
     async get_all_users(socket, data){
         const users = await this.db.get_all_users();
         const payload = {success: users != null, users_list: users};

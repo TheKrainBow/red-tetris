@@ -205,6 +205,7 @@ const createSocketClient = ({ url = getDefaultUrl(), path = DEFAULT_SOCKET_PATH 
   const fetchRoomList = () => sendCommand('room_list', {}, { expectEvent: 'room_list_response' })
   const fetchGameHistory = (playerName) => sendCommand('game_history', { playerName }, { expectEvent: 'game_history' })
   const fetchPlayerHistory = (playerName) => sendCommand('get_history_by_player_name', { playerName }, { expectEvent: 'get_history_by_player_name' })
+  const setHasSeenTutorial = (playerName, hasSeenTutorial) => sendCommand('set_has_seen_tutorial', { playerName, hasSeenTutorial })
 
   const subscribeLobby = () => sendCommand('subscribe_lobby', {}, { expectEvent: 'lobby_rooms' })
   const unsubscribeLobby = () => sendCommand('unsubscribe_lobby', {})
@@ -234,6 +235,7 @@ const createSocketClient = ({ url = getDefaultUrl(), path = DEFAULT_SOCKET_PATH 
     kickPlayer,
     updateRoomSettings,
     fetchRoomSettings,
+    setHasSeenTutorial,
     getStatus,
   }
 }

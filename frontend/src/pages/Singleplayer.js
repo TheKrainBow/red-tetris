@@ -4,6 +4,12 @@ import { getLocalStorageItem } from '../utils/storage'
 import { navigate } from '../utils/navigation'
 import socketClient from '../utils/socketClient'
 import { getResourceIcon, getResourceName, formatNumber } from '../utils/shopLogic'
+import {
+  getTutorialStep,
+  setTutorialStep as setGlobalTutorialStep,
+  onTutorialStepChange,
+} from '../utils/tutorialStepState'
+import { TutorialHighlightOverlay, TutorialOverlay } from '../components/TutorialOverlays'
 
 const USERNAME_KEY = 'username'
 
@@ -57,9 +63,12 @@ export default function Singleplayer() {
   const wrapRef = useRef(null)
   const listRef = useRef(null)
   const rootRef = useRef(null)
+  const [tutorialStep, setTutorialStepState] = useState(() => getTutorialStep())
 
   const selectedGame = games.find(g => g.id === selected) || null
   const hoveredGame = games.find(g => g.id === hovered) || null
+
+  useEffect(() => onTutorialStepChange(setTutorialStepState), [])
 
   useEffect(() => {
     let mounted = true
@@ -122,6 +131,14 @@ export default function Singleplayer() {
     const target = `/${encodeURIComponent(name)}_singleplayer/${encodeURIComponent(name)}?gamemode=singleplayer`
     navigate(target)
   }
+  const handleCreateClick = () => {
+    if (tutorialStep === 17) {
+      onCreate()
+      setGlobalTutorialStep(18)
+      return
+    }
+    onCreate()
+  }
   const onView = () => {
     if (!selectedGame) return
     setModalGame(selectedGame)
@@ -136,6 +153,17 @@ export default function Singleplayer() {
     setShowModal(false)
     setModalGame(null)
     setModalPlayer(null)
+  }
+
+  const handleFinishTutorial = async () => {
+    if (username) {
+      try {
+        await socketClient.setHasSeenTutorial(username, true)
+      } catch (err) {
+        console.error('Failed to finish tutorial', err)
+      }
+    }
+    setGlobalTutorialStep(0)
   }
 
   const renderBoard = (game, playerName) => {
@@ -189,6 +217,9 @@ export default function Singleplayer() {
   const modalPlayers = modalGame?.players?.map((p) => p.name).filter(Boolean)
     || Object.keys(modalGame?.boards || {})
   const activePlayer = modalPlayer || modalPlayers?.[0] || username
+
+  const showStepSeventeenHighlight = tutorialStep === 17
+  const showStepEighteenOverlay = tutorialStep === 18
 
   return (
     <div className="mp-root" ref={rootRef}>
@@ -325,7 +356,13 @@ export default function Singleplayer() {
 
         <div className="mp-footer">
           <Button onClick={onView} disabled={!selectedGame} className="ui-btn-wide">View Game</Button>
-          <Button onClick={onCreate} className="ui-btn-wide">Create New Game</Button>
+          <Button
+            onClick={handleCreateClick}
+            data-tutorial-target="create-game"
+            className="ui-btn-wide"
+          >
+            Create New Game
+          </Button>
           <Button onClick={onCancel} className="ui-btn-wide">Cancel</Button>
         </div>
       </div>
@@ -398,6 +435,26 @@ export default function Singleplayer() {
             </div>
           </div>
         </div>
+      )}
+      {showStepSeventeenHighlight && (
+        <TutorialHighlightOverlay
+          anchorSelector='button[data-tutorial-target="create-game"]'
+          title="Create a new game"
+          message="Create a new game by clicking here."
+          onSkip={handleFinishTutorial}
+          stepNumber={17}
+          tooltipAdjust={{ top: -60 }}
+        />
+      )}
+      {showStepEighteenOverlay && (
+        <TutorialOverlay
+          onSkip={handleFinishTutorial}
+          onNext={handleFinishTutorial}
+          title="Closing encouragement"
+          message={`You are almost ready!\nEvery block from the lines you destroy is added to your inventory.\nCollect as many resources as you can—the longer you survive, the more you earn!\nHave fun playing Craftetris!`}
+          nextLabel="Finish Tutorial"
+          stepNumber={18}
+        />
       )}
     </div>
   )

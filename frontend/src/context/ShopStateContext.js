@@ -63,6 +63,13 @@ function deriveCraftCounts(inv) {
   return next
 }
 
+function logTutorialPrompt(userRow) {
+  const hasSeen = userRow?.hasSeenTutorial ?? userRow?.has_seen_tutorial
+  if (hasSeen === false) {
+    console.log('Need Tutorial!')
+  }
+}
+
 export function ShopStateProvider({ children }) {
   const username = useMemo(() => getLocalStorageItem(USERNAME_KEY, '') || '', [])
   const [inventory, setInventory] = useState({ ...ZERO_INV })
@@ -125,6 +132,7 @@ export function ShopStateProvider({ children }) {
   }, [])
 
   const applyServerInventory = (userRow, invRows) => {
+    logTutorialPrompt(userRow)
     const next = normalizeInventory(userRow, invRows)
     setInventory(next)
     const derivedPurchases = derivePurchases(next)

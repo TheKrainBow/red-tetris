@@ -41,10 +41,13 @@ export class Database {
                 game_played INT NOT NULL DEFAULT 0,
                 game_won INT NOT NULL DEFAULT 0,
                 singleplayer_game_played INT NOT NULL DEFAULT 0,
-                time_played INT NOT NULL DEFAULT 0
+                time_played INT NOT NULL DEFAULT 0,
+                has_seen_tutorial BOOLEAN NOT NULL DEFAULT FALSE
             );
             ALTER TABLE users
                 ADD COLUMN IF NOT EXISTS singleplayer_game_played INT NOT NULL DEFAULT 0;
+            ALTER TABLE users
+                ADD COLUMN IF NOT EXISTS has_seen_tutorial BOOLEAN NOT NULL DEFAULT FALSE;
         `;
         try {
             await this.client.query(createTableQuery);  
@@ -250,9 +253,28 @@ export class Database {
                 if (!created) return null;
                 res = await this.client.query(selectQuery, [player_name]);
             }
-            return res.rows;
+            return res.rows.map((row) => ({ ...row, hasSeenTutorial: row.has_seen_tutorial }));
         } catch (err) {
             console.error('Error fetching user by name:', err);
+            return null;
+        }
+    }
+
+    async set_user_has_seen_tutorial(playerName, hasSeenTutorial) {
+        if (!playerName) return null;
+        const query = `
+            UPDATE users
+            SET has_seen_tutorial = $1
+            WHERE player_name = $2
+            RETURNING *;
+        `;
+        try {
+            const res = await this.client.query(query, [Boolean(hasSeenTutorial), playerName]);
+            if (!res.rows.length) return null;
+            const row = res.rows[0];
+            return { ...row, hasSeenTutorial: row.has_seen_tutorial };
+        } catch (err) {
+            console.error(`Error updating tutorial flag for ${playerName}:`, err);
             return null;
         }
     }

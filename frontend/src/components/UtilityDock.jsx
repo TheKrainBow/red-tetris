@@ -54,11 +54,29 @@ export default function UtilityDock({ hidden }) {
     }
   }, [activeTab])
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const handler = (event) => {
+      if (event?.detail?.tab !== undefined) {
+        setActiveTab(event.detail.tab || null)
+      }
+    }
+    window.addEventListener('utilityDockSetTab', handler)
+    return () => window.removeEventListener('utilityDockSetTab', handler)
+  }, [])
+
   if (hidden) return null
 
   const toggleTab = (id) => {
     setActiveTab((prev) => (prev === id ? null : id))
   }
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const event = new CustomEvent('utilityDockTabChanged', { detail: { tab: activeTab } })
+      window.dispatchEvent(event)
+    }
+  }, [activeTab])
 
   const handleSpawnChange = (key, value) => {
     setDraftRates((prev) => adjustSpawnRates(prev, spawnCaps, key, value, spawnAutoDistrib))

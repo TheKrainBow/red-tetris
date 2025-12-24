@@ -178,6 +178,9 @@ const contextModule = proxyquire('../frontend/src/context/ShopStateContext.js', 
   '../utils/storage': { getLocalStorageItem: () => 'Tester' }
 })
 
+const tutorialComponents = require('../frontend/src/components/TutorialOverlays.jsx')
+const { TutorialOverlay, TutorialHighlightOverlay } = tutorialComponents
+
 const compatModule = (impl) => Object.assign(impl, { default: impl })
 
 describe('frontend action creators', () => {
@@ -1398,5 +1401,98 @@ describe('application entry point', () => {
       './utils/socketClient': createSocketClientStub()
     })
     expect(renders.length).to.equal(1)
+  })
+})
+
+describe('tutorial overlays', () => {
+  afterEach(() => {
+    document.body.innerHTML = ''
+  })
+
+  it('renders the modal overlay and forwards actions', async () => {
+    const nextCalls = []
+    const skipCalls = []
+    const { root: overlayRoot } = renderInDom(
+      React.createElement(TutorialOverlay, {
+        stepNumber: 4,
+        title: 'Guided step',
+        message: 'Follow the story',
+        nextLabel: 'Forward',
+        onNext: () => nextCalls.push('next'),
+        onSkip: () => skipCalls.push('skip'),
+      })
+    )
+    await act(async () => {
+      await flush()
+    })
+
+    const nextButton = Array.from(document.body.querySelectorAll('button')).find(
+      (btn) => btn.textContent.trim() === 'Forward'
+    )
+    expect(nextButton).to.exist
+    await act(async () => {
+      nextButton.dispatchEvent(new window.MouseEvent('click', { bubbles: true }))
+      await flush()
+    })
+
+    const skipButton = Array.from(document.body.querySelectorAll('button')).find(
+      (btn) => btn.textContent.includes('Skip Tutorial')
+    )
+    expect(skipButton).to.exist
+    await act(async () => {
+      skipButton.dispatchEvent(new window.MouseEvent('click', { bubbles: true }))
+      await flush()
+    })
+
+    expect(nextCalls).to.have.lengthOf(1)
+    expect(skipCalls).to.have.lengthOf(1)
+    overlayRoot.unmount()
+  })
+
+  it('renders the highlight overlay for an anchor and handles next', async () => {
+    const anchor = document.createElement('div')
+    anchor.className = 'highlight-anchor'
+    document.body.appendChild(anchor)
+    anchor.getBoundingClientRect = () => ({
+      left: 320,
+      top: 180,
+      width: 120,
+      height: 56,
+      right: 440,
+      bottom: 236,
+    })
+
+    const nextCalls = []
+    const { root: highlightRoot } = renderInDom(
+      React.createElement(TutorialHighlightOverlay, {
+        stepNumber: 6,
+        anchorSelector: '.highlight-anchor',
+        title: 'Anchor tip',
+        message: 'Click the highlighted area',
+        onNext: () => nextCalls.push('next'),
+        onSkip: () => {},
+      })
+    )
+    await act(async () => {
+      await flush()
+    })
+
+    const tooltip = Array.from(document.body.querySelectorAll('div')).find(
+      (node) => node.textContent?.includes('Click the highlighted area')
+    )
+    expect(tooltip).to.exist
+
+    const nextButton = Array.from(document.body.querySelectorAll('button')).find(
+      (btn) => btn.textContent.trim() === 'Next'
+    )
+    expect(nextButton).to.exist
+    await act(async () => {
+      nextButton.dispatchEvent(new window.MouseEvent('click', { bubbles: true }))
+      await flush()
+    })
+
+    expect(nextCalls).to.have.lengthOf(1)
+    anchor.remove()
+    highlightRoot.unmount()
   })
 })

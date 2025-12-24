@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState, Suspense } from 'react'
+import React, { useEffect, useMemo, useRef, useState, Suspense, useCallback } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
@@ -31,6 +31,10 @@ import {
 } from '../utils/shopLogic'
 import { useShopState } from '../context/ShopStateContext'
 import { navigate } from '../utils/navigation'
+import { getLocalStorageItem } from '../utils/storage'
+import socketClient from '../utils/socketClient'
+import { getTutorialStep, setTutorialStep as setGlobalTutorialStep, onTutorialStepChange } from '../utils/tutorialStepState'
+import { TutorialHighlightOverlay } from '../components/TutorialOverlays'
 
 // Camera spawn from latest console snapshot
 const CAM_POS = [-0.800, 2.038, -2.262]
@@ -271,6 +275,18 @@ export default function Shop() {
     craftItem,
     resetShopState,
   } = useShopState()
+  const username = useMemo(() => getLocalStorageItem('username', '') || '', [])
+  const [tutorialStep, setShopTutorialStep] = useState(() => getTutorialStep())
+  useEffect(() => {
+    const unsubscribe = onTutorialStepChange(setShopTutorialStep)
+    return unsubscribe
+  }, [])
+
+  useEffect(() => {
+    if (tutorialStep === 8) {
+      setGlobalTutorialStep(9)
+    }
+  }, [tutorialStep])
 
   // --- sounds ---
   const sounds = useRef({ trade: [], deny: [], dirt: [], stone: [] })
@@ -373,9 +389,51 @@ export default function Shop() {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  const onBack = () => { navigate('/') }
+  const onBack = () => {
+    if (tutorialStep === 15) {
+      setGlobalTutorialStep(16)
+    }
+    navigate('/')
+  }
+  const handleSkipTutorial = async () => {
+    if (username) {
+      try {
+        await socketClient.setHasSeenTutorial(username, true)
+      } catch (err) {
+        console.error('Failed to skip tutorial', err)
+      }
+    }
+    setGlobalTutorialStep(0)
+    navigate('/')
+  }
   const [activeTab, setActiveTab] = useState('shops')
   const shopReduction = computeShopReduction(purchases, craftCounts)
+  const shopMenuRef = useRef(null)
+  const disableShopScroll = tutorialStep === 10
+  const handleTabClick = useCallback((tabId) => {
+    setActiveTab(tabId)
+    if (tutorialStep === 11 && tabId === 'trades') {
+      setGlobalTutorialStep(12)
+    } else if (tutorialStep === 13 && tabId === 'crafts') {
+      setGlobalTutorialStep(14)
+    }
+  }, [tutorialStep])
+
+  useEffect(() => {
+    if (tutorialStep === 10 || tutorialStep === 11) {
+      setActiveTab('shops')
+    } else if (tutorialStep === 12 || tutorialStep === 13) {
+      setActiveTab('trades')
+    } else if (tutorialStep === 14 || tutorialStep === 15) {
+      setActiveTab('crafts')
+    }
+  }, [tutorialStep])
+
+  useEffect(() => {
+    if (tutorialStep !== 10) return
+    if (!shopMenuRef.current) return
+    shopMenuRef.current.scrollTop = 0
+  }, [tutorialStep])
 
   function resetShop() {
     resetShopState()
@@ -437,6 +495,27 @@ export default function Shop() {
     setCraftUnlocks((prev) => (prev[craft.id] ? prev : { ...prev, [craft.id]: true }))
   }
 
+  const showStepNineHighlight = tutorialStep === 9
+  const showStepTenHighlight = tutorialStep === 10
+  const showStepElevenHighlight = tutorialStep === 11 && activeTab === 'shops'
+  const showStepTwelveOverlay = tutorialStep === 12 && activeTab === 'trades'
+  const showStepThirteenHighlight = tutorialStep === 13
+  const showStepFourteenOverlay = tutorialStep === 14 && activeTab === 'crafts'
+  const showStepFifteenHighlight = tutorialStep === 15
+
+  const goToStepTen = () => {
+    if (shopMenuRef.current) {
+      shopMenuRef.current.scrollTop = 0
+    }
+    setGlobalTutorialStep(10)
+  }
+  const goToStepEleven = () => setGlobalTutorialStep(11)
+  const goToStepThirteen = () => setGlobalTutorialStep(13)
+  const goToStepFifteen = () => {
+    setActiveTab('shops')
+    setGlobalTutorialStep(15)
+  }
+
   return (
     <div className="shop-root">
       {/* Top half: 3D view with sky-blue background */}
@@ -465,14 +544,19 @@ export default function Shop() {
 
       {/* Right-side modal over 3D (rounded, with margins) */}
       <div className="shop-modal">
-        <div className="shop-menu">
+        <div
+          className="shop-menu"
+          ref={shopMenuRef}
+          style={{ overflowY: disableShopScroll ? 'hidden' : 'auto' }}
+        >
           <h3 className="shop-title">Trading Outpost</h3>
           <div className="shop-tabs">
             {SHOP_TABS.map((tab) => (
               <button
                 key={tab.id}
                 className={`shop-tab ${activeTab === tab.id ? 'active' : ''}`}
-                onClick={() => setActiveTab(tab.id)}
+                data-tutorial-tab={tab.id}
+                onClick={() => handleTabClick(tab.id)}
               >
                 <img className="shop-tab-icon" src={tab.icon} alt={tab.label} />
                 {tab.label}
@@ -512,6 +596,77 @@ export default function Shop() {
       <div className="shop-nav">
         <Button className="ui-btn shop-back" onClick={onBack}>Back</Button>
       </div>
+      {showStepNineHighlight && (
+        <TutorialHighlightOverlay
+          anchorSelector=".shop-modal"
+          title="Trading Outpost"
+          message="This panel is the Trading Outpost where you browse upgrades, trades, and crafts."
+          onSkip={handleSkipTutorial}
+          onNext={goToStepTen}
+          stepNumber={9}
+          tooltipAdjust={{ left: -440, top: -640 }}
+        />
+      )}
+      {showStepTenHighlight && (
+        <TutorialHighlightOverlay
+          anchorSelector=".shop-upgrade-card"
+          title="Upgrade cards"
+          message="To buy your first Rock Detector you will need 25 dirt."
+          onSkip={handleSkipTutorial}
+          onNext={goToStepEleven}
+          stepNumber={10}
+        />
+      )}
+      {showStepElevenHighlight && (
+        <TutorialHighlightOverlay
+          anchorSelector='.shop-tab[data-tutorial-tab="trades"]'
+          title="Trade Menu Intro"
+          message="Let's take a look to the trades. Click the highlighted button to continue the tutorial."
+          onSkip={handleSkipTutorial}
+          stepNumber={11}
+        />
+      )}
+      {showStepTwelveOverlay && (
+        <TutorialHighlightOverlay
+          anchorSelector=".shop-modal"
+          title="Trade Menu"
+          message="In here, you can trade your ressources for emeralds. You will get more trades later on in your adventure."
+          onSkip={handleSkipTutorial}
+          onNext={goToStepThirteen}
+          stepNumber={12}
+          tooltipAdjust={{ left: -440, top: -640 }}
+        />
+      )}
+      {showStepThirteenHighlight && (
+        <TutorialHighlightOverlay
+          anchorSelector='.shop-tab[data-tutorial-tab="crafts"]'
+          title="Craft Menu Intro"
+          message="Finally, let's looks at your crafts. Click craft button to continue tutorial."
+          onSkip={handleSkipTutorial}
+          stepNumber={13}
+        />
+      )}
+      {showStepFourteenOverlay && (
+        <TutorialHighlightOverlay
+          anchorSelector=".shop-modal"
+          title="Craft Menu"
+          message="You will discover new crafts later on, when collecting enough ressources. Don't forget to check if you have new craft after each games!"
+          onSkip={handleSkipTutorial}
+          onNext={goToStepFifteen}
+          stepNumber={14}
+          tooltipAdjust={{ left: -440, top: -640 }}
+        />
+      )}
+      {showStepFifteenHighlight && (
+        <TutorialHighlightOverlay
+          anchorSelector=".shop-back"
+          title="Back to the menu"
+          message="Let's play a game to earn that dirt! Click the highlighted Back button to return to the main menu and continue the tutorial."
+          onSkip={handleSkipTutorial}
+          stepNumber={15}
+          tooltipAdjust={{ top: -60 }}
+        />
+      )}
     </div>
   )
 }
