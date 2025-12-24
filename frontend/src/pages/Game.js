@@ -5,6 +5,9 @@ import socketClient from '../utils/socketClient.js'
 import { navigate, replace } from '../utils/navigation'
 import { useShopState } from '../context/ShopStateContext'
 import { SHOP_ITEMS, CRAFT_ITEMS, formatResourceId } from '../utils/shopData'
+import { getLocalStorageItem } from '../utils/storage'
+import { getTutorialStep, setTutorialStep as updateTutorialStep, onTutorialStepChange } from '../utils/tutorialStepState'
+import { TutorialOverlay } from '../components/TutorialOverlays'
 
 const BOARD_WIDTH = 10
 const BOARD_HEIGHT = 20
@@ -153,6 +156,7 @@ const computeFortuneFromCrafts = (craftCounts = {}, inventory) => {
 }
 
 export default function Game({ room, player, forceSpectator = false, mockSpectatorData = null }) {
+  const [tutorialStep, setTutorialStepState] = useState(() => getTutorialStep())
   const [board, setBoard] = useState(makeEmptyBoard)
   const [nextPiece, setNextPiece] = useState([])
   const [currentPiece, setCurrentPiece] = useState(defaultPiece)
@@ -268,12 +272,28 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
     }
   }, [])
 
+  useEffect(() => onTutorialStepChange(setTutorialStepState), [])
+
   const currentCellValue = (rowIdx, colIdx) => {
     const [posX, posY] = currentPiece.pos || [0, 0]
     const relY = rowIdx - posY
     const relX = colIdx - posX
     const curFilled = currentPiece.shape?.[relY]?.[relX]
     return curFilled ? currentPiece.material || 1 : 0
+  }
+
+  const showStepEighteenOverlay = tutorialStep === 18
+
+  const handleFinishTutorial = async () => {
+    const username = player || getLocalStorageItem(USERNAME_KEY, '') || null
+    if (username) {
+      try {
+        await socketClient.setHasSeenTutorial(username, true)
+      } catch (err) {
+        console.error('Failed to finish tutorial', err)
+      }
+    }
+    updateTutorialStep(0)
   }
 
   const ghostCells = useMemo(() => {
@@ -1599,6 +1619,17 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
             </div>
           </div>
         </div>
+      )}
+
+      {showStepEighteenOverlay && (
+        <TutorialOverlay
+          onSkip={handleFinishTutorial}
+          onNext={handleFinishTutorial}
+          title="Closing encouragement"
+          message={`You are almost ready!\nEvery block from the lines you destroy is added to your inventory.\nCollect as many resources as you can—the longer you survive, the more you earn!\nHave fun playing Craftetris!`}
+          nextLabel="Finish Tutorial"
+          stepNumber={18}
+        />
       )}
 
     </div>

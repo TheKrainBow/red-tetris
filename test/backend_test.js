@@ -163,7 +163,8 @@ describe('backend/main bootstrap', () => {
       'update_inventory',
       'shop_buy',
       'shop_trade',
-      'shop_craft'
+      'shop_craft',
+      'set_has_seen_tutorial'
     ]
 
     class FakeGateway {
@@ -255,7 +256,8 @@ describe('Database data helpers', () => {
       game_played: 1,
       game_won: 0,
       singleplayer_game_played: 0,
-      time_played: 5
+      time_played: 5,
+      has_seen_tutorial: false
     }
     let selectUserCalls = 0
     const fakeClient = {
@@ -322,6 +324,7 @@ describe('Database data helpers', () => {
     expect(inventory).to.be.an('array')
     const ghost = await db.get_user_by_player_name('ghost')
     expect(ghost[0].player_name).to.equal('tester')
+    expect(ghost[0].hasSeenTutorial).to.be.false
     await db.get_all_users()
     await db.get_rates_by_player_name('tester')
     const invalidRates = await db.update_rates_by_player_name({ playerName: 'tester', dirt_probability: 10, stone_probability: 10, iron_probability: 10, diamond_probability: 10 })

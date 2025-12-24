@@ -134,6 +134,11 @@ io.on('connection', (socket) => {
       callback && callback(response);
     });
 
+    socket.on('set_has_seen_tutorial', async (data, callback) => {
+      const response = await gateway.set_has_seen_tutorial(socket, data);
+      callback && callback(response);
+    });
+
     socket.on('shop_buy', async (data, callback) => {
       const response = await gateway.shop_buy(socket, data);
       callback && callback(response);
