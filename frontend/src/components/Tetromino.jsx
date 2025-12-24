@@ -60,6 +60,8 @@ export default function Tetromino({ type, shape: shapeProp, size = 32, texture =
         // neighbors for inner 1px lines only where two blocks touch
         const hasUp = r > 0 && !!shape[r-1][c]
         const hasLeft = c > 0 && !!shape[r][c-1]
+        const hasDown = r < rows - 1 && !!shape[r+1][c]
+        const hasRight = c < cols - 1 && !!shape[r][c+1]
 
         const cellStyle = {
           backgroundImage: `url('${texture}')`,
@@ -68,28 +70,20 @@ export default function Tetromino({ type, shape: shapeProp, size = 32, texture =
           boxSizing: 'border-box',
         }
 
-        return <div key={key} className="tetro-cell" style={cellStyle} />
-      }))}
+        const edgeElements = []
+        if (outline) {
+          if (!hasUp) edgeElements.push(<span key={`u-${key}`} className="tetro-edge tetro-edge--horizontal tetro-edge--top" />)
+          if (!hasDown) edgeElements.push(<span key={`d-${key}`} className="tetro-edge tetro-edge--horizontal tetro-edge--bottom" />)
+          if (!hasLeft) edgeElements.push(<span key={`l-${key}`} className="tetro-edge tetro-edge--vertical tetro-edge--left" />)
+          if (!hasRight) edgeElements.push(<span key={`r-${key}`} className="tetro-edge tetro-edge--vertical tetro-edge--right" />)
+        }
 
-      {outline && (
-        <svg className="tetro-outline" width={cols * size} height={rows * size} style={{position:'absolute', left:0, top:0, pointerEvents:'none'}}>
-          {shape.map((row, r) => row.map((v, c) => {
-            if (!v) return null
-            const x = c * size
-            const y = r * size
-            const lines = []
-            const up = r === 0 || !shape[r-1][c]
-            const down = r === rows - 1 || !shape[r+1][c]
-            const left = c === 0 || !shape[r][c-1]
-            const right = c === cols - 1 || !shape[r][c+1]
-            if (up) lines.push(<line key={`u-${r}-${c}`} x1={x} y1={y} x2={x+size} y2={y} stroke="#000" strokeWidth={2} />)
-            if (down) lines.push(<line key={`d-${r}-${c}`} x1={x} y1={y+size} x2={x+size} y2={y+size} stroke="#000" strokeWidth={2} />)
-            if (left) lines.push(<line key={`l-${r}-${c}`} x1={x} y1={y} x2={x} y2={y+size} stroke="#000" strokeWidth={2} />)
-            if (right) lines.push(<line key={`r-${r}-${c}`} x1={x+size} y1={y} x2={x+size} y2={y+size} stroke="#000" strokeWidth={2} />)
-            return lines
-          }))}
-        </svg>
-      )}
+        return (
+          <div key={key} className="tetro-cell" style={cellStyle}>
+            {edgeElements}
+          </div>
+        )
+      }))}
     </div>
   )
 }

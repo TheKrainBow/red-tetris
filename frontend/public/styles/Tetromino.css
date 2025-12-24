@@ -15,6 +15,27 @@
   background-position: center;
   background-repeat: no-repeat;
   /* Per-cell borders set inline from component for correct adjacency */
+  position: relative;
 }
+
+.tetro-edge {
+  position: absolute;
+  background: #000;
+  pointer-events: none;
+}
+.tetro-edge--horizontal {
+  height: 2px;
+  left: 0;
+  right: 0;
+}
+.tetro-edge--vertical {
+  width: 2px;
+  top: 0;
+  bottom: 0;
+}
+.tetro-edge--top { top: 0; }
+.tetro-edge--bottom { bottom: 0; }
+.tetro-edge--left { left: 0; }
+.tetro-edge--right { right: 0; }
 
 .tetro-empty { width: 100%; height: 100%; background: transparent; }

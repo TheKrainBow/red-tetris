@@ -1411,7 +1411,7 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
         <div className="game-settings-float" style={{ position: 'static' }}>
           <div className="game-card game-card-settings">
             <div className="game-settings-title">Game Settings</div>
-            <label className="game-settings-row" htmlFor="game-gamemode">
+            <label className="game-settings-row game-settings-row-select" htmlFor="game-gamemode">
               <span className="game-settings-label">Gamemode</span>
               <select
                 id="game-gamemode"

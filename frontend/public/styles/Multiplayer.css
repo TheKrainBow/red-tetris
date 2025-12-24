@@ -1160,6 +1160,18 @@
 .game-card-settings { min-width: 240px; max-width: 320px; width: 100%; }
 .game-settings-title { font-size: 14px; font-weight: 700; color: #f4f6fb; }
 .game-settings-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.game-settings-row-select { position: relative; }
+.game-settings-row-select::after {
+  content: '▼';
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 12px;
+  line-height: 1;
+  color: #f0f4f8;
+  pointer-events: none;
+}
 .game-settings-label { font-size: 13px; color: #cfd8e3; }
 .game-settings-select {
   background: #0f141b;
@@ -1172,10 +1184,6 @@
   appearance: none;
   -webkit-appearance: none;
   -moz-appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M2 2l4 4 4-4' stroke='%23f0f4f8' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 12px center;
-  background-size: 12px 8px;
 }
 .game-settings-select.mode-pvp { color: #e45c5c; }
 .game-settings-select.mode-coop { color: #7ca6ff; }
