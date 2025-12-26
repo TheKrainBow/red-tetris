@@ -305,7 +305,7 @@ export default function Shop() {
         <TutorialHighlightOverlay
           anchorSelector=".shop-upgrade-card"
           title="Upgrade cards"
-          message="To buy your first Rock Detector you will need 25 dirt."
+          message="To buy your first Stone Detector you will need 25 dirt."
           onSkip={handleSkipTutorial}
           onNext={goToStepEleven}
           stepNumber={10}
@@ -390,7 +390,7 @@ function ShopList({ inv, purchases, craftCounts, reduction = 0, onBuy, onDeny })
         return (
           <div className="shop-item shop-upgrade-card" key={item.id}>
             <div className="shop-upgrade-icon">
-              <img src="/ui/Hammer.webp" alt="Upgrade" />
+              <img src={item.icon || '/ui/Hammer.webp'} alt={item.name || 'Upgrade'} />
             </div>
             <div className="shop-upgrade-main">
               <div className="shop-upgrade-header">
@@ -431,9 +431,21 @@ function TradeList({ inv, craftCounts, onTrade, onDeny }) {
         const adjustedTrade = applyTradeMultipliers(trade, tradeMultipliers)
         const maxTimes = computeMaxTimes(inv, adjustedTrade.cost)
         const disabled = maxTimes <= 0 || !Number.isFinite(maxTimes)
-        const maxLabel = Number.isFinite(maxTimes) ? maxTimes : '∞'
         const costEntries = Object.entries(adjustedTrade.cost || {})
         const giveEntries = Object.entries(adjustedTrade.give || {})
+        const gainDescriptions = Number.isFinite(maxTimes)
+          ? giveEntries
+              .map(([resId, amount]) => {
+                const perTrade = Number(amount)
+                if (!Number.isFinite(perTrade)) return null
+                const total = perTrade * maxTimes
+                if (!Number.isFinite(total)) return null
+                return `${formatNumber(total)} ${getResourceName(resId)}`
+              })
+              .filter(Boolean)
+          : []
+        const formattedGainLabel = gainDescriptions.length ? gainDescriptions.join(', ') : formatNumber(maxTimes)
+        const maxButtonLabel = Number.isFinite(maxTimes) ? `Max (+${formattedGainLabel})` : 'Max (∞)'
         return (
           <div className="shop-item shop-item-trade" key={adjustedTrade.id}>
             <div className="shop-trade">
@@ -459,7 +471,7 @@ function TradeList({ inv, craftCounts, onTrade, onDeny }) {
               <div className="shop-btn-wrap">
                 <Button className="ui-btn-slim" disabled={disabled}
                   onClick={() => onTrade(adjustedTrade, maxTimes)}>
-                  Max (+{maxLabel})
+                  {maxButtonLabel}
                 </Button>
                 {disabled && <div className="shop-btn-shield" onClick={() => onDeny && onDeny()} />}
               </div>
@@ -495,9 +507,7 @@ function CraftList({ inv, unlocks, craftCounts = {}, onCraft, onDeny }) {
         return (
           <div className="shop-item shop-craft-card" key={craft.id}>
             <div className="shop-craft-icon-block">
-              {Object.entries(craft.outputs || {}).slice(0, 1).map(([resId, amount]) => (
-                <ResourceChip key={resId} resourceId={resId} amount={amount} showLabel={false} className="shop-chip-output shop-craft-icon" />
-              ))}
+              <img className="shop-craft-art" src={craft.icon || '/ui/Backpack.png'} alt={craft.name || 'Craft'} />
             </div>
             <div className="shop-craft-main">
               <div className="shop-craft-header">

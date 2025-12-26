@@ -3,6 +3,7 @@ import Button from '../components/Button'
 import { getLocalStorageItem } from '../utils/storage'
 import { navigate } from '../utils/navigation'
 import socketClient from '../utils/socketClient'
+import { formatNumber } from '../utils/shopLogic'
 
 const ICONS = {
   Dirt: '/blocks/Dirt.jpg',
@@ -222,7 +223,7 @@ export default function Leaderboard() {
                 const isMe = username && r.name === username
                 const isMatch = query && matches.includes(idx)
                 const isActive = query && matches.length > 0 && matches[matchIndex] === idx
-                const formatted = selected?.formatter ? selected.formatter(r.raw) : r.value
+                const formatted = selected?.formatter ? selected.formatter(r.raw) : formatNumber(r.value)
                 return (
                   <div className={`lb-row${isMe ? ' lb-row-me' : ''}${isMatch ? ' lb-row-match' : ''}${isActive ? ' lb-row-match-active' : ''}`} key={r.rank + r.name} data-index={idx}>
                     <div className="lb-col-rank">{r.rank}</div>

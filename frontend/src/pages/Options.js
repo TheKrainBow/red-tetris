@@ -20,6 +20,9 @@ export default function Options() {
   const onBack = () => { navigate('/') }
   const onChangeUsername = () => {
     try { localStorage.removeItem('username') } catch (_) {}
+    if (typeof window !== 'undefined' && typeof window.CustomEvent === 'function') {
+      window.dispatchEvent(new CustomEvent('tetris.username.changed', { detail: '' }))
+    }
     navigate('/login')
   }
   return (

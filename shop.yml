@@ -25,7 +25,8 @@ game:
 
 shops:
   - id: stone_spawn_rate
-    name: "Rock detector"
+    name: "Stone detector"
+    icon: "/ui/shop/256x256/stone_detector.png"
     effect_type: spawn_rate_increase
     affects: stone
     resource_cost: dirt
@@ -37,6 +38,7 @@ shops:
 
   - id: dirt_line_break_bonus
     name: "Dirt Expert"
+    icon: "/ui/shop/256x256/dirt_expert.png"
     effect_type: line_break_bonus
     affects: dirt
     resource_cost: stone
@@ -48,6 +50,7 @@ shops:
 
   - id: iron_spawn_rate
     name: "Iron detector"
+    icon: "/ui/shop/256x256/iron_detector.png"
     effect_type: spawn_rate_increase
     affects: iron
     resource_cost: stone
@@ -59,6 +62,7 @@ shops:
 
   - id: stone_line_break_bonus
     name: "Stone Expert"
+    icon: "/ui/shop/256x256/stone_expert.png"
     effect_type: line_break_bonus
     affects: stone
     resource_cost: iron
@@ -70,6 +74,7 @@ shops:
 
   - id: diamond_spawn_rate
     name: "Diamond detector"
+    icon: "/ui/shop/256x256/diamond_detector.png"
     effect_type: spawn_rate_increase
     affects: diamond
     resource_cost: iron
@@ -81,6 +86,7 @@ shops:
 
   - id: iron_line_break_bonus
     name: "Iron Expert"
+    icon: "/ui/shop/256x256/iron_expert.png"
     effect_type: line_break_bonus
     affects: iron
     resource_cost: diamond
@@ -165,6 +171,7 @@ crafts:
   # Placeholder craft for now; effects can be filled later
   - id: fortune_enchant
     name: "Fortune Enchantment"
+    icon: "/ui/shop/256x256/fortune_enchantment.png"
     cost:
       dirt: 300
       stone: 120
@@ -178,6 +185,7 @@ crafts:
     craft_time_seconds: 0
   - id: bonus_multiplayer
     name: "Duplication Glitch"
+    icon: "/ui/shop/256x256/duplication_glitch.png"
     cost:
       dirt: 10000
       stone: 10000
@@ -191,6 +199,7 @@ crafts:
     craft_time_seconds: 0
   - id: dirt_battle_pass
     name: "Dirt Battle Pass"
+    icon: "/ui/shop/256x256/dirt_battlepass.png"
     cost:
       dirt: 1000
     outputs:
@@ -201,6 +210,7 @@ crafts:
     craft_time_seconds: 0
   - id: stone_battle_pass
     name: "Stone Battle Pass"
+    icon: "/ui/shop/256x256/stone_battlepass.png"
     cost:
       stone: 1000
     outputs:
@@ -211,6 +221,7 @@ crafts:
     craft_time_seconds: 0
   - id: iron_battle_pass
     name: "Iron Battle Pass"
+    icon: "/ui/shop/256x256/iron_battlepass.png"
     cost:
       iron: 1000
     outputs:
@@ -221,6 +232,7 @@ crafts:
     craft_time_seconds: 0
   - id: diamond_battle_pass
     name: "Diamond Battle Pass"
+    icon: "/ui/shop/256x256/diamond_battlepass.png"
     cost:
       diamond: 1000
     outputs:
@@ -232,6 +244,7 @@ crafts:
 
   - id: dirt_god
     name: "Dirt God"
+    icon: "/ui/shop/256x256/dirt_god.png"
     cost:
       dirt: 420
       stone: 240
@@ -244,6 +257,7 @@ crafts:
 
   - id: stone_god
     name: "Stone God"
+    icon: "/ui/shop/256x256/stone_god.png"
     cost:
       stone: 420
       iron: 240
@@ -256,6 +270,7 @@ crafts:
 
   - id: iron_god
     name: "Iron God"
+    icon: "/ui/shop/256x256/iron_god.png"
     cost:
       iron: 420
       diamond: 240
@@ -268,6 +283,7 @@ crafts:
 
   - id: diamond_god
     name: "Diamond God"
+    icon: "/ui/shop/256x256/diamond_god.png"
     cost:
       dirt: 420
       stone: 420
@@ -282,6 +298,7 @@ crafts:
 
   - id: dirt_master
     name: "Dirt Master"
+    icon: "/ui/shop/256x256/dirt_master.png"
     cost:
       dirt: 9999
     outputs:
@@ -293,6 +310,7 @@ crafts:
 
   - id: stone_master
     name: "Stone Master"
+    icon: "/ui/shop/256x256/stone_master.png"
     cost:
       stone: 9999
     outputs:
@@ -304,6 +322,7 @@ crafts:
 
   - id: iron_master
     name: "Iron Master"
+    icon: "/ui/shop/256x256/iron_master.png"
     cost:
       iron: 9999
     outputs:
@@ -315,6 +334,7 @@ crafts:
 
   - id: diamond_master
     name: "Diamond Master"
+    icon: "/ui/shop/256x256/diamond_master.png"
     cost:
       diamond: 9999
     outputs:
@@ -326,6 +346,7 @@ crafts:
 
   - id: efficiency_enchantment
     name: "Efficiency Enchantment"
+    icon: "/ui/shop/256x256/efficiency_enchantment.png"
     cost:
       dirt: 2350
       stone: 1420

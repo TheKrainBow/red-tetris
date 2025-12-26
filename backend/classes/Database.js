@@ -3,6 +3,8 @@ import { Pool } from 'pg';
 
 dotenv.config();
 
+const toFiniteNumber = (value) => Number.isFinite(Number(value)) ? Number(value) : 0;
+
 export class Database {
     constructor() {
         this.pool = new Pool({
@@ -29,15 +31,15 @@ export class Database {
             CREATE TABLE IF NOT EXISTS users (
                 id SERIAL PRIMARY KEY,
                 player_name VARCHAR(100) NOT NULL UNIQUE,
-                dirt_collected INT NOT NULL DEFAULT 0,
-                dirt_owned INT NOT NULL DEFAULT 0,
-                stone_collected INT NOT NULL DEFAULT 0,
-                stone_owned INT NOT NULL DEFAULT 0,
-                iron_collected INT NOT NULL DEFAULT 0,
-                iron_owned INT NOT NULL DEFAULT 0,
-                diamond_collected INT NOT NULL DEFAULT 0,
-                diamond_owned INT NOT NULL DEFAULT 0,
-                emeralds INT NOT NULL DEFAULT 0,
+                dirt_collected BIGINT NOT NULL DEFAULT 0,
+                dirt_owned BIGINT NOT NULL DEFAULT 0,
+                stone_collected BIGINT NOT NULL DEFAULT 0,
+                stone_owned BIGINT NOT NULL DEFAULT 0,
+                iron_collected BIGINT NOT NULL DEFAULT 0,
+                iron_owned BIGINT NOT NULL DEFAULT 0,
+                diamond_collected BIGINT NOT NULL DEFAULT 0,
+                diamond_owned BIGINT NOT NULL DEFAULT 0,
+                emeralds BIGINT NOT NULL DEFAULT 0,
                 game_played INT NOT NULL DEFAULT 0,
                 game_won INT NOT NULL DEFAULT 0,
                 singleplayer_game_played INT NOT NULL DEFAULT 0,
@@ -54,6 +56,27 @@ export class Database {
             console.log('Table "users" created or already exists');
         } catch (err) {
             console.error('Error creating table:', err);
+        }
+    }
+
+    async #ensure_resource_columns_bigint() {
+        const alterQuery = `
+            ALTER TABLE users
+                ALTER COLUMN dirt_collected TYPE BIGINT,
+                ALTER COLUMN dirt_owned TYPE BIGINT,
+                ALTER COLUMN stone_collected TYPE BIGINT,
+                ALTER COLUMN stone_owned TYPE BIGINT,
+                ALTER COLUMN iron_collected TYPE BIGINT,
+                ALTER COLUMN iron_owned TYPE BIGINT,
+                ALTER COLUMN diamond_collected TYPE BIGINT,
+                ALTER COLUMN diamond_owned TYPE BIGINT,
+                ALTER COLUMN emeralds TYPE BIGINT;
+        `;
+        try {
+            await this.client.query(alterQuery);
+            console.log('Resource columns ensured as BIGINT');
+        } catch (err) {
+            console.error('Error ensuring resource columns are BIGINT:', err);
         }
     }
 
@@ -147,6 +170,7 @@ export class Database {
     async init(){
         await this.#connect();
         await this.#create_users_table();
+        await this.#ensure_resource_columns_bigint();
         await this.#create_inventory_table();
         await this.#create_rates_table();
         await this.#create_game_history_table();
@@ -366,13 +390,12 @@ export class Database {
         const resources = changes.resources || {};
         const items = changes.items || {};
 
-        const sanitizeNum = (v) => Number.isFinite(Number(v)) ? Number(v) : 0;
         const resourceDelta = {
-            dirt: sanitizeNum(resources.dirt),
-            stone: sanitizeNum(resources.stone),
-            iron: sanitizeNum(resources.iron),
-            diamond: sanitizeNum(resources.diamond),
-            emeralds: sanitizeNum(resources.emeralds ?? resources.emerald),
+            dirt: toFiniteNumber(resources.dirt),
+            stone: toFiniteNumber(resources.stone),
+            iron: toFiniteNumber(resources.iron),
+            diamond: toFiniteNumber(resources.diamond),
+            emeralds: toFiniteNumber(resources.emeralds ?? resources.emerald),
         };
 
         try {
@@ -385,11 +408,11 @@ export class Database {
             const userId = user.id;
 
             const nextOwned = {
-                dirt: Math.max(0, (user.dirt_owned || 0) + resourceDelta.dirt),
-                stone: Math.max(0, (user.stone_owned || 0) + resourceDelta.stone),
-                iron: Math.max(0, (user.iron_owned || 0) + resourceDelta.iron),
-                diamond: Math.max(0, (user.diamond_owned || 0) + resourceDelta.diamond),
-                emeralds: Math.max(0, (user.emeralds || 0) + resourceDelta.emeralds),
+                dirt: Math.max(0, toFiniteNumber(user.dirt_owned) + resourceDelta.dirt),
+                stone: Math.max(0, toFiniteNumber(user.stone_owned) + resourceDelta.stone),
+                iron: Math.max(0, toFiniteNumber(user.iron_owned) + resourceDelta.iron),
+                diamond: Math.max(0, toFiniteNumber(user.diamond_owned) + resourceDelta.diamond),
+                emeralds: Math.max(0, toFiniteNumber(user.emeralds) + resourceDelta.emeralds),
             };
 
             const collectedDelta = {
@@ -429,7 +452,7 @@ export class Database {
             for (const [itemName, delta] of itemEntries) {
                 const safeName = String(itemName || '').trim();
                 if (!safeName) continue;
-                const change = sanitizeNum(delta);
+                const change = toFiniteNumber(delta);
                 const fetchQuery = 'SELECT current_count, max_count FROM inventory WHERE user_id = $1 AND item_name = $2 LIMIT 1;';
                 const existing = await this.client.query(fetchQuery, [userId, safeName]);
                 const current = existing.rows[0]?.current_count || 0;
@@ -474,7 +497,18 @@ export class Database {
             let {diamond_collected, diamond_owned} = userResult[0];
             let {time_played, game_played, game_won} = userResult[0];
             let {singleplayer_game_played} = userResult[0];
-            singleplayer_game_played = Number.isFinite(singleplayer_game_played) ? singleplayer_game_played : 0;
+            dirt_collected = toFiniteNumber(dirt_collected);
+            dirt_owned = toFiniteNumber(dirt_owned);
+            stone_collected = toFiniteNumber(stone_collected);
+            stone_owned = toFiniteNumber(stone_owned);
+            iron_collected = toFiniteNumber(iron_collected);
+            iron_owned = toFiniteNumber(iron_owned);
+            diamond_collected = toFiniteNumber(diamond_collected);
+            diamond_owned = toFiniteNumber(diamond_owned);
+            time_played = toFiniteNumber(time_played);
+            game_played = toFiniteNumber(game_played);
+            game_won = toFiniteNumber(game_won);
+            singleplayer_game_played = toFiniteNumber(singleplayer_game_played);
 
             dirt_collected += points[0];
             dirt_owned += points[0];

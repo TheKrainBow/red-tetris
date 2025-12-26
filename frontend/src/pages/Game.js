@@ -459,16 +459,6 @@ export default function Game({ room, player, forceSpectator = false, mockSpectat
     if (!sections.length) {
       return <div className="game-roster-list"><div className="game-roster-empty">No players yet.</div></div>
     }
-    // Debug: trace what we are rendering to keep roster in sync with incoming events
-    console.debug('[roster] rendering sections', {
-      counts: {
-        playing: buckets.playing.length,
-        eliminated: buckets.eliminated.length,
-        spectating: buckets.spectating.length,
-        waiting: buckets.waiting.length,
-      },
-      players: rosterPlayers,
-    })
     return sections
   }
 

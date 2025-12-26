@@ -377,27 +377,12 @@
   position: relative;
   flex: 0 0 140px;
 }
-.shop-craft-icon {
-  display: flex;
-  align-items: stretch;
-  justify-content: center;
+.shop-craft-art {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
-}
-.shop-craft-icon .shop-chip-no-label {
-  width: 100%;
-  height: 100%;
-  padding: 0;
-  display: flex;
-  align-items: stretch;
-  justify-content: center;
-}
-.shop-craft-icon .shop-chip-img {
-  display: block;
-  width: calc(100% + 12px);
-  height: calc(100% + 12px);
   object-fit: cover;
-  margin: -6px;
 }
 .shop-craft-main { display: flex; flex-direction: column; gap: 8px; flex: 1 1 auto; }
 .shop-craft-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
@@ -456,11 +441,7 @@
 .shop-chip-no-label { padding: 4px; display: inline-flex; align-items: center; justify-content: center; }
 .shop-chip-no-label .shop-chip-img { width: 90%; height: 90%; }
 .shop-craft-icon-block { height: 100%; }
-.shop-craft-icon .shop-chip-no-label { width: 100%; height: 100%; padding: 0; }
-.shop-craft-icon .shop-chip-no-label .shop-chip-img {
-  width: 100%;
-  height: 100%;
-}
+.shop-craft-output-labels { height: 100%; }
 .shop-menu { position: absolute; inset: 16px; overflow-y: auto; overflow-x: hidden; }
 .shop-menu,
 .utility-panel-stats,

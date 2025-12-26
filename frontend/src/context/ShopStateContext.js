@@ -71,14 +71,28 @@ function logTutorialPrompt(userRow) {
 }
 
 export function ShopStateProvider({ children }) {
-  const username = useMemo(() => getLocalStorageItem(USERNAME_KEY, '') || '', [])
+  const [username, setUsername] = useState(() => getLocalStorageItem(USERNAME_KEY, '') || '')
+  useEffect(() => {
+    const handler = () => {
+      const stored = getLocalStorageItem(USERNAME_KEY, '') || ''
+      setUsername(stored)
+    }
+    if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+      window.addEventListener('tetris.username.changed', handler)
+    }
+    return () => {
+      if (typeof window !== 'undefined' && typeof window.removeEventListener === 'function') {
+        window.removeEventListener('tetris.username.changed', handler)
+      }
+    }
+  }, [])
   const [inventory, setInventory] = useState({ ...ZERO_INV })
   const [purchases, setPurchases] = useState({})
   const [craftUnlocks, setCraftUnlocks] = useState({})
   const [craftCounts, setCraftCounts] = useState({})
   const [spawnCaps, setSpawnCaps] = useState(() => computeCapsFromPurchases({}))
   const [spawnRates, setSpawnRates] = useState({})
-  const loadingRef = useRef(false)
+  const loadingRef = useRef('')
 
   useEffect(() => {
     const caps = computeCapsFromPurchases(purchases)
@@ -102,8 +116,8 @@ export function ShopStateProvider({ children }) {
   }, [inventory])
 
   useEffect(() => {
-    if (!username || loadingRef.current) return
-    loadingRef.current = true
+    if (!username || loadingRef.current === username) return
+    loadingRef.current = username
     const load = async () => {
       try {
         const res = await socketClient.sendCommand('get_user_by_player_name', { playerName: username })
@@ -114,7 +128,9 @@ export function ShopStateProvider({ children }) {
       } catch (err) {
         console.error('[shop] failed to load remote state', err)
       } finally {
-        loadingRef.current = false
+        if (loadingRef.current === username) {
+          loadingRef.current = ''
+        }
       }
     }
     load()
