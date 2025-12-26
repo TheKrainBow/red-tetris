@@ -697,7 +697,7 @@ function ShopList({ inv, purchases, craftCounts, reduction = 0, onBuy, onDeny })
         return (
           <div className="shop-item shop-upgrade-card" key={item.id}>
             <div className="shop-upgrade-icon">
-              <img src="/ui/Hammer.webp" alt="Upgrade" />
+              <img src={item.icon || '/ui/Hammer.webp'} alt={item.name || 'Upgrade'} />
             </div>
             <div className="shop-upgrade-main">
               <div className="shop-upgrade-header">
@@ -802,9 +802,7 @@ function CraftList({ inv, unlocks, craftCounts = {}, onCraft, onDeny }) {
         return (
           <div className="shop-item shop-craft-card" key={craft.id}>
             <div className="shop-craft-icon-block">
-              {Object.entries(craft.outputs || {}).slice(0, 1).map(([resId, amount]) => (
-                <ResourceChip key={resId} resourceId={resId} amount={amount} showLabel={false} className="shop-chip-output shop-craft-icon" />
-              ))}
+              <img className="shop-craft-art" src={craft.icon || '/ui/Backpack.png'} alt={craft.name || 'Craft'} />
             </div>
             <div className="shop-craft-main">
               <div className="shop-craft-header">
