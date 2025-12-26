@@ -10,6 +10,7 @@ import {
 import { useShopState } from '../context/ShopStateContext'
 import {
   RESOURCE_ICONS,
+  getCraftIcon,
   getResourceIcon,
   getResourceName,
   formatNumber,
@@ -263,13 +264,15 @@ function InventoryPanel({ inv }) {
         <div className="shop-inventory-heading">Items</div>
         {items.length ? items.map(([key, value]) => {
           const craft = CRAFT_BY_OUTPUT[key]
+          const craftLabel = craft?.name || getResourceName(key)
           const effectLines = craft ? describeCraftEffects(craft) : []
           const tooltip = effectLines.length ? effectLines.join('\n') : undefined
+          const craftIcon = getCraftIcon(craft, 64)
           return (
             <div key={key} className="shop-inventory-entry" title={tooltip}>
               <span className="shop-inventory-label">
-                <img src={RESOURCE_ICONS.default} alt={getResourceName(key)} className="shop-inventory-icon" />
-                {getResourceName(key)}
+                <img src={craftIcon} alt={craftLabel} className="shop-inventory-icon" />
+                {craftLabel}
               </span>
               <span className="shop-inventory-value">{formatNumber(value)}</span>
             </div>

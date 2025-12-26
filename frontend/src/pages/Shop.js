@@ -611,7 +611,7 @@ export default function Shop() {
         <TutorialHighlightOverlay
           anchorSelector=".shop-upgrade-card"
           title="Upgrade cards"
-          message="To buy your first Rock Detector you will need 25 dirt."
+          message="To buy your first Stone Detector you will need 25 dirt."
           onSkip={handleSkipTutorial}
           onNext={goToStepEleven}
           stepNumber={10}

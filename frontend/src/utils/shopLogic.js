@@ -18,6 +18,17 @@ export function getResourceIcon(id) {
   return RESOURCE_ICONS[formatResourceId(id)] || RESOURCE_ICONS.default
 }
 
+export function getCraftIcon(craft, size = 256) {
+  const iconSource = typeof craft === 'string' ? craft : craft?.icon
+  const iconPath = iconSource || RESOURCE_ICONS.default
+  const sizeKey = typeof size === 'number' ? `${size}x${size}` : `${size || ''}`.trim()
+  if (!sizeKey) return iconPath
+  if (iconPath.includes(`/${sizeKey}/`)) return iconPath
+  const replaced = iconPath.replace(/\/\d+x\d+\//, `/${sizeKey}/`)
+  if (replaced !== iconPath) return replaced
+  return iconPath
+}
+
 export function formatNumber(value) {
   const n = Number(value) || 0
   return n.toLocaleString()
