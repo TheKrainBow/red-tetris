@@ -738,9 +738,21 @@ function TradeList({ inv, craftCounts, onTrade, onDeny }) {
         const adjustedTrade = applyTradeMultipliers(trade, tradeMultipliers)
         const maxTimes = computeMaxTimes(inv, adjustedTrade.cost)
         const disabled = maxTimes <= 0 || !Number.isFinite(maxTimes)
-        const maxLabel = Number.isFinite(maxTimes) ? maxTimes : '∞'
         const costEntries = Object.entries(adjustedTrade.cost || {})
         const giveEntries = Object.entries(adjustedTrade.give || {})
+        const gainDescriptions = Number.isFinite(maxTimes)
+          ? giveEntries
+              .map(([resId, amount]) => {
+                const perTrade = Number(amount)
+                if (!Number.isFinite(perTrade)) return null
+                const total = perTrade * maxTimes
+                if (!Number.isFinite(total)) return null
+                return `${formatNumber(total)} ${getResourceName(resId)}`
+              })
+              .filter(Boolean)
+          : []
+        const formattedGainLabel = gainDescriptions.length ? gainDescriptions.join(', ') : formatNumber(maxTimes)
+        const maxButtonLabel = Number.isFinite(maxTimes) ? `Max (+${formattedGainLabel})` : 'Max (∞)'
         return (
           <div className="shop-item shop-item-trade" key={adjustedTrade.id}>
               <div className="shop-trade">
@@ -766,7 +778,7 @@ function TradeList({ inv, craftCounts, onTrade, onDeny }) {
               <div className="shop-btn-wrap">
                 <Button className="ui-btn-slim" disabled={disabled}
                   onClick={() => onTrade(adjustedTrade, maxTimes)}>
-                  Max (+{maxLabel})
+                  {maxButtonLabel}
                 </Button>
                 {disabled && <div className="shop-btn-shield" onClick={() => onDeny && onDeny()} />}
               </div>
