@@ -34,6 +34,7 @@ export default function MainMenu() {
   const storedTutorialStep = useMemo(() => getTutorialStep(), [])
   const [bgReady, setBgReady] = useState(false)
   const [kickedMessage, setKickedMessage] = useState('')
+  const [logoReady, setLogoReady] = useState(false)
   const [tutorialStep, setTutorialStepState] = useState(storedTutorialStep)
   const [needsTutorial, setNeedsTutorial] = useState(false)
   const [utilityTab, setUtilityTab] = useState(null)
@@ -164,6 +165,7 @@ export default function MainMenu() {
   const showStepSixHighlight = needsTutorial && tutorialStep === 6
   const showStepSevenHighlight = needsTutorial && tutorialStep === 7 && utilityTab === 'stats'
   const showStepEightHighlight = needsTutorial && tutorialStep === 8
+  const showStepSixteenHighlight = needsTutorial && tutorialStep === 16 && bgReady && logoReady
 
   return (
     <div className="mm-root">
@@ -173,7 +175,7 @@ export default function MainMenu() {
 
       {/* content */}
       <div className={`mm-content ${bgReady ? 'mm-ready' : ''}`}>
-        <img className="mm-logo" src="/ui/Craftetris.png" alt="Craftetris" />
+        <img className="mm-logo" src="/ui/Craftetris.png" alt="Craftetris" onLoad={() => setLogoReady(true)} />
         <div className="mm-primary">
           <Button
             data-tutorial-target="singleplayer"
@@ -285,7 +287,7 @@ export default function MainMenu() {
           stepNumber={8}
         />
       )}
-      {needsTutorial && tutorialStep === 16 && (
+      {showStepSixteenHighlight && (
         <TutorialHighlightOverlay
           onSkip={handleSkipTutorial}
           anchorSelector='.mm-primary button[data-tutorial-target="singleplayer"]'

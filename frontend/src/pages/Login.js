@@ -18,6 +18,9 @@ export default function Login() {
     const name = username.trim()
     if (!name) return
     localStorage.setItem(USERNAME_KEY, name)
+    if (typeof window !== 'undefined' && typeof window.CustomEvent === 'function') {
+      window.dispatchEvent(new CustomEvent('tetris.username.changed', { detail: name }))
+    }
     navigate('/')
   }
 
